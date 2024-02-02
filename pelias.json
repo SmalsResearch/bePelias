@@ -1,0 +1,76 @@
+{
+    "logger": {
+"level": "debug",
+"timestamp": false
+},
+"esclient": {
+"apiVersion": "7.5",
+"hosts": [
+  { "host": "elasticsearch" }
+]
+},
+"elasticsearch": {
+"settings": {
+  "index": {
+    "refresh_interval": "10s",
+    "number_of_replicas": "0",
+    "number_of_shards": "1"
+  }
+}
+},
+"api": {
+	"services": {
+      "pip": { "url": "http://pip:4200" },
+      "libpostal": { "url": "http://libpostal:4400" },
+      "placeholder": { "url": "http://placeholder:4100" },
+      "interpolation": { "url": "http://interpolation:4300" }
+    },
+"targets": {
+  "test": ["test"]
+}
+},
+"logger": {
+"level": "debug"
+},
+"imports": {
+      "adminLookup": {
+"enabled": true
+},
+"geonames": {
+"datapath": "/data/geonames",
+"countryCode": "BE"
+},
+"polyline": {
+"datapath": "/data/polylines",
+"files": [ "extract.0sv" ]
+},
+"whosonfirst": {
+"datapath": "/data/whosonfirst",
+"countryCode": "BE",
+"importPostalcodes": true,
+"importPlace": [ "85632997" ]
+},
+"openstreetmap": {
+  "download": [
+    { "sourceURL": "http://download.geofabrik.de/europe/belgium-latest.osm.pbf" }
+  ],
+  "leveldbpath": "/tmp",
+  "datapath": "/data/openstreetmap",
+  "import": [{
+    "filename": "belgium-latest.osm.pbf"
+  }]
+},
+"csv": {
+  "datapath": "/data"
+  ,"files":[
+            "bestaddresses_streets_bebru.csv",
+            "bestaddresses_localities_bebru.csv",
+            "bestaddresses_bebru.csv", "bestaddresses_streets_bewal.csv", "bestaddresses_streets_bevlg.csv", "bestaddresses_streets_bebru.csv",
+            "bestaddresses_localities_bewal.csv", "bestaddresses_localities_bevlg.csv", "bestaddresses_localities_bebru.csv",
+            "bestaddresses_bebru.csv", "bestaddresses_bewal.csv", "bestaddresses_bevlg.csv"]
+           
+}
+
+},
+    "otherfiles": []
+}
