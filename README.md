@@ -21,7 +21,7 @@ This project is realized by Vandy Berten (Smals Research) for a POC in collabora
 
 # Build
 
-This project is composed of two components: 
+This project is composed of two parts: 
 - Pelias, based on custom files. It is built upon an adaptation of https://github.com/pelias/docker/tree/master/projects/belgium, but based on CSV files we prepare. This component is composed of +/- 6 docker containers (named pelias_xxxx)
 - bePelias: REST API improving robustness of Pelias ("wrapper") + file preparator
 
@@ -148,10 +148,10 @@ Review this scoring??
 
 - Rue sans nom/empty streets. Dispo sur https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip, mais aucune coordonnée
 - Street id pour les rues
-- Full best id pour les adresses -> nécessite de builder les data à partir des XML?
+- Full best id pour les adresses -> nécessite de builder les data à partir des XML? objectId présent, mais pas versionId
 - When Pelias loads data: 
     - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data
-    - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are there included?
+    - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included?
 - Comment inclure les box ? Une adresse par box ? Lister toutes les box pour une même "adresse"
 - Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
 - Quid si aucun code postal n'est donné ? 

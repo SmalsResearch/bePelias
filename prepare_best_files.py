@@ -7,10 +7,36 @@ by Pelias (csv module)
 
 """
 import os
+import sys
 import urllib.request
+import logging
 
 import pandas as pd
 import numpy as np
+
+logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+## General functions
+
+def log(arg):
+    """
+    Message printed if DEBUG_LEVEL is HIGH or MEDIUM
+
+    Parameters
+    ----------
+    arg : object
+        object to print.
+
+    Returns
+    -------
+    None.
+    """
+    logging.info(arg)
+    
 
 def download(url, filename):
     """
@@ -64,22 +90,24 @@ def build_addendum(fields, dfr):
 
 DATA_DIR = "/data/"
 
+if len(sys.argv)==2:
+    
+    DATA_DIR = sys.argv[1]
+    log(f"Data dir: {DATA_DIR}")
+    
 # os.mkdirs(data)
 os.makedirs(f"{DATA_DIR}", exist_ok=True)
 os.makedirs(f"{DATA_DIR}/in", exist_ok=True)
 
-
-
-for region in ["bru", "vlg", "wal"]:
-
-    print(f"Building data for {region}")
+def get_base_data(region):
+    log(f"[base-{region}] Building data for {region}")
 
     
 
     best_fn = f"{DATA_DIR}/in/openaddress-be{region}.zip"
     
     url = f"https://opendata.bosa.be/download/best/openaddress-be{region}.zip"
-    print(f"- Downloading {url}")
+    log(f"[base-{region}] - Downloading {url}")
     
     download(url, best_fn)
 
@@ -95,7 +123,7 @@ for region in ["bru", "vlg", "wal"]:
          }
 
 
-    print("- Reading")
+    log(f"[base-{region}] - Reading")
     data = pd.read_csv(best_fn, dtype=dtypes)
 
 
@@ -136,8 +164,12 @@ for region in ["bru", "vlg", "wal"]:
                                 "region_code":   "source",
                                 "house_number":  "housenumber",
                                 "postcode":      "postalcode" })
+    log(f"[base-{region}] Done!")
+    return data
 
-    print("- Building per language data")
+
+def create_address_data(data, region):
+    log(f"[addr-{region}] - Building per language data")
 
     data_all = []
     for lg in ["fr", "nl", "de"]:
@@ -160,15 +192,19 @@ for region in ["bru", "vlg", "wal"]:
 
     data_all = data_all.fillna({"lat" :0, "lon":0})
 
-    print(data_all)
+    log(data_all)
 
+    
     fname = f"{DATA_DIR}/bestaddresses_be{region}.csv"
+    log(f"[addr-{region}] -->{fname}")
     data_all.to_csv(fname, index=False)
-
-    print(f" -->{fname}")
-
-    print("- Building streets data")
-
+    
+    log(f"[addr-{region}] Done!")
+    
+    
+def create_street_data(data, region):
+    
+    log(f"[street-{region}] - Building streets data")
 
     all_streets = data.groupby([f for f in ["municipality_id",
                     "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
@@ -217,13 +253,16 @@ for region in ["bru", "vlg", "wal"]:
     data_street_all = data_street_all.fillna({"lat" :0, "lon":0})
 
 
-    print(data_street_all)
-
+    log(data_street_all)
+    
     fname = f"{DATA_DIR}/bestaddresses_streets_be{region}.csv"
+    log(f"[street-{region}] -->{fname}")
     data_street_all.to_csv(fname, index=False)
-    print(f" -->{fname}")
-
-    print("- Building localities data")
+    
+    log(f"[street-{region}] Done!")
+    
+def create_locality_data(data, region):
+    log(f"[loc-{region}] - Building localities data")
 
     all_localities = data.groupby([f for f in ["municipality_id",
                         "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
@@ -273,11 +312,52 @@ for region in ["bru", "vlg", "wal"]:
     data_localities_all = pd.concat(data_localities_all)
     data_localities_all = data_localities_all.fillna({"lat" :0, "lon":0})
 
-    print(data_localities_all)
-
+    log(data_localities_all)
     fname = f"{DATA_DIR}/bestaddresses_localities_be{region}.csv"
-    data_localities_all.to_csv(fname, index=False)
-    print(f" -->{fname}")
-    print()
-    print()
     
+    log(f"[loc-{region}] -->{fname}")
+    
+    data_localities_all.to_csv(fname, index=False)
+    log(f"[loc-{region}] Done!")
+    
+# for region in ["bru", "vlg", "wal"]:
+
+
+#     data = get_base_data(region)
+    
+#     create_address_data(data)
+    
+#     create_street_data(data)
+
+#     create_locality_data(data)
+    
+#     log("")
+#     log("")
+    
+
+from dask.threaded import get
+
+dsk = {
+    'load-bru': (get_base_data, "bru"),
+    'load-wal': (get_base_data, "wal"),
+    'load-vlg': (get_base_data, "vlg"),
+    
+    'addr-bru': (create_address_data, 'load-bru', 'bru'),
+    'addr-wal': (create_address_data, 'load-wal', 'wal'),
+    'addr-vlg': (create_address_data, 'load-vlg', 'vlg'),
+
+    'streets-bru': (create_street_data, 'load-bru', 'bru'),
+    'streets-wal': (create_street_data, 'load-wal', 'wal'),
+    'streets-vlg': (create_street_data, 'load-vlg', 'vlg'),
+
+    'localities-bru': (create_locality_data, 'load-bru', 'bru'),
+    'localities-wal': (create_locality_data, 'load-wal', 'wal'),
+    'localities-vlg': (create_locality_data, 'load-vlg', 'vlg'),
+    
+    
+}
+
+from dask.threaded import get
+# get(dsk, [[f'addr-{r}', f'streets-{r}', f'localities-{r}'] for r in ['bru', 'wal', 'vlg']])  # executes in parallel
+
+get(dsk, "localities-vlg") # could be any task, we don't use it
