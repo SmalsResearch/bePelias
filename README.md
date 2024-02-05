@@ -147,12 +147,12 @@ Review this scoring??
 # Todo
 
 - Rue sans nom/empty streets. Dispo sur https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip, mais aucune coordonnée
-- Street id pour les rues
-- Full best id pour les adresses -> nécessite de builder les data à partir des XML? objectId présent, mais pas versionId
+- Street id pour les rues --> présent dans les CSV
+- Full best id pour les adresses -> nécessite de builder les data à partir des XML? Dans les CSV, objectId présent, mais pas versionId
 - When Pelias loads data: 
-    - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data
-    - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included?
-- Comment inclure les box ? Une adresse par box ? Lister toutes les box pour une même "adresse"
+    - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
+    - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included? Yes!
+- Comment inclure les box ? Une adresse par box ? Lister toutes les box pour une même "adresse". Note : pour chaque adresse avec un "box number", il existe une adresse sans box number, avec même rue, housenumber. Proposition : garder celle-là en réponse principale, combiner les boxnumber/adress ids dans l'addendum. Problème: toutes les box d'une même numéro n'ont pas toujours tous les mêmes geom
 - Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
 - Quid si aucun code postal n'est donné ? 
 - Housenumber de type "30_10" (pose problème à l'interpolation) --> uniquement VLG (+/- 17.700)
@@ -160,3 +160,4 @@ Review this scoring??
 - Utiliser fichiers "localities" à la place de WOF pour les "city"
 - Version non structurée. Utiliser libpostal?
 - autocomplete vs search?
+

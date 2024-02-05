@@ -115,6 +115,7 @@ def get_base_data(region):
     dtypes = {"box_number": str,
          "municipality_name_de": str,
          "municipality_name_nl": str,
+         "municipality_name_fr": str,
          "postname_nl": str,
          "postname_fr": str,
          "streetname_de": str,
@@ -154,7 +155,8 @@ def get_base_data(region):
     data["addendum_json_best"] += np.where(data.box_number.isnull(),
                                            "",
                                            '"box_number": "'+box_nbr+'", ')+  \
-                            '"NIS": '+data.municipality_id.astype(str) + '}'
+                            '"NIS": '+data.municipality_id.astype(str) +', ' +\
+                            '"street_id": '+ data.street_id.astype(str)+ '}'
 
     # + add part of municipality, postalname
 
@@ -209,7 +211,7 @@ def create_street_data(data, region):
     all_streets = data.groupby([f for f in ["municipality_id",
                     "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
                     "postname_fr", "postname_nl", "postname_de",
-                    "streetname_fr", "streetname_nl", "streetname_de",
+                    "streetname_fr", "streetname_nl", "streetname_de","street_id",
                     "postalcode", "source", "country"] if f in data], 
                                dropna=False)[["lat", "lon"]].mean().reset_index()
 
@@ -225,7 +227,7 @@ def create_street_data(data, region):
             continue
 
         # To be replaced by BestID
-        data_street_lg["id"] = f"be{region}_{lg}_street_"+data_street_lg.index.astype(str)
+        data_street_lg["id"] = f"be{region}_{lg}_street_"+data_street_lg.street_id.astype(str) #data_street_lg.index.astype(str)
 
         data_street_lg["layer"]="street"
         data_street_lg["name"] = data_street_lg["streetname_"+lg]+", "+\
@@ -240,7 +242,8 @@ def create_street_data(data, region):
         data_street_lg["addendum_json_best"]='{' +\
             build_addendum(["streetname", "municipality_name", "postname"],
                            data_street_lg) +\
-            '"NIS": '+data_street_lg.municipality_id.astype(str) +  '}'
+            '"NIS": '      +data_street_lg.municipality_id.astype(str) + ', ' +\
+            '"street_id": '+data_street_lg.street_id.astype(str) + '}'
 
 
         data_street_lg = data_street_lg[["locality", "street","postalcode","source",
