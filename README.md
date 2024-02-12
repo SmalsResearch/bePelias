@@ -146,8 +146,7 @@ Review this scoring??
 
 # Todo
 
-- Rue sans nom/empty streets. Dispo sur https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip, mais aucune coordonnée
-- Street id pour les rues --> présent dans les CSV
+- Rue sans nom/empty streets. Dispo sur https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip, mais aucune coordonnée (les intégrer avec 0,0)
 - Full best id pour les adresses -> nécessite de builder les data à partir des XML? Dans les CSV, objectId présent, mais pas versionId
 - When Pelias loads data: 
     - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
@@ -160,4 +159,5 @@ Review this scoring??
 - Utiliser fichiers "localities" à la place de WOF pour les "city"
 - Version non structurée. Utiliser libpostal?
 - autocomplete vs search?
-
+- use csv.gz
+- cleanup downloaded zipfiles

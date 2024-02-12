@@ -116,8 +116,8 @@ def get_base_data(region):
          "municipality_name_de": str,
          "municipality_name_nl": str,
          "municipality_name_fr": str,
-         "postname_nl": str,
-         "postname_fr": str,
+         "postname_nl":   str,
+         "postname_fr":   str,
          "streetname_de": str,
          "streetname_nl": str,
          "streetname_fr": str
@@ -126,8 +126,35 @@ def get_base_data(region):
 
     log(f"[base-{region}] - Reading")
     data = pd.read_csv(best_fn, dtype=dtypes)
+    
+    log(f"[base-{region}] Cleaning file {best_fn})")
+    os.remove(best_fn)
+    
+    log(f"[base-{region}] - Combining boxes ...")
+    
+    # Combine all addresses at the same number in one record with "box_info" field
+    with_box=data[data.box_number.notnull()]
+    box_info = with_box.rename(columns={"EPSG:4326_lat": "lat",
+                                        "EPSG:4326_lon": "lon"})\
+                       .groupby(["house_number", 
+                                 "municipality_id", "municipality_name_de", "municipality_name_fr", "municipality_name_nl", 
+                                 "postcode", "postname_fr", "postname_nl", 
+                                 "street_id", "streetname_de", "streetname_fr", "streetname_nl", 
+                                 "region_code"],dropna=False )[["lat", "lon", 
+                                                                "box_number",
+                                                                "address_id",
+                                                                "status"]]\
+                        .apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
 
+    base_address = data.sort_values("box_number",na_position="first" ).drop_duplicates(subset=["municipality_id", "street_id", "postcode", "house_number"]).drop("box_number", axis=1)
+    
+    data_mg = base_address.merge(box_info, how="outer")
 
+    log(f"[base-{region}] -   --> from {data.shape[0]} to {data_mg.shape[0]} records")
+    data=data_mg
+    
+    
+    
     if "postname_de" not in data:
         data["postname_de"]=pd.NA
 
@@ -151,13 +178,17 @@ def get_base_data(region):
                                                  data)
 
 
-    box_nbr= data.box_number.astype(str).str.replace('"', "'").str.replace('\\', "/", regex=False)
-    data["addendum_json_best"] += np.where(data.box_number.isnull(),
-                                           "",
-                                           '"box_number": "'+box_nbr+'", ')+  \
-                            '"NIS": '+data.municipality_id.astype(str) +', ' +\
-                            '"street_id": '+ data.street_id.astype(str)+ '}'
+    data["addendum_json_best"] += '"NIS": '+data.municipality_id.astype(str) +', ' +\
+                                  '"street_id": '+ data.street_id.astype(str)
 
+    data["addendum_json_best"] += np.where(data.box_info.isnull(),
+                                           "",
+                                           ',  "box_info": '+data.box_info)
+    
+    data["addendum_json_best"] += '}'
+    
+    # with pd.option_context("display.max_colwidth", None):
+    #     log(data[data.box_info.notnull()]["addendum_json_best"])
     # + add part of municipality, postalname
 
     data = data.rename(columns={"EPSG:4326_lat": "lat",
@@ -323,6 +354,7 @@ def create_locality_data(data, region):
     data_localities_all.to_csv(fname, index=False)
     log(f"[loc-{region}] Done!")
     
+
 # for region in ["bru", "vlg", "wal"]:
 
 
@@ -355,12 +387,8 @@ dsk = {
 
     'localities-bru': (create_locality_data, 'load-bru', 'bru'),
     'localities-wal': (create_locality_data, 'load-wal', 'wal'),
-    'localities-vlg': (create_locality_data, 'load-vlg', 'vlg'),
-    
-    
+    'localities-vlg': (create_locality_data, 'load-vlg', 'vlg')
 }
 
-from dask.threaded import get
-# get(dsk, [[f'addr-{r}', f'streets-{r}', f'localities-{r}'] for r in ['bru', 'wal', 'vlg']])  # executes in parallel
 
-get(dsk, "localities-vlg") # could be any task, we don't use it
+get(dsk, "localities-vlg") # 'result' could be any task, we don't use it
