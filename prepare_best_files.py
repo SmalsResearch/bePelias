@@ -11,8 +11,12 @@ import sys
 import urllib.request
 import logging
 
+import zipfile
+
 import pandas as pd
 import numpy as np
+
+import sys, getopt, glob
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
@@ -90,10 +94,20 @@ def build_addendum(fields, dfr):
 
 DATA_DIR = "/data/"
 
-if len(sys.argv)==2:
+regions = ["vlg", "wal", "bru"]
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"ho:r:", ["output=", "region="])
+except getopt.GetoptError:
+    print ('prepare_best_files.py -o <outputdir> -r <region>')
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ("-o"):
+        DATA_DIR = arg
+        log(f"Data dir: {DATA_DIR}")
+    if opt in ("-r"):
+        regions = [arg]
     
-    DATA_DIR = sys.argv[1]
-    log(f"Data dir: {DATA_DIR}")
     
 # os.mkdirs(data)
 os.makedirs(f"{DATA_DIR}", exist_ok=True)
@@ -126,9 +140,6 @@ def get_base_data(region):
 
     log(f"[base-{region}] - Reading")
     data = pd.read_csv(best_fn, dtype=dtypes)
-    
-    log(f"[base-{region}] Cleaning file {best_fn})")
-    os.remove(best_fn)
     
     log(f"[base-{region}] - Combining boxes ...")
     
@@ -200,7 +211,84 @@ def get_base_data(region):
     log(f"[base-{region}] Done!")
     return data
 
+    
+def get_empty_data(region):
+    log(f"[empty_street-{region}] - Downloading")
+    url = "https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip"
+    best_fn = f"{DATA_DIR}/in/postalstreets-empty-latest.zip"
+        
+    name_mapping= {
+        "bru": "Brussels",
+        "vlg": "Flanders",
+        "wal": "Wallonia"
+    }
+    
+    if not os.path.isfile(best_fn):
+        download(url, best_fn)
+        
+    # open zipped dataset
+    with zipfile.ZipFile(best_fn) as z:
+   # open the csv file in the dataset
+       with z.open(f"{name_mapping[region]}_empty_street.csv") as f:     
+       
+        empty_streets = pd.read_csv(f)
+        
+    log(f"[empty_street-{region}] - Building per language data")
+    empty_street_all = []
+    
+    # Uniformizing column names to match with main CSV files
+    for lg in ["fr", "nl", "de"]:
+        empty_streets = empty_streets.rename(columns = {f"street_{lg}": f"streetname_{lg}",
+                                                        f"city_{lg}": f"municipality_name_{lg}",
+                                                        f"postal_{lg}": f"postname_{lg}"
+                                                       })
+    empty_streets = empty_streets.rename(columns = {"postal_id": "postalcode",
+                                                   "city_no": "municipality_id",
+                                                   "street_no": "street_id"})
+    
+        
+    for lg in ["fr", "nl", "de"]:
 
+        empty_streets_lg = empty_streets[empty_streets[f"streetname_{lg}"].notnull()].copy()
+
+        if empty_streets_lg.shape[0] == 0:
+            continue
+
+        empty_streets_lg["locality"] =   empty_streets_lg[f"municipality_name_{lg}"]
+        empty_streets_lg["street"] =     empty_streets_lg[f"streetname_{lg}"]
+        
+        empty_streets_lg["source"] =     f"BE-{region.upper()}-emptystreets"
+        empty_streets_lg["country"] =    "Belgium"
+        empty_streets_lg["lat"] =        0
+        empty_streets_lg["lon"]=         0
+        empty_streets_lg["id"] =         f"be{region}_{lg}_street_"+empty_streets_lg.street_id.astype(str) 
+        empty_streets_lg["layer"] = "street"
+
+        empty_streets_lg["name"] = empty_streets_lg["street"]+", "+empty_streets_lg["postalcode"].astype(str)+" "+empty_streets_lg["locality"]
+        
+        empty_streets_lg["addendum_json_best"]='{' +\
+            build_addendum(["streetname", "municipality_name", "postname"],
+                           empty_streets_lg) +\
+            '"NIS": '      +empty_streets_lg.municipality_id.astype(str) + ', ' +\
+            '"street_id": '+empty_streets_lg.street_id.astype(str) + '}'
+
+        
+        
+        
+        empty_street_all.append(empty_streets_lg)
+    
+    
+    
+    empty_street_all = pd.concat(empty_street_all)
+    empty_street_all = empty_street_all[["locality", "street","postalcode","source",
+                                         "country","lat","lon","id","layer",
+                                         "name", "addendum_json_best"]]
+    log(f"[empty_street-{region}] - data: ")
+    log(empty_street_all)
+        
+    return empty_street_all
+    
+    
 def create_address_data(data, region):
     log(f"[addr-{region}] - Building per language data")
 
@@ -235,7 +323,7 @@ def create_address_data(data, region):
     log(f"[addr-{region}] Done!")
     
     
-def create_street_data(data, region):
+def create_street_data(data, empty_street, region):
     
     log(f"[street-{region}] - Building streets data")
 
@@ -288,6 +376,11 @@ def create_street_data(data, region):
 
 
     log(data_street_all)
+    
+    log(f"[street-{region}] - Combining data and empty streets")
+    
+    data_street_all = pd.concat([data_street_all, empty_street])
+    
     
     fname = f"{DATA_DIR}/bestaddresses_streets_be{region}.csv"
     log(f"[street-{region}] -->{fname}")
@@ -355,40 +448,39 @@ def create_locality_data(data, region):
     log(f"[loc-{region}] Done!")
     
 
+def clean_up():
+    
+    
+    for f in glob.glob(f"{DATA_DIR}/in/*.zip"):
+        log(f"[clean-{region}] Cleaning file {f})")
+        
+        os.remove(f)
+        
+        
+        
+# # Sequential run
 # for region in ["bru", "vlg", "wal"]:
-
-
 #     data = get_base_data(region)
-    
+#     empty = get_empty_data(region)
 #     create_address_data(data)
-    
-#     create_street_data(data)
-
+#     create_street_data(data, empty)
 #     create_locality_data(data)
-    
-#     log("")
-#     log("")
     
 
 from dask.threaded import get
+dsk = {}
 
-dsk = {
-    'load-bru': (get_base_data, "bru"),
-    'load-wal': (get_base_data, "wal"),
-    'load-vlg': (get_base_data, "vlg"),
+for region in regions:
     
-    'addr-bru': (create_address_data, 'load-bru', 'bru'),
-    'addr-wal': (create_address_data, 'load-wal', 'wal'),
-    'addr-vlg': (create_address_data, 'load-vlg', 'vlg'),
+    
+    dsk[f'load-{region}']    =    (get_base_data,                          region)
+    dsk[f'empty_street-{region}']=(get_empty_data,                         region)
+    dsk[f'addr-{region}']    =    (create_address_data,  f'load-{region}', region)    
+    dsk[f'streets-{region}'] =    (create_street_data,   f'load-{region}', f'empty_street-{region}', region)
+    dsk[f'localities-{region}'] = (create_locality_data, f'load-{region}', region)  
+    
 
-    'streets-bru': (create_street_data, 'load-bru', 'bru'),
-    'streets-wal': (create_street_data, 'load-wal', 'wal'),
-    'streets-vlg': (create_street_data, 'load-vlg', 'vlg'),
-
-    'localities-bru': (create_locality_data, 'load-bru', 'bru'),
-    'localities-wal': (create_locality_data, 'load-wal', 'wal'),
-    'localities-vlg': (create_locality_data, 'load-vlg', 'vlg')
-}
+get(dsk, f"localities-{regions[0]}") # 'result' could be any task, we don't use it
 
 
-get(dsk, "localities-vlg") # 'result' could be any task, we don't use it
+clean_up()

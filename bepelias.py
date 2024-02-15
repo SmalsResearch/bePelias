@@ -637,7 +637,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
 
     """
     # Try structured
-    addr= {"address": f"{street_name}, {house_number}",
+    addr= {"address": f"{street_name}" + "" if pd.isnull(house_number) else f", {house_number}",
                                  
                                  "locality": post_name}
     if post_code is not None:
@@ -959,7 +959,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
         log(f"Mode: {mode}")
         if mode=="basic":
-            pelias_res= pelias.geocode({"address": f"{street_name}, {house_number}",
+            pelias_res= pelias.geocode({"address": f"{street_name}" + "" if pd.isnull(house_number) else f", {house_number}",
                                  "postalcode": post_code,
                                  "locality": post_name})
 

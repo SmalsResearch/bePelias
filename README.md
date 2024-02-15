@@ -53,8 +53,10 @@ Port can be changed in:
 Disk usage: 
 - Pelias containers: around 4 GB
 - bePelias container: 850 MB
-- About 8 GB of CSV files are created for importation. They could be removed after build.
+- About 8 GB of CSV files are created for importation. They are removed after build.
 
+
+bePelias itself requires not much RAM (around 100 Mb). But it requires Pelias to run, which needs at least 8 GB RAM (https://github.com/pelias/docker?tab=readme-ov-file#system-requirements)
 
 This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 20.10.21.
 
@@ -144,20 +146,17 @@ Here is how this score is computed:
 
 Review this scoring??
 
+
 # Todo
 
-- Rue sans nom/empty streets. Dispo sur https://opendata.bosa.be/download/best/postalstreets-empty-latest.zip, mais aucune coordonnée (les intégrer avec 0,0)
 - Full best id pour les adresses -> nécessite de builder les data à partir des XML? Dans les CSV, objectId présent, mais pas versionId
 - When Pelias loads data: 
     - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
     - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included? Yes!
-- Comment inclure les box ? Une adresse par box ? Lister toutes les box pour une même "adresse". Note : pour chaque adresse avec un "box number", il existe une adresse sans box number, avec même rue, housenumber. Proposition : garder celle-là en réponse principale, combiner les boxnumber/adress ids dans l'addendum. Problème: toutes les box d'une même numéro n'ont pas toujours tous les mêmes geom
 - Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
-- Quid si aucun code postal n'est donné ? 
+- Quid si aucun code postal n'est donné ? --> fixed
 - Housenumber de type "30_10" (pose problème à l'interpolation) --> uniquement VLG (+/- 17.700)
 - Utiliser post_name au lieu de municipality_name
 - Utiliser fichiers "localities" à la place de WOF pour les "city"
-- Version non structurée. Utiliser libpostal?
+- Version non structurée. Utiliser libpostal? --> Ou utiliser Pelias en direct ?
 - autocomplete vs search?
-- use csv.gz
-- cleanup downloaded zipfiles

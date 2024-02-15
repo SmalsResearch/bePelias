@@ -112,11 +112,13 @@ if [[ $ACTION == "update"  ]] ; then
     set -x
     
     
-    mv data/*.csv $DIR/data
+    mv data/bestaddresses_*.csv $DIR/data
     
     cd $DIR
     $PELIAS import csv
     cd -
+    
+    rm -f $DIR/data/bestaddresses_*.csv
     set +x
 fi
 
