@@ -63,9 +63,10 @@
 "csv": {
     "datapath": "/data",
     "files":[
-        "bestaddresses_streets_bebru.csv",
-        "bestaddresses_localities_bebru.csv",
-        "bestaddresses_bebru.csv",
+        
+        "bestaddresses_bebru.csv", 
+        "bestaddresses_bewal.csv", 
+        "bestaddresses_bevlg.csv"
         
         "bestaddresses_streets_bewal.csv", 
         "bestaddresses_streets_bevlg.csv", 

@@ -413,7 +413,7 @@ def create_locality_data(data, region):
             data_localities_lg["postalcode"].astype(str)+"_"+\
             data_localities_lg.index.astype(str) # To be replaced by BestID
 
-        data_localities_lg["layer"]="locality"
+        data_localities_lg["layer"]="city"
         data_localities_lg["name"] = data_localities_lg["postalcode"].astype(str)+" "+\
             data_localities_lg["municipality_name_"+lg] +\
             np.where(

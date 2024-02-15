@@ -157,6 +157,6 @@ Review this scoring??
 - Quid si aucun code postal n'est donné ? --> fixed
 - Housenumber de type "30_10" (pose problème à l'interpolation) --> uniquement VLG (+/- 17.700)
 - Utiliser post_name au lieu de municipality_name
-- Utiliser fichiers "localities" à la place de WOF pour les "city"
+- Utiliser fichiers "localities" à la place de WOF pour les "city". Pour le moment les fichiers "localities" sont inutiles, une recherche avec un simple nom de ville renvoit uniquement le résultat "whosonfirst"
 - Version non structurée. Utiliser libpostal? --> Ou utiliser Pelias en direct ?
 - autocomplete vs search?

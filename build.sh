@@ -111,7 +111,7 @@ if [[ $ACTION == "update"  ]] ; then
     echo "Update"
     set -x
     
-    
+    cp pelias.json $DIR
     mv data/bestaddresses_*.csv $DIR/data
     
     cd $DIR

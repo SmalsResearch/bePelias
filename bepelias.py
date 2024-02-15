@@ -479,11 +479,14 @@ def check_streetname(feature, street_name, threshold=0.8):
     Returns
     -------
     float or None
-        1 if feature does not contain any street name.
+        1 if feature does not contain any street name or street_name is null.
         a value between threshold and 1 if a street name matches
         None if no street name matches
     """
-
+    
+    if pd.isnull(street_name):
+        return 1
+    
     street_name = remove_street_types(unidecode(street_name.upper()))
 
     feat_street_names= []
@@ -613,6 +616,14 @@ def interpolate(feature):
     log(interp_res)
     return interp_res
 
+def build_address(street_name, house_number):
+    if pd.isnull(street_name) or len(street_name)==0:
+        return ""
+    
+    if pd.isnull(house_number) or len(house_number)==0:
+        return street_name
+    
+    return f"{street_name}, {house_number}"
 
 
 def struct_or_unstruct(street_name, house_number, post_code, post_name):
@@ -637,9 +648,8 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
 
     """
     # Try structured
-    addr= {"address": f"{street_name}" + "" if pd.isnull(house_number) else f", {house_number}",
-                                 
-                                 "locality": post_name}
+    addr= {"address": build_address(street_name, house_number),
+           "locality": post_name}
     if post_code is not None:
         addr["postalcode"] = post_code
 
@@ -676,7 +686,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
                 return pelias_struct
 
     # Try unstructured
-    addr = f"{street_name}, {house_number}, {post_code} {post_name}" if post_code else f"{street_name}, {house_number}, {post_name}"
+    addr = build_address(street_name, house_number) + ", "  + f"{post_code} {post_name}" if post_code else post_name
 
     pelias_unstruct= pelias.geocode(addr)
     pelias_unstruct["bepelias"] = {"call_type": "unstruct",
@@ -959,9 +969,9 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
         log(f"Mode: {mode}")
         if mode=="basic":
-            pelias_res= pelias.geocode({"address": f"{street_name}" + "" if pd.isnull(house_number) else f", {house_number}",
-                                 "postalcode": post_code,
-                                 "locality": post_name})
+            pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
+                                        "postalcode": post_code,
+                                        "locality": post_name})
 
             return pelias_res
 
