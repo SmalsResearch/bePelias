@@ -190,7 +190,9 @@ def get_base_data(region):
 
 
     data["addendum_json_best"] += '"NIS": '+data.municipality_id.astype(str) +', ' +\
-                                  '"street_id": '+ data.street_id.astype(str)
+                                  '"street_id": '+ data.street_id.astype(str)+', ' +\
+                                  '"status": "'+ data.status + '"'
+    
 
     data["addendum_json_best"] += np.where(data.box_info.isnull(),
                                            "",
@@ -462,9 +464,9 @@ def clean_up():
 # for region in ["bru", "vlg", "wal"]:
 #     data = get_base_data(region)
 #     empty = get_empty_data(region)
-#     create_address_data(data)
-#     create_street_data(data, empty)
-#     create_locality_data(data)
+#     create_address_data(data, region)
+#     create_street_data(data, empty, region)
+#     create_locality_data(data, region)
     
 
 from dask.threaded import get

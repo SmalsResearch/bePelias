@@ -983,7 +983,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             addr_data = {"street_name": street_name,
                         "house_number": house_number,
                         "post_name": post_name,
-                        "post_code": post_code }
+                        "post_code": post_code}
             all_res=[]
             for transf in transformer_sequence:
                 transf_addr_data = addr_data.copy()

@@ -60,7 +60,6 @@ bePelias itself requires not much RAM (around 100 Mb). But it requires Pelias to
 
 This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 20.10.21.
 
-
 # Wrapper logic
 
 
@@ -154,9 +153,9 @@ Review this scoring??
     - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
     - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included? Yes!
 - Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
-- Quid si aucun code postal n'est donné ? --> fixed
 - Housenumber de type "30_10" (pose problème à l'interpolation) --> uniquement VLG (+/- 17.700)
 - Utiliser post_name au lieu de municipality_name
 - Utiliser fichiers "localities" à la place de WOF pour les "city". Pour le moment les fichiers "localities" sont inutiles, une recherche avec un simple nom de ville renvoit uniquement le résultat "whosonfirst"
 - Version non structurée. Utiliser libpostal? --> Ou utiliser Pelias en direct ?
 - autocomplete vs search?
+- replace prepare interpolation with a script that extract usefull information from CSVs and keep only numerical part of house number
