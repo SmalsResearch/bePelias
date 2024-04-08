@@ -226,7 +226,7 @@ class Pelias:
         lat: float
             Approximate latitude
         lon: float
-            Approximage longiture
+            Approximate longiture
         number: str
             House number to interpolate
         street: str
@@ -604,7 +604,12 @@ def interpolate(feature):
             "postalcode": feature['properties']['postalcode'],
             "locality": ""}
     street_res = pelias.geocode(addr)
-
+    log(f"Interpolate: street center: {street_res}")
+    
+    
+    if len(street_res["features"]) == 0:
+        return {}
+        
     street_center_coords = street_res["features"][0]["geometry"]["coordinates"]
     log(f"street_center_coords: {street_center_coords}")
 
@@ -836,7 +841,7 @@ log(f"TIMING: {with_timing_info} ({with_timing})")
 pelias = Pelias(domain=pelias_host)
 
 log("test Pelias: ")
-log(pelias.geocode("115, Avenue de Cortenbergh, 1000 Bruxelles"))
+log(pelias.geocode("20, Avenue Fonsny, 1060 Bruxelles"))
 
 city_test_from="Bruxelles"
 
@@ -895,27 +900,27 @@ How Pelias is used:
 
 single_parser.add_argument('streetName',
                           type=str,
-                          default='Avenue de Cortenbergh',
+                          default='Avenue Fonsny',
                           help="The name of a passage or way through from one location to another (cf. Fedvoc). Example: 'Avenue Fonsny'",
                           # example= "Avenue Fonsny"
                           )
 
 single_parser.add_argument('houseNumber',
                           type=str,
-                          default='115',
+                          default='20',
                           help="An official alphanumeric code assigned to building units, mooring places, stands or parcels (cf. Fedvoc). Example: '20'",
                           )
 
 single_parser.add_argument('postCode',
                           type=str,
-                          default='1000',
+                          default='1060',
                           help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
                           # example= "Avenue Fonsny"
                           )
 
 single_parser.add_argument('postName',
                           type=str,
-                          default='Bruxelles',
+                          default='Saint-Gilles',
                           help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                           )
 
@@ -956,7 +961,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log("geocode")
 
         mode = get_arg("mode", "advanced")
-        if not mode in ["basic", "simple", "advanced"]:
+        if not mode in ["basic", "simple", "advanced", "pelias_struct", "pelias_struct_noloc", "pelias_unstruct"]:
             namespace.abort(400, f"Invalid mode {mode}")
 
 
@@ -968,12 +973,25 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
 
         log(f"Mode: {mode}")
-        if mode=="basic":
+        if mode=="basic" or mode == "pelias_struct":
             pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
                                         "postalcode": post_code,
                                         "locality": post_name})
 
             return pelias_res
+
+        if mode == "pelias_struct_noloc":
+            pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
+                                        "postalcode": post_code})
+
+            return pelias_res
+
+        if mode == "pelias_unstruct":
+            addr = build_address(street_name, house_number) + ", "  + f"{post_code} {post_name}" if post_code else post_name
+            pelias_res= pelias.geocode(addr)
+
+            return pelias_res
+        
 
         if mode == "simple":
             return struct_or_unstruct(street_name, house_number, post_code, post_name)

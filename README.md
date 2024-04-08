@@ -145,6 +145,26 @@ Here is how this score is computed:
 
 Review this scoring??
 
+# Notes
+## Street center
+
+When a house number is not found in BeSt Address data, we may return a street level result, with a BeST Street id, a street name, and several higher level data.
+
+The coordinates appearing in the result is computed the following way. For each street in a given municipality, we split records into two according to the parity of the housenumber (considering only the numerical part).
+For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. The center of the line is the point between the odd and the even centers. If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
+
+Note that there is no guarantie that this point lays on the street. There are rare cases where center is slightly offside, mainly with roads with high sinuosily and one side with addresses only on a small parts. But this gives much better results as if we'd consider simply the average of all points on a street (which is off the road for mostly all curvated streets).
+
+## Interpolation
+
+There are two situations where coordinates of an address is computed by interpolation (i.e., if number 10 is not know, we assumed it is located between 8 and 12):
+- Either the number is not provided in BeSt Address data. In this case, Pelias will use its interpolation engine, based on BeSt Address as well as OpenStreetMap data. It this case:
+   - Field 'properties'>'match_type' is 'interpolated'
+   - Id provided in the result is a street best id, not an address best id
+- Either the number is provided in BeSt Address data, but with coordinates (0,0) (only in Wallonia). It his case, bePelias will call the interpolation engine:
+   - Field 'bepelias'>'interpolated' is True
+   - Id provided in the result is the Street Best Id
+   - In 'geometry', we provide 'coordinates_orig', with the orininal coordinates, and 'coordinates' with the interpolated coordinates
 
 # Todo
 
@@ -153,9 +173,6 @@ Review this scoring??
     - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
     - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included? Yes!
 - Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
-- Housenumber de type "30_10" (pose problème à l'interpolation) --> uniquement VLG (+/- 17.700)
-- Utiliser post_name au lieu de municipality_name
 - Utiliser fichiers "localities" à la place de WOF pour les "city". Pour le moment les fichiers "localities" sont inutiles, une recherche avec un simple nom de ville renvoit uniquement le résultat "whosonfirst"
 - Version non structurée. Utiliser libpostal? --> Ou utiliser Pelias en direct ?
 - autocomplete vs search?
-- replace prepare interpolation with a script that extract usefull information from CSVs and keep only numerical part of house number

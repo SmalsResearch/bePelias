@@ -18,6 +18,9 @@ import numpy as np
 
 import sys, getopt, glob
 
+import geopandas as gpd
+import shapely
+
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
 
@@ -89,7 +92,7 @@ def build_addendum(fields, dfr):
                 "",
                 f'"{fld}_{lang}": "'+fld_val.fillna("").str.replace('"', "'")+'", ')
     return res
-# In[103]:
+
 
 
 DATA_DIR = "/data/"
@@ -109,14 +112,12 @@ for opt, arg in opts:
         regions = [arg]
     
     
-# os.mkdirs(data)
+
 os.makedirs(f"{DATA_DIR}", exist_ok=True)
 os.makedirs(f"{DATA_DIR}/in", exist_ok=True)
 
 def get_base_data(region):
     log(f"[base-{region}] Building data for {region}")
-
-    
 
     best_fn = f"{DATA_DIR}/in/openaddress-be{region}.zip"
     
@@ -159,11 +160,14 @@ def get_base_data(region):
 
     base_address = data.sort_values("box_number",na_position="first" ).drop_duplicates(subset=["municipality_id", "street_id", "postcode", "house_number"]).drop("box_number", axis=1)
     
-    data_mg = base_address.merge(box_info, how="outer")
-
-    log(f"[base-{region}] -   --> from {data.shape[0]} to {data_mg.shape[0]} records")
-    data=data_mg
+    cnt_before_mg = data.shape[0]
+    del data
     
+    data = base_address.merge(box_info, how="outer")
+    
+    del base_address, box_info
+
+    log(f"[base-{region}] -   --> from {cnt_before_mg} to {data.shape[0]} records")
     
     
     if "postname_de" not in data:
@@ -172,6 +176,7 @@ def get_base_data(region):
     data["EPSG:4326_lat"] = data["EPSG:4326_lat"].where(data["EPSG:31370_y"]!=0, pd.NA)
     data["EPSG:4326_lon"] = data["EPSG:4326_lon"].where(data["EPSG:31370_x"]!=0, pd.NA)
 
+    log(f"[base-{region}] -   Adding language data")
     for lg in ["fr", "nl", "de"]:
         data[f"name_{lg}"]=data["house_number"].fillna("")+", "+\
                            data[f"streetname_{lg}"].fillna("")+", "+\
@@ -182,28 +187,37 @@ def get_base_data(region):
 
     data["layer"]="address"
     data["country"]="Belgium"
-    data["addendum_json_best"]='{"best_id": '+data["address_id"].astype(str)+', '
+    
+    log(f"[base-{region}] -   Adding addendum")
+    
+    addendum_json_best='{"best_id": '+data["address_id"].astype(str)+', '
 
-    data["addendum_json_best"] += build_addendum(["name", "streetname",
-                                                  "municipality_name", "postname"],
-                                                 data)
+    
+    
+    addendum_json_best += build_addendum(["name", "streetname",
+                                          "municipality_name", "postname"],
+                                           data)
 
-
-    data["addendum_json_best"] += '"NIS": '+data.municipality_id.astype(str) +', ' +\
-                                  '"street_id": '+ data.street_id.astype(str)+', ' +\
-                                  '"status": "'+ data.status + '"'
+    
+    addendum_json_best += '"NIS": '+data.municipality_id.astype(str) +', ' +\
+                            '"street_id": '+ data.street_id.astype(str)+', ' +\
+                            '"status": "'+ data.status + '"'
     
 
-    data["addendum_json_best"] += np.where(data.box_info.isnull(),
-                                           "",
-                                           ',  "box_info": '+data.box_info)
+    addendum_json_best += np.where(data.box_info.isnull(),
+                                     "",
+                                     ',  "box_info": '+data.box_info)
     
-    data["addendum_json_best"] += '}'
+    addendum_json_best += '}'
+    
+    
+    data["addendum_json_best"] = addendum_json_best 
     
     # with pd.option_context("display.max_colwidth", None):
     #     log(data[data.box_info.notnull()]["addendum_json_best"])
     # + add part of municipality, postalname
 
+    log(f"[base-{region}] -   Rename")
     data = data.rename(columns={"EPSG:4326_lat": "lat",
                                 "EPSG:4326_lon": "lon",
                                 "address_id":    "id",
@@ -294,49 +308,102 @@ def get_empty_data(region):
 def create_address_data(data, region):
     log(f"[addr-{region}] - Building per language data")
 
-    data_all = []
+    addresses_all = []
     for lg in ["fr", "nl", "de"]:
 #         print(lg)
-        data_lg = data[data["name_"+lg].notnull()].copy()
-        data_lg["id"] = f"be{region}_{lg}_"+data_lg["id"].astype(str)
-        data_lg["name"]=data_lg["name_"+lg]
-        data_lg["street"]=data_lg["streetname_"+lg]
-        data_lg["locality"]=data_lg["municipality_name_"+lg]
-        data_all.append(data_lg)
+        addresses_lg = data[data["name_"+lg].notnull()].copy()
+        addresses_lg["id"] = f"be{region}_{lg}_"+addresses_lg["id"].astype(str)
+        addresses_lg["name"]=    addresses_lg["name_"+lg]
+        addresses_lg["street"]=  addresses_lg["streetname_"+lg]
+        addresses_lg["locality"]=addresses_lg["municipality_name_"+lg]
+        addresses_all.append(addresses_lg)
         #display(data_lg)
-    data_all = pd.concat(data_all)[["id", "lat", "lon", "housenumber","locality",
+    addresses_all = pd.concat(addresses_all)[["id", "lat", "lon", "housenumber","locality",
                                     "street", "postalcode", "source", "name",
                                     "name_fr", "name_nl","name_de",
                                     "layer", "country", "addendum_json_best"]]
 
 
-    data_all = data_all.drop_duplicates(data_all.drop("id", axis=1).columns)
+    addresses_all = addresses_all.drop_duplicates(addresses_all.drop("id", axis=1).columns)
 
 
-    data_all = data_all.fillna({"lat" :0, "lon":0})
+    addresses_all = addresses_all.fillna({"lat" :0, "lon":0})
 
-    log(data_all)
+    log(addresses_all)
 
     
     fname = f"{DATA_DIR}/bestaddresses_be{region}.csv"
     log(f"[addr-{region}] -->{fname}")
-    data_all.to_csv(fname, index=False)
+    addresses_all.to_csv(fname, index=False)
     
     log(f"[addr-{region}] Done!")
     
+    return addresses_all
     
+def middle_points(p1, p2):
+    if p1 is None:
+        return p2
+    if p2 is None:
+        return p1
+    
+    return shapely.geometry.Point((p1.x+p2.x)/2, (p1.y+p2.y)/2)
+
 def create_street_data(data, empty_street, region):
     
     log(f"[street-{region}] - Building streets data")
 
-    all_streets = data.groupby([f for f in ["municipality_id",
-                    "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
-                    "postname_fr", "postname_nl", "postname_de",
-                    "streetname_fr", "streetname_nl", "streetname_de","street_id",
-                    "postalcode", "source", "country"] if f in data], 
-                               dropna=False)[["lat", "lon"]].mean().reset_index()
+    # old version : simple mean of coordinates
+#     all_streets = data.groupby([f for f in ["municipality_id",
+#                     "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
+#                     "postname_fr", "postname_nl", "postname_de",
+#                     "streetname_fr", "streetname_nl", "streetname_de","street_id",
+#                     "postalcode", "source", "country"] if f in data], 
+#                                dropna=False)[["lat", "lon"]].mean().reset_index()
+
+    # new version : compute center of linestrings for both odd and even sides, then take the middle of those points 
+    data = data[data.lat.notnull()]
+    
+    data = data.assign(housenumber_num =  data.housenumber.str.extract("^([0-9]*)").astype(int, errors="ignore"))
+    
+    # If some number where not converted to int (did not start by digits) --> ignore them
+    if data.housenumber_num.dtype !=int:
+        data = data[data.housenumber_num.str.isdigit()]
+        data["housenumber_num"] = data["housenumber_num"].astype(int)
+    
+    data["geometry"] = gpd.points_from_xy(data["lon"], data["lat"])
+    data = gpd.GeoDataFrame(data)
+    
+    
+    street_centers = [None, None]
 
 
+    for parity in [0,1]: 
+        data_parity = data[data.housenumber_num.mod(2)==parity].sort_values(["municipality_id", "street_id", "housenumber_num", "housenumber"])
+        
+        streets_geo =  data_parity.groupby(["municipality_id", "street_id" ]).geometry.apply(lambda bloc: shapely.geometry.LineString(bloc) if bloc.shape[0]>1 else bloc.iloc[0])
+
+        streets_geo_par_multi = streets_geo[streets_geo.geom_type == "LineString"].geometry.apply(shapely.line_interpolate_point, distance=0.5, normalized=True)
+        streets_geo_par_point = streets_geo[streets_geo.geom_type == "Point"].geometry
+
+        street_centers[parity] = pd.concat([streets_geo_par_multi, streets_geo_par_point])
+        
+        del data_parity, streets_geo, streets_geo_par_multi, streets_geo_par_point
+        
+    streets_centers_duo = pd.merge(street_centers[0].rename("even"), 
+                               street_centers[1].rename("odd"), 
+                               left_index=True, right_index=True, how="outer")
+
+    streets_centers_duo["center"] = streets_centers_duo.apply(lambda row: middle_points(row.even, row.odd), axis=1)
+    streets_centers_duo["lat"] = streets_centers_duo.center.geometry.y
+    streets_centers_duo["lon"] = streets_centers_duo.center.geometry.x
+    
+    fields = [f for f in ["municipality_id",
+                      "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
+                      "postname_fr",   "postname_nl", "postname_de",
+                      "streetname_fr", "streetname_nl", "streetname_de","street_id",
+                      "postalcode",    "source", "country"] if f in data]
+    all_streets = data[fields].drop_duplicates().merge(streets_centers_duo[["lat", "lon"]], left_on=["municipality_id", "street_id"],
+                                            right_index=True)#.groupby(fields, dropna=False)[["lat", "lon"]].mean().rese
 
     data_street_all = []
     for lg in ["fr", "nl", "de"]:
@@ -450,24 +517,57 @@ def create_locality_data(data, region):
     log(f"[loc-{region}] Done!")
     
 
+def create_interpolation_data(addresses, region):
+    
+    log(f"[interpol-{region}] Prepare interpolation data")
+    
+    log(f"[interpol-{region}] init: {addresses.shape[0]}")
+    
+    addresses = addresses[addresses.lat > 0.0]
+    
+    log(f"[interpol-{region}] remove 0,0: {addresses.shape[0]}")
+    
+    addresses = addresses[addresses.addendum_json_best.str.contains('"status": "current"')]
+    
+    log(f"[interpol-{region}] only current: {addresses.shape[0]}")
+    
+    addresses.columns = addresses.columns.str.upper()
+    
+    addresses = addresses.rename(columns={
+        "HOUSENUMBER": "NUMBER",
+    })
+
+    addresses["NUMBER"] = addresses["NUMBER"].str.extract("^([0-9]*)").astype(int, errors="ignore")
+    
+    addresses = addresses[addresses["NUMBER"] != ""]
+    
+    log(f"[interpol-{region}] remove non digits: {addresses.shape[0]}")
+    
+    addresses = addresses[["ID", "STREET", "NUMBER", "POSTALCODE", "LAT", "LON"]].drop_duplicates(subset=["STREET", "NUMBER", "POSTALCODE"])
+    
+    fname = f"{DATA_DIR}/bestaddresses_interpolation_be{region}.csv"
+    
+    log(f"[loc-{region}] -->{fname}")
+    addresses.to_csv(fname, index=False)
+    
+    log(f"[interpol-{region}] Done!") 
+    
+
 def clean_up():
-    
-    
     for f in glob.glob(f"{DATA_DIR}/in/*.zip"):
         log(f"[clean-{region}] Cleaning file {f})")
         
         os.remove(f)
         
         
-        
-# # Sequential run
-# for region in ["bru", "vlg", "wal"]:
+# Sequential run
+# for region in regions:q
 #     data = get_base_data(region)
 #     empty = get_empty_data(region)
 #     create_address_data(data, region)
 #     create_street_data(data, empty, region)
 #     create_locality_data(data, region)
-    
+
 
 from dask.threaded import get
 dsk = {}
@@ -480,6 +580,8 @@ for region in regions:
     dsk[f'addr-{region}']    =    (create_address_data,  f'load-{region}', region)    
     dsk[f'streets-{region}'] =    (create_street_data,   f'load-{region}', f'empty_street-{region}', region)
     dsk[f'localities-{region}'] = (create_locality_data, f'load-{region}', region)  
+    
+    dsk[f'interpol-{region}'] = (create_interpolation_data, f'addr-{region}', region)  
     
 
 get(dsk, f"localities-{regions[0]}") # 'result' could be any task, we don't use it

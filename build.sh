@@ -62,7 +62,6 @@ if [[ $ACTION == "build_pelias" ]]; then
     $PELIAS compose up
     
     docker-compose up -d  api # error with api in pelias compose up... why???
-# "
 
     set +x
  
@@ -103,7 +102,6 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" ]]; then
     mkdir -p data
     $DOCKER run --rm -v $(pwd)/data:/data bepelias ./run.sh prepare
     
-    
     set +x
 fi
 
@@ -116,6 +114,9 @@ if [[ $ACTION == "update"  ]] ; then
     
     cd $DIR
     $PELIAS import csv
+    
+    docker run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh
+    
     cd -
     
     rm -f $DIR/data/bestaddresses_*.csv
