@@ -2,9 +2,9 @@
 
 See more info in webinar "Geocoding" (in French, 28/09/2023): https://www.smalsresearch.be/webinar-geocoding-follow-up/
 
-The current version of Pelias for BestAddress (https://github.com/pelias/docker/tree/master/projects/belgium) has two main problems:
+The current version of Pelias for BeSt Address (https://github.com/pelias/docker/tree/master/projects/belgium ; authentic source for addresses in Belgium) has two main problems:
 - Data (trought openaddresses.io) are not updated anymore since mid-2021, as: 
-    - Current format for BestAddress csv file is not recognized by openaddresses, since Feb 2021 (column "EPSG:4326_lat" and similar contain mixed case)
+    - Current format for BeSt Address csv file is not recognized by openaddresses, since Feb 2021 (column "EPSG:4326_lat" and similar contain mixed case)
     - OpenAddresses changed its dataflow from "https://results.openaddresses.io/" to "https://batch.openaddresses.io/", and since mid 2021, "results" is no longer updated. But Pelias still uses this dataflow
 - Geocoder is not very robust, but some simple changes allow matching to work.
 
@@ -16,7 +16,7 @@ The current projet aims at:
 
 # Disclaimer
 
-This project is realized by Vandy Berten (Smals Research) for a POC in collaboration with NGI (www.ngi.be) and CNNC (https://centredecrise.be/fr). This has no (so far) been approved by NGI. We do not offer any support for this project.
+This project is realized by Vandy Berten (Smals Research, https://www.smalsresearch.be/) for a PoC in collaboration with NGI (https://www.ngi.be), CNNC (https://centredecrise.be/fr) and Bosa (https://opendata.bosa.be/). This has no (so far) been approved by any of those partners. We do not offer any support for this project.
 
 
 # Build
@@ -42,7 +42,7 @@ To update data:
 # Usage
 
 - Swagger GUI on http://[IP]:4001/doc 
-- Example of URL : http://[IP]:4001/REST/bepelias/v1/geocode?streetName=Avenue%20de%20Cortenbergh&houseNumber=115&postCode=1000&postName=Bruxelles
+- Example of URL : http://[IP]:4001/REST/bepelias/v1/geocode?streetName=Avenue%20Fonsny&houseNumber=20&postCode=1060&postName=Saint-Gilles
 
 Port can be changed in: 
 - Dockerfile > EXPOSE 4001
@@ -148,7 +148,7 @@ Review this scoring??
 # Notes
 ## Street center
 
-When a house number is not found in BeSt Address data, we may return a street level result, with a BeST Street id, a street name, and several higher level data.
+When a house number is not found in BeSt Address data, we may return a street level result, with a BeST street id, a street name, and several higher level data.
 
 The coordinates appearing in the result is computed the following way. For each street in a given municipality, we split records into two according to the parity of the housenumber (considering only the numerical part).
 For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. The center of the line is the point between the odd and the even centers. If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
@@ -157,22 +157,31 @@ Note that there is no guarantie that this point lays on the street. There are ra
 
 ## Interpolation
 
-There are two situations where coordinates of an address is computed by interpolation (i.e., if number 10 is not know, we assumed it is located between 8 and 12):
+There are two situations where coordinates of an address are computed by interpolation (i.e., if number 10 is not know, we assume it is located between 8 and 12):
 - Either the number is not provided in BeSt Address data. In this case, Pelias will use its interpolation engine, based on BeSt Address as well as OpenStreetMap data. It this case:
    - Field 'properties'>'match_type' is 'interpolated'
    - Id provided in the result is a street best id, not an address best id
 - Either the number is provided in BeSt Address data, but with coordinates (0,0) (only in Wallonia). It his case, bePelias will call the interpolation engine:
    - Field 'bepelias'>'interpolated' is True
    - Id provided in the result is the Street Best Id
-   - In 'geometry', we provide 'coordinates_orig', with the orininal coordinates, and 'coordinates' with the interpolated coordinates
+   - In 'geometry', we provide 'coordinates_orig', with the original coordinates, and 'coordinates' with the interpolated coordinates
+
+## Result metadata
+
+Beside results coming straight from Pelias, bePelias adds some metadata in "bepelias" field:
+- call_type: 'struct' or 'unstruct': did we call structured of unstructured Pelias
+- in_addr: what was the address sent to Pelias
+- transformers: which sequence of transformers were applied to the input address to give the above "in_addr"
+- interpolated: did we compute coordinates by interpolation (only when BeSt Address records has a (0,0) location, see above)
+
+## Box numbers
+
+When an address contains several boxes, BeSt Address provides a BeSt id for the 'main address' (i.e., the housenumber ignoring the box number) as well as a BeSt id for each box number. As Pelias does not handle box numbers, bePelias does not take box number as input, but will provide all box numbers in the result: 
+- the "main" address is described in the "top" result (with and id and coordinates);
+- all boxes are described in "addendum" part, in 'box_info' list.
 
 # Todo
 
 - Full best id pour les adresses -> nécessite de builder les data à partir des XML? Dans les CSV, objectId présent, mais pas versionId
-- When Pelias loads data: 
-    - `debug: [wof-admin-lookup] no country lon=0, lat=0` --> missing coords in Best data (found by the geocoder without coordinates)
-    - `debug: [wof-admin-lookup] no country lon=6.406553, lat=50.332375` --> addresses close to boundary. Are they included? Yes!
-- Si coordonnées = 0,0 -> remplacer la autre chose ? Au niveau du "wrapper" ?
-- Utiliser fichiers "localities" à la place de WOF pour les "city". Pour le moment les fichiers "localities" sont inutiles, une recherche avec un simple nom de ville renvoit uniquement le résultat "whosonfirst"
-- Version non structurée. Utiliser libpostal? --> Ou utiliser Pelias en direct ?
-- autocomplete vs search?
+- Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
+- Describe output format in swagger

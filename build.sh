@@ -112,9 +112,11 @@ if [[ $ACTION == "update"  ]] ; then
     cp pelias.json $DIR
     mv data/bestaddresses_*.csv $DIR/data
     
+    echo "Import addresses"
     cd $DIR
     $PELIAS import csv
     
+    echo "Import interpolation data"
     docker run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh
     
     cd -

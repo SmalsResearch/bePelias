@@ -857,7 +857,7 @@ log("Waiting for requests...")
 
 app = Flask(__name__)
 api = Api(app,
-          version='0.0.1',
+          version='1.0.0',
           title='bePelias API',
           description="""A service that allows geocoding (postal address cleansing and conversion into geographical coordinates), based on Pelias and BestAddresses.
 
@@ -937,7 +937,6 @@ transformer_sequence = [
     ["clean", "no_city", "clean_hn"],
     ["no_hn"],
     ["no_city", "no_hn"],
-
 ]
 
 
