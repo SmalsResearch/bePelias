@@ -16,7 +16,7 @@ The current projet aims at:
 
 # Disclaimer
 
-This project is realized by Vandy Berten (Smals Research, https://www.smalsresearch.be/) for a PoC in collaboration with NGI (https://www.ngi.be), CNNC (https://centredecrise.be/fr) and Bosa (https://opendata.bosa.be/). This has no (so far) been approved by any of those partners. We do not offer any support for this project.
+This project is realized by Vandy Berten (Smals Research, https://www.smalsresearch.be/) for a PoC in collaboration with NGI (https://www.ngi.be), CNNC (https://centredecrise.be/fr) and Bosa (https://opendata.bosa.be/). This has not been (so far) approved by any of those partners. We do not offer any support for this project.
 
 
 # Build
@@ -151,7 +151,7 @@ Review this scoring??
 When a house number is not found in BeSt Address data, we may return a street level result, with a BeST street id, a street name, and several higher level data.
 
 The coordinates appearing in the result is computed the following way. For each street in a given municipality, we split records into two according to the parity of the housenumber (considering only the numerical part).
-For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. The center of the line is the point between the odd and the even centers. If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
+For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. The center of the street is the point between the odd and the even centers. If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
 
 Note that there is no guarantie that this point lays on the street. There are rare cases where center is slightly offside, mainly with roads with high sinuosily and one side with addresses only on a small parts. But this gives much better results as if we'd consider simply the average of all points on a street (which is off the road for mostly all curvated streets).
 
