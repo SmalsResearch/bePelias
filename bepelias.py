@@ -107,13 +107,13 @@ class Pelias:
 
         self.geocode_path = '/v1/search'
         self.geocode_struct_path = '/v1/search/structured'
-        
+
         self.interpolate_path = '/search/geojson'
 
         self.verbose=False
         self.scheme = scheme
         self.domain = domain.strip('/')
-        
+
         self.geocode_api = (
             f'{self.scheme}://{self.domain}{self.geocode_path}'
         )
@@ -121,7 +121,7 @@ class Pelias:
         self.geocode_struct_api = (
             f'{self.scheme}://{self.domain}{self.geocode_struct_path}'
         )
-        
+
         self.interpolate_api = (
             f'{self.scheme}://{self.domain.replace("4000", "4300")}{self.interpolate_path}'
         )
@@ -159,7 +159,7 @@ class Pelias:
                 if exc.code==400 and self.interpolate_api in url: # bad request, typically bad house number format
                     log(f"Error 400 ({url}): {exc}")
                     return {}
-                
+
                 if nb_attempts==1:
                     log(f"Cannot get Pelias results after several attempts({url}): {exc}")
                     raise PeliasException (f"Cannot get Pelias results after several attempts ({url}): {exc}") from exc
@@ -200,7 +200,7 @@ class Pelias:
             }
             if 'postalcode' in query:
                 params["postalcode"] = query['postalcode']
-                
+
         else:
             struct=False
             params = {'text': query}
@@ -483,10 +483,10 @@ def check_streetname(feature, street_name, threshold=0.8):
         a value between threshold and 1 if a street name matches
         None if no street name matches
     """
-    
+
     if pd.isnull(street_name):
         return 1
-    
+
     street_name = remove_street_types(unidecode(street_name.upper()))
 
     feat_street_names= []
@@ -605,11 +605,11 @@ def interpolate(feature):
             "locality": ""}
     street_res = pelias.geocode(addr)
     log(f"Interpolate: street center: {street_res}")
-    
-    
+
+
     if len(street_res["features"]) == 0:
         return {}
-        
+
     street_center_coords = street_res["features"][0]["geometry"]["coordinates"]
     log(f"street_center_coords: {street_center_coords}")
 
@@ -622,12 +622,32 @@ def interpolate(feature):
     return interp_res
 
 def build_address(street_name, house_number):
+    """
+    Build a string in the style "street_name, house_number", taking into account 
+    that both arguments could be empty: 
+        - if street_name is null or empty : returns ""
+        - else if house_number is null or empty: return street_name
+        - otherwise, return "street_name, house_number"
+
+    Parameters
+    ----------
+    street_name : str
+        Street name.
+    house_number : str
+        House number.
+
+    Returns
+    -------
+    str
+        "street_name, house_number", unless one of them is empty
+
+    """
     if pd.isnull(street_name) or len(street_name)==0:
         return ""
-    
+
     if pd.isnull(house_number) or len(house_number)==0:
         return street_name
-    
+
     return f"{street_name}, {house_number}"
 
 
@@ -972,7 +992,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
 
         log(f"Mode: {mode}")
-        if mode=="basic" or mode == "pelias_struct":
+        if mode in ("basic", "pelias_struct"):
             pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
                                         "postalcode": post_code,
                                         "locality": post_name})
@@ -990,7 +1010,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             pelias_res= pelias.geocode(addr)
 
             return pelias_res
-        
+
 
         if mode == "simple":
             return struct_or_unstruct(street_name, house_number, post_code, post_name)
