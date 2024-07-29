@@ -5,13 +5,9 @@ RUN cd /etc/yum.repos.d/
 RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
 RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
 
-# USER root
-
 RUN yum -y install python3.8 maven  java-17-openjdk git wget unzip yum-utils && package-cleanup --leaves --all
 
-# USER default
-
-RUN pip3 install pip==24.0
+RUN pip3 install pip==24.2
 
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt

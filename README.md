@@ -188,6 +188,5 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
 - Describe output format in swagger
-- Transformer: if a transformer did not change address: do not recall Pelias
 - If no result passed the check_postcode, keep the orginal result 
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". With libpostal? 

@@ -1,6 +1,6 @@
 FROM centos/python-38-centos7
 
-RUN pip3 install pip==24.0
+RUN pip3 install pip==24.2
 
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt

@@ -24,7 +24,7 @@ elif [[ $ACTION == "prepare_from_xml"  ]]; then
 elif [[ $ACTION == "run" ]]; then
     echo "Starting service..." 
     
-    gunicorn -w 1 -b 0.0.0.0:$PORT bepelias:app 
+    gunicorn -w 8 -b 0.0.0.0:$PORT bepelias:app 
 
     while :; do sleep 3600 ; done
 else

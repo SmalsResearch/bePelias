@@ -673,7 +673,7 @@ def build_city(post_code, post_name):
 
 def struct_or_unstruct(street_name, house_number, post_code, post_name):
     """
-    Try structed version of Pelias. If it did not succeed, try the unstructured version.
+    Try structed version of Pelias. If it did not succeed, try the unstructured version, and keep the best result.
 
     Parameters
     ----------
@@ -702,7 +702,8 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
     vlog(f"Call struct: {addr}")
     pelias_struct= pelias.geocode(addr)
     pelias_struct["bepelias"] = {"call_type": "struct",
-                          "in_addr": addr}
+                                 "in_addr": addr, 
+                                 "call_cnt":1}
 
     if post_code is not None:
         pelias_struct = pelias_check_postcode(pelias_struct, post_code)
@@ -737,13 +738,16 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
     vlog(f"Call unstruct: '{addr}'")
     if addr and len(addr.strip())>0:
         pelias_unstruct= pelias.geocode(addr)
+        cnt=2
     else: 
         vlog("Unstructured: empty inputs, skip call")
-        
+        cnt=1
         pelias_unstruct = { "features": []}
     pelias_unstruct["bepelias"] = {"call_type": "unstruct",
-                              "in_addr": addr}
-
+                                   "in_addr": addr,
+                                   "call_cnt":cnt}
+    pelias_struct["bepelias"]["call_cnt"]=cnt
+    
     if post_code is not None:
 
         pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code)
@@ -1057,25 +1061,41 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                         "post_name": post_name,
                         "post_code": post_code}
             all_res=[]
+            
+            previous_attempts = []
+            call_cnt=0
             for transf in transformer_sequence:
                 transf_addr_data = addr_data.copy()
                 for t in transf:
                     transf_addr_data = transform(transf_addr_data, t)
-
+                    
+                    
+                
+                
                 log(f"transformed address: ({ ';'.join(transf)})")
-                log(transf_addr_data)
-                if len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
+                #if addr_data == transf_addr_data and len(transf)>0:
+                if transf_addr_data in previous_attempts:
+                    vlog("Transformed address already tried, skip Pelias call")
+                    
+                elif len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
                     vlog("No value to send, skip Pelias call")
                 else:
 
-
+                    previous_attempts.append(transf_addr_data)
+                    
                     pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
                                                      transf_addr_data["house_number"],
                                                      transf_addr_data["post_code"],
                                                      transf_addr_data["post_name"])
                     pelias_res["bepelias"]["transformers"] = ";".join(transf)
+                    call_cnt+= pelias_res["bepelias"]["call_cnt"]
+                    
+                    #log(f'call count: {pelias_res["bepelias"]} --> {call_cnt}')
+                    
+                    
 
                     if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
+                        pelias_res["bepelias"]["call_cnt"]=call_cnt
                         return pelias_res
                     all_res.append(pelias_res)
 
@@ -1118,8 +1138,14 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
 
             all_res = sorted(all_res, key= lambda x: -x["score"])
+            
+            if len(all_res)>0:
+                final_res= all_res[0]
 
-            return all_res[0]
+                final_res["bepelias"]["call_cnt"]=call_cnt
+                return final_res
+            return None
+                
 
         return "Wrong mode!" # Should neve occur...
 
