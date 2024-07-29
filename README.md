@@ -30,23 +30,27 @@ Note: in order to avoid to make 3 components, we put in the same docker image th
 Steps: 
 
 ```
-./build.sh build_api                    # Build bePelias container
-./build.sh prepare_csv                  # Prepare files for Pelias, within bePelias container
-./build.sh build_pelias                 # Build & run Pelias
+./build.sh build_api                    # Build bePelias container (~5 minutes)
+./build.sh prepare_csv                  # Prepare files for Pelias, within bePelias container (~20 min)
+./build.sh build_pelias                 # Build & run Pelias (~1h10)
 ./build.sh run_api  xx.xx.xx.xx:4000    # Start bePelias API, giving the Pelias IP/port 
 ```
 
 To update data: 
 `./build.sh update`
 
+## Data from OpenAddress CSV
+
+The above procedure builds Pelias data from BOSA XML (https://opendata.bosa.be/download/best/best-full-latest.zip), using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id. 
+
+An alternative procedure builds data from openaddress CSV files (https://opendata.bosa.be/download/best/openaddress-be[REG].zip, with [REG] in "bru", "vlg" and "wal"). This is quicker, but "BeSt Ids" will only contains "object identifier" (no namespace, no version). In order to use this procedure, replace "prepare_csv" by "prepare_csv2"
+
 # Usage
 
 - Swagger GUI on http://[IP]:4001/doc 
 - Example of URL : http://[IP]:4001/REST/bepelias/v1/geocode?streetName=Avenue%20Fonsny&houseNumber=20&postCode=1060&postName=Saint-Gilles
 
-Port can be changed in: 
-- Dockerfile > EXPOSE 4001
-- run.sh > PORT=4001
+Port can be changed in build.sh updating "PORT_OUT=4001"
 
 # Requirements
 
@@ -182,6 +186,8 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 
 # Todo
 
-- Full best id pour les adresses -> nécessite de builder les data à partir des XML? Dans les CSV, objectId présent, mais pas versionId
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
 - Describe output format in swagger
+- Transformer: if a transformer did not change address: do not recall Pelias
+- If no result passed the check_postcode, keep the orginal result 
+- Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". With libpostal? 

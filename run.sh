@@ -11,15 +11,22 @@ PORT=4001
 echo "ACTION: $ACTION"
 
 
-if [[ $ACTION == "prepare"  ]]; then
-    echo "Prepare"
-    python prepare_best_files.py
-fi
-
-if [[ $ACTION == "run" ]]; then
-    echo "Starting service..."
+if [[ $ACTION == "prepare_from_csv"  ]]; then
+    echo "Prepare csv from csv"
+    python prepare_best_files.py --source=csv
+elif [[ $ACTION == "prepare_from_xml"  ]]; then
+    echo "Prepare csv from xml"
+    
+    /convert_xml2csv.sh
+    
+    python3 /prepare_best_files.py --source=xml
+    
+elif [[ $ACTION == "run" ]]; then
+    echo "Starting service..." 
     
     gunicorn -w 1 -b 0.0.0.0:$PORT bepelias:app 
 
     while :; do sleep 3600 ; done
+else
+    echo "Unknown action $ACTION"
 fi

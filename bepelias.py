@@ -21,9 +21,13 @@ import logging
 import json
 import re
 
+from urllib.parse import unquote_plus
+
+
 import textdistance
 from unidecode import unidecode
 
+from elasticsearch import Elasticsearch, NotFoundError
 
 from flask import Flask,  request, url_for
 from flask_restx import Api, Resource, reqparse
@@ -125,6 +129,11 @@ class Pelias:
         self.interpolate_api = (
             f'{self.scheme}://{self.domain.replace("4000", "4300")}{self.interpolate_path}'
         )
+        
+        self.elastic_api = (
+            f'{self.scheme}://{self.domain.replace("4000", "9200")}'
+        )
+
 
     def call_service(self, url, nb_attempts = 6):
         """
@@ -337,7 +346,7 @@ def pelias_check_postcode(pelias_res, postcode):
 
     pelias_res["features"] = filtered_feat
 
-    log(f"Check postcode : {nb_res} --> {len(filtered_feat)}")
+    vlog(f"Check postcode : {nb_res} --> {len(filtered_feat)}")
     return pelias_res# return None #res_list[0]
 
 
@@ -558,7 +567,7 @@ def check_best_streetname(pelias_res, street_name, threshold=0.8):
 
     pelias_res["features"] = filtered_feat
 
-    log(f"Check street : {nb_res} --> {len(filtered_feat)}")
+    vlog(f"Check street : {nb_res} --> {len(filtered_feat)}")
     return pelias_res# return None #res_list[0]
 
 
@@ -651,6 +660,17 @@ def build_address(street_name, house_number):
     return f"{street_name}, {house_number}"
 
 
+def build_city(post_code, post_name):
+    if pd.isnull(post_code) or len(post_code)==0:
+        return post_name or ""
+    
+    if pd.isnull(post_name) or len(post_name)==0:
+        return post_code or ""
+    
+    return f"{post_code} {post_name}"
+    
+
+
 def struct_or_unstruct(street_name, house_number, post_code, post_name):
     """
     Try structed version of Pelias. If it did not succeed, try the unstructured version.
@@ -672,12 +692,14 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
         Pelias result.
 
     """
+    vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}')")
     # Try structured
     addr= {"address": build_address(street_name, house_number),
            "locality": post_name}
     if post_code is not None:
         addr["postalcode"] = post_code
 
+    vlog(f"Call struct: {addr}")
     pelias_struct= pelias.geocode(addr)
     pelias_struct["bepelias"] = {"call_type": "struct",
                           "in_addr": addr}
@@ -685,14 +707,14 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
     if post_code is not None:
         pelias_struct = pelias_check_postcode(pelias_struct, post_code)
     else:
-        log("No postcode in input")
+        vlog("No postcode in input")
 
 
     if len(pelias_struct["features"]) > 0 :
 
         #log(pelias_struct)
         for feat in pelias_struct["features"]:
-            log(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
+            vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
             if is_building(feat):
 
                 if feat["geometry"]["coordinates"] == [0,0]:
@@ -702,18 +724,23 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
                         feat["geometry"]["coordinates_orig"] = [0,0]
                         feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
                         pelias_struct["bepelias"]["interpolated"] = True
-                log("Found a building in res1")
-                log(feat)
-                log("pelias_struct")
-                log(pelias_struct)
-                log("-------")
+                vlog("Found a building in res1")
+                vlog(feat)
+                vlog("pelias_struct")
+                vlog(pelias_struct)
+                vlog("-------")
 
                 return pelias_struct
 
     # Try unstructured
-    addr = build_address(street_name, house_number) + ", "  + f"{post_code} {post_name}" if post_code else post_name
-
-    pelias_unstruct= pelias.geocode(addr)
+    addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
+    vlog(f"Call unstruct: '{addr}'")
+    if addr and len(addr.strip())>0:
+        pelias_unstruct= pelias.geocode(addr)
+    else: 
+        vlog("Unstructured: empty inputs, skip call")
+        
+        pelias_unstruct = { "features": []}
     pelias_unstruct["bepelias"] = {"call_type": "unstruct",
                               "in_addr": addr}
 
@@ -721,7 +748,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
 
         pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code)
     else:
-        log("No postcode in input")
+        vlog("No postcode in input")
 
 
     pelias_unstruct = check_best_streetname(pelias_unstruct, street_name)
@@ -731,10 +758,10 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
 
 
         for feat in pelias_unstruct["features"]:
-            log(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
+            vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
             if is_building(feat):
                 if feat["geometry"]["coordinates"] == [0,0]:
-                    log("Coordinates==0,0, try to interpolate...")
+                    vlog("Coordinates==0,0, try to interpolate...")
                     interp = interpolate(feat)
                     if "geometry" in interp:
                         feat["geometry"]["coordinates_orig"] = [0,0]
@@ -945,6 +972,14 @@ single_parser.add_argument('postName',
                           )
 
 
+id_parser = reqparse.RequestParser()
+id_parser.add_argument('bestid',
+                          type=str,
+                          default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                          help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
+                          location='query'
+                          )
+
 
 
 transformer_sequence = [
@@ -964,7 +999,7 @@ transformer_sequence = [
 class Geocode(Resource):
     """ Single address geocoding"""
 
-    @namespace.expect(single_parser)#, input_address)
+    @namespace.expect(single_parser)
 
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
@@ -1006,7 +1041,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             return pelias_res
 
         if mode == "pelias_unstruct":
-            addr = build_address(street_name, house_number) + ", "  + f"{post_code} {post_name}" if post_code else post_name
+            addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
             pelias_res= pelias.geocode(addr)
 
             return pelias_res
@@ -1028,16 +1063,21 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                     transf_addr_data = transform(transf_addr_data, t)
 
                 log(f"transformed address: ({ ';'.join(transf)})")
-                vlog(transf_addr_data)
-                pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
-                                                 transf_addr_data["house_number"],
-                                                 transf_addr_data["post_code"],
-                                                 transf_addr_data["post_name"])
-                pelias_res["bepelias"]["transformers"] = ";".join(transf)
+                log(transf_addr_data)
+                if len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
+                    vlog("No value to send, skip Pelias call")
+                else:
 
-                if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
-                    return pelias_res
-                all_res.append(pelias_res)
+
+                    pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
+                                                     transf_addr_data["house_number"],
+                                                     transf_addr_data["post_code"],
+                                                     transf_addr_data["post_name"])
+                    pelias_res["bepelias"]["transformers"] = ";".join(transf)
+
+                    if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
+                        return pelias_res
+                    all_res.append(pelias_res)
 
             log("No building result, keep the best match")
 
@@ -1051,13 +1091,13 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                     #log(prop)
                     if  "postalcode" in prop and prop["postalcode"] == post_code:
                         res["score"] += 3
-                    if  "locality" in prop and prop["locality"].lower() == post_name.lower():
+                    if  "locality" in prop and prop["locality"].lower() == (post_name or "").lower():
                         res["score"] += 2
 
                     if  "street" in prop :
                         res["score"] += 1
                         street_sim = check_streetname(res["features"][0], street_name, threshold=0.8)
-                        log(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
+                        vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
                         if street_sim:
                             res["score"] += street_sim
 
@@ -1082,3 +1122,82 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             return all_res[0]
 
         return "Wrong mode!" # Should neve occur...
+
+    
+@namespace.route('/id/<string:bestid>')
+# @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/')
+# @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/<string:a5>/')
+@namespace.param('bestid',
+                          type=str,
+                          default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                          help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')")
+class GetById(Resource):
+    """ Get ressource by best id. This does not replace a call to Bosa BeSt Address API !!
+    Only works for addresses, streets and municipalities (not for postalinfos, part of municipalities)
+    """
+
+    # @namespace.expect(id_parser)
+    
+    @namespace.response(400, 'Error in arguments')
+    @namespace.response(500, 'Internal Server error')
+    @namespace.response(204, 'No address found')
+
+
+    # def get(self, bestid, a1=None, a2=None, a3=None, a4=None, a5=None):
+    def get(self, bestid):
+        """
+
+        """
+
+        if "%2F" in bestid:
+            bestid = unquote_plus(bestid)
+        # log(f"{(bestid, a1, a2, a3, a4, a5)}")
+        # if a1 and "http" in bestid:
+        #      bestid += "/"
+        # for a in [a1, a2, a3, a4, a5]:
+        #     if a :
+        #         bestid += "/"+a
+            
+            
+            
+        log(f"get by id: {bestid}")
+        
+        client = Elasticsearch(pelias.elastic_api)
+        
+        mtch = re.search("([a-z\.]+.be)/id/([a-z]+)/", bestid,  re.IGNORECASE)
+        
+        if mtch is None or len(mtch.groups()) != 2:
+             namespace.abort(400, f"Cannot parse best id '{bestid}'")
+
+        reg_map = {
+            "geodata.wallonie.be": "be-wal",
+            "databrussels.be" :    "be-bru",
+            "data.vlaanderen.be":  "be-vlg"
+        }
+        if mtch[1] not in reg_map:
+            namespace.abort(400, f"Cannot find a valid domain in {bestid} ({mtch[1]})")
+        reg = reg_map[mtch[1]]
+        
+        log(f"mtch[2].lower(): '{mtch[2].lower()}'")
+        if mtch[2].lower() in ["address", "adres"]:
+            obj_type = "address"
+        elif mtch[2].lower() in ["streetname", "straatname"]:
+            obj_type = "street"
+        elif mtch[2].lower() in ["municipality", "gemeente"]:
+            obj_type = "city"
+        else :
+            namespace.abort(400, f"Object type '{mtch[2]}' not supported so far in '{bestid}'")
+                
+        
+        lg_sequence = ["fr", "nl", "de"] if reg == "be-bru" else ["fr", "de", "nl"] if reg == "be-wal" else ["nl", "fr", "de"]
+        for lg in lg_sequence:
+            try: 
+                resp = client.get(index="pelias", id=f"{reg}:{obj_type}:{bestid}_{lg}")
+                
+                resp["_source"]["addendum"]["best"] =json.loads(resp["_source"]["addendum"]["best"])
+                return resp
+            except NotFoundError: 
+                pass
+                # log("Not found !")
+        return "Object not found", 204
+
