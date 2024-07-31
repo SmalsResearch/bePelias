@@ -671,7 +671,7 @@ def build_city(post_code, post_name):
     
 
 
-def struct_or_unstruct(street_name, house_number, post_code, post_name):
+def struct_or_unstruct(street_name, house_number, post_code, post_name, check_postcode=True):
     """
     Try structed version of Pelias. If it did not succeed, try the unstructured version, and keep the best result.
 
@@ -692,7 +692,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
         Pelias result.
 
     """
-    vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}')")
+    vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}', {check_postcode})")
     # Try structured
     addr= {"address": build_address(street_name, house_number),
            "locality": post_name}
@@ -703,10 +703,11 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
     pelias_struct= pelias.geocode(addr)
     pelias_struct["bepelias"] = {"call_type": "struct",
                                  "in_addr": addr, 
-                                 "call_cnt":1}
+                                 "pelias_call_count":1}
 
     if post_code is not None:
-        pelias_struct = pelias_check_postcode(pelias_struct, post_code)
+        if check_postcode:
+            pelias_struct = pelias_check_postcode(pelias_struct, post_code)
     else:
         vlog("No postcode in input")
 
@@ -745,12 +746,12 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
         pelias_unstruct = { "features": []}
     pelias_unstruct["bepelias"] = {"call_type": "unstruct",
                                    "in_addr": addr,
-                                   "call_cnt":cnt}
-    pelias_struct["bepelias"]["call_cnt"]=cnt
+                                   "pelias_call_count":cnt}
+    pelias_struct["bepelias"]["pelias_call_count"]=cnt
     
     if post_code is not None:
-
-        pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code)
+        if check_postcode: 
+            pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code)
     else:
         vlog("No postcode in input")
 
@@ -759,7 +760,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name):
 
 
     if len(pelias_unstruct["features"]) > 0 :
-
 
         for feat in pelias_unstruct["features"]:
             vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
@@ -911,6 +911,8 @@ api = Api(app,
           version='1.0.0',
           title='bePelias API',
           description="""A service that allows geocoding (postal address cleansing and conversion into geographical coordinates), based on Pelias and BestAddresses.
+          
+          Code available on https://github.com/SmalsResearch/bePelias/
 
           """,
           doc='/doc',
@@ -1062,42 +1064,42 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                         "post_code": post_code}
             all_res=[]
             
-            previous_attempts = []
+           
             call_cnt=0
-            for transf in transformer_sequence:
-                transf_addr_data = addr_data.copy()
-                for t in transf:
-                    transf_addr_data = transform(transf_addr_data, t)
-                    
-                    
-                
-                
-                log(f"transformed address: ({ ';'.join(transf)})")
-                #if addr_data == transf_addr_data and len(transf)>0:
-                if transf_addr_data in previous_attempts:
-                    vlog("Transformed address already tried, skip Pelias call")
-                    
-                elif len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
-                    vlog("No value to send, skip Pelias call")
-                else:
+            for check_postcode in [True, False]:
+                previous_attempts = []
+                for transf in transformer_sequence:
+                    transf_addr_data = addr_data.copy()
+                    for t in transf:
+                        transf_addr_data = transform(transf_addr_data, t)
 
-                    previous_attempts.append(transf_addr_data)
-                    
-                    pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
-                                                     transf_addr_data["house_number"],
-                                                     transf_addr_data["post_code"],
-                                                     transf_addr_data["post_name"])
-                    pelias_res["bepelias"]["transformers"] = ";".join(transf)
-                    call_cnt+= pelias_res["bepelias"]["call_cnt"]
-                    
-                    #log(f'call count: {pelias_res["bepelias"]} --> {call_cnt}')
-                    
-                    
+                    log(f"transformed address: ({ ';'.join(transf)})")
+                    #if addr_data == transf_addr_data and len(transf)>0:
+                    if transf_addr_data in previous_attempts:
+                        vlog("Transformed address already tried, skip Pelias call")
 
-                    if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
-                        pelias_res["bepelias"]["call_cnt"]=call_cnt
-                        return pelias_res
-                    all_res.append(pelias_res)
+                    elif len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
+                        vlog("No value to send, skip Pelias call")
+                    else:
+
+                        previous_attempts.append(transf_addr_data)
+
+                        pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
+                                                         transf_addr_data["house_number"],
+                                                         transf_addr_data["post_code"],
+                                                         transf_addr_data["post_name"], check_postcode=check_postcode)
+                        pelias_res["bepelias"]["transformers"] = ";".join(transf) + ("(no postcode check)" if not check_postcode else "")
+                        call_cnt+= pelias_res["bepelias"]["pelias_call_count"]
+
+                        if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
+                            pelias_res["bepelias"]["pelias_call_count"]=call_cnt
+                            return pelias_res
+                        all_res.append(pelias_res)
+                if sum([len(r["features"]) for r in all_res]) >0: # If some result were found (even street-level), we stop here and select the best one. 
+                                    # Otherwise, we start again, accepting any postcode in the result
+                    log("Some result  found with check_postcode=True")
+                    log(all_res)
+                    break
 
             log("No building result, keep the best match")
 
@@ -1142,7 +1144,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             if len(all_res)>0:
                 final_res= all_res[0]
 
-                final_res["bepelias"]["call_cnt"]=call_cnt
+                final_res["bepelias"]["pelias_call_count"]=call_cnt
                 return final_res
             return None
                 

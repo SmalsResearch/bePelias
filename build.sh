@@ -19,6 +19,8 @@ PELIAS_HOST=${2:-"172.27.0.64:4000"}
 
 LOG_LEVEL=${3:-"LOW"}
 
+NB_WORKERS=${4:-1}
+
 CNT_NAME=bepelias_cnt
 
 
@@ -178,7 +180,7 @@ if [[ $ACTION == "run_api" ]]; then
         $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
     fi
     set -x    
-    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL --name $CNT_NAME -v $(pwd)/data:/data bepelias
+    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME -v $(pwd)/data:/data bepelias
     set +x
     echo "run 'docker logs -f $CNT_NAME' "
 fi

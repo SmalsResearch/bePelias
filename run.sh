@@ -6,6 +6,8 @@ ACTION=$1
 
 echo "Starting run.sh..."
 
+NB_WORKERS=${NB_WORKERS:-1}
+
 PORT=4001
 
 echo "ACTION: $ACTION"
@@ -22,9 +24,9 @@ elif [[ $ACTION == "prepare_from_xml"  ]]; then
     python3 /prepare_best_files.py --source=xml
     
 elif [[ $ACTION == "run" ]]; then
-    echo "Starting service..." 
+    echo "Starting service... ($NB_WORKERS workers)" 
     
-    gunicorn -w 8 -b 0.0.0.0:$PORT bepelias:app 
+    gunicorn -w $NB_WORKERS -b 0.0.0.0:$PORT bepelias:app 
 
     while :; do sleep 3600 ; done
 else

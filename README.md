@@ -132,6 +132,8 @@ We apply the following sequence of transformers if the original address does not
 - no_hn
 - no_city, no_hn
 
+If no result was found so far, we start again the above sequence, but without checking postcode.
+
 ### Best result selection
 
 If no transformer sequence sent to struct_or_unstruct gives a building level result, we will choose the best candidate amongst all those struct_or_unstruct results.
@@ -188,5 +190,4 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
 - Describe output format in swagger
-- If no result passed the check_postcode, keep the orginal result 
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". With libpostal? 
