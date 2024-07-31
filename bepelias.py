@@ -594,7 +594,7 @@ def is_building(feature):
 
 def interpolate(feature):
     """
-    Try to interpolate the building position (typically become coordinates are missing)
+    Try to interpolate the building position (typically because coordinates are missing)
 
     Parameters
     ----------
@@ -627,6 +627,9 @@ def interpolate(feature):
                                 number=feature['properties']['housenumber'],
                                 street=feature['properties']['street'])
 
+    if len(interp_res) == 0:
+        interp_res= {"street_geometry" : {"coordinates": street_center_coords}}
+        
     log(interp_res)
     return interp_res
 
@@ -669,7 +672,13 @@ def build_city(post_code, post_name):
     
     return f"{post_code} {post_name}"
     
-def search_for_coordinates(feat, pelias_struct):
+def search_for_coordinates(feat, pelias_res):
+    """
+    If a feature has (0,0) as coordinates, try to find better location:
+    - If address contains boxes and the first box has non null coordinates, use them
+    - Otherwise, try the interpolation engine
+    
+    """
     log("Coordinates==0,0, check if any box number contains coordinates...")
 
     try: 
@@ -681,14 +690,19 @@ def search_for_coordinates(feat, pelias_struct):
         vlog("Found coordinates in first box number")
         feat["geometry"]["coordinates_orig"] = [0,0]
         feat["geometry"]["coordinates"] = boxes[0]["lat"], boxes[0]["lon"]
-        pelias_struct["bepelias"]["interpolated"] = "from_boxnumber"
+        pelias_res["bepelias"]["interpolated"] = "from_boxnumber"
     else: 
         log("Coordinates==0,0, try to interpolate...")
         interp = interpolate(feat)
         if "geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0,0]
             feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-            pelias_struct["bepelias"]["interpolated"] = True
+            pelias_res["bepelias"]["interpolated"] = True
+        elif "street_geometry" in interp:
+            feat["geometry"]["coordinates_orig"] = [0,0]
+            feat["geometry"]["coordinates"] = interp["street_geometry"]["coordinates"]
+            pelias_struct["bepelias"]["interpolated"] = "street_center"
+
 
 
 def struct_or_unstruct(street_name, house_number, post_code, post_name, check_postcode=True):
@@ -743,25 +757,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
                     
                     search_for_coordinates(feat, pelias_struct)
                     
-#                     log("Coordinates==0,0, check if any box number contains coordinates...")
-                    
-#                     try: 
-#                         boxes = feat["properties"]["addendum"]["best"]["box_info"]
-#                     except KeyError:
-#                         boxes = []
-                        
-#                     if len(boxes)>0 and boxes[0]["lat"] !=0:
-#                         vlog("Found coordinates in first box number")
-#                         feat["geometry"]["coordinates_orig"] = [0,0]
-#                         feat["geometry"]["coordinates"] = boxes[0]["lat"], boxes[0]["lon"]
-#                         pelias_struct["bepelias"]["interpolated"] = False
-#                     else: 
-#                         log("Coordinates==0,0, try to interpolate...")
-#                         interp = interpolate(feat)
-#                         if "geometry" in interp:
-#                             feat["geometry"]["coordinates_orig"] = [0,0]
-#                             feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-#                             pelias_struct["bepelias"]["interpolated"] = True
                 vlog("Found a building in res1")
                 vlog(feat)
                 vlog("pelias_struct")
