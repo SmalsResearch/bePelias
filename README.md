@@ -167,7 +167,7 @@ There are two situations where coordinates of an address are computed by interpo
 - Either the number is not provided in BeSt Address data. In this case, Pelias will use its interpolation engine, based on BeSt Address as well as OpenStreetMap data. It this case:
    - Field 'properties'>'match_type' is 'interpolated'
    - Id provided in the result is a street best id, not an address best id
-- Either the number is provided in BeSt Address data, but with coordinates (0,0) (only in Wallonia). It his case, bePelias will call the interpolation engine:
+- Or the number is provided in BeSt Address data, but with coordinates (0,0) (only in Wallonia). It his case, bePelias will call the interpolation engine:
    - Field 'bepelias'>'interpolated' is True
    - Id provided in the result is the Street Best Id
    - In 'geometry', we provide 'coordinates_orig', with the original coordinates, and 'coordinates' with the interpolated coordinates
@@ -186,8 +186,11 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 - the "main" address is described in the "top" result (with and id and coordinates);
 - all boxes are described in "addendum" part, in 'box_info' list.
 
+In some rare situation, there are no coordinates at the main address level, but there are some at the box level. In such case, we use those coordinates in the result (with 'bepelias'>'interpolated' = 'from_boxnumber' in the result)
+
 # Todo
 
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". With libpostal? 
+- If interpolation does not give any result, use street center (with 'interpolated=street_center'?

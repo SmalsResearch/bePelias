@@ -669,6 +669,26 @@ def build_city(post_code, post_name):
     
     return f"{post_code} {post_name}"
     
+def search_for_coordinates(feat, pelias_struct):
+    log("Coordinates==0,0, check if any box number contains coordinates...")
+
+    try: 
+        boxes = feat["properties"]["addendum"]["best"]["box_info"]
+    except KeyError:
+        boxes = []
+
+    if len(boxes)>0 and boxes[0]["lat"] !=0:
+        vlog("Found coordinates in first box number")
+        feat["geometry"]["coordinates_orig"] = [0,0]
+        feat["geometry"]["coordinates"] = boxes[0]["lat"], boxes[0]["lon"]
+        pelias_struct["bepelias"]["interpolated"] = "from_boxnumber"
+    else: 
+        log("Coordinates==0,0, try to interpolate...")
+        interp = interpolate(feat)
+        if "geometry" in interp:
+            feat["geometry"]["coordinates_orig"] = [0,0]
+            feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
+            pelias_struct["bepelias"]["interpolated"] = True
 
 
 def struct_or_unstruct(street_name, house_number, post_code, post_name, check_postcode=True):
@@ -720,12 +740,28 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
             if is_building(feat):
 
                 if feat["geometry"]["coordinates"] == [0,0]:
-                    log("Coordinates==0,0, try to interpolate...")
-                    interp = interpolate(feat)
-                    if "geometry" in interp:
-                        feat["geometry"]["coordinates_orig"] = [0,0]
-                        feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-                        pelias_struct["bepelias"]["interpolated"] = True
+                    
+                    search_for_coordinates(feat, pelias_struct)
+                    
+#                     log("Coordinates==0,0, check if any box number contains coordinates...")
+                    
+#                     try: 
+#                         boxes = feat["properties"]["addendum"]["best"]["box_info"]
+#                     except KeyError:
+#                         boxes = []
+                        
+#                     if len(boxes)>0 and boxes[0]["lat"] !=0:
+#                         vlog("Found coordinates in first box number")
+#                         feat["geometry"]["coordinates_orig"] = [0,0]
+#                         feat["geometry"]["coordinates"] = boxes[0]["lat"], boxes[0]["lon"]
+#                         pelias_struct["bepelias"]["interpolated"] = False
+#                     else: 
+#                         log("Coordinates==0,0, try to interpolate...")
+#                         interp = interpolate(feat)
+#                         if "geometry" in interp:
+#                             feat["geometry"]["coordinates_orig"] = [0,0]
+#                             feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
+#                             pelias_struct["bepelias"]["interpolated"] = True
                 vlog("Found a building in res1")
                 vlog(feat)
                 vlog("pelias_struct")
@@ -765,12 +801,13 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
             vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
             if is_building(feat):
                 if feat["geometry"]["coordinates"] == [0,0]:
-                    vlog("Coordinates==0,0, try to interpolate...")
-                    interp = interpolate(feat)
-                    if "geometry" in interp:
-                        feat["geometry"]["coordinates_orig"] = [0,0]
-                        feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-                        pelias_unstruct["bepelias"]["interpolated"] = True
+                    search_for_coordinates(feat, pelias_unstruct)
+                    # vlog("Coordinates==0,0, try to interpolate...")
+                    # interp = interpolate(feat)
+                    # if "geometry" in interp:
+                    #     feat["geometry"]["coordinates_orig"] = [0,0]
+                    #     feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
+                    #     pelias_unstruct["bepelias"]["interpolated"] = True
                 return pelias_unstruct
 
     # No result has a building precision -> get the best one, according the first feature
