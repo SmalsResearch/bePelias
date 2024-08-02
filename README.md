@@ -186,13 +186,13 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 - the "main" address is described in the "top" result (with and id and coordinates);
 - all boxes are described in "addendum" part, in 'box_info' list.
 
-In some rare situation, there are no coordinates at the main address level, but there are some at the box level. In such case, we use those coordinates in the result (with 'bepelias'>'interpolated' = 'from_boxnumber' in the result)
+In some rare situations, there are no coordinates at the main address level, but there are some at the box level. In such cases, we use those coordinates in the result (with 'bepelias'>'interpolated' = 'from_boxnumber' in the result)
 
 # Todo
 
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
 - Describe output format in swagger
-- Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". With libpostal? 
-- If interpolation does not give any result, use street center (with 'interpolated=street_center')?
+- Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - Resume precision level in one field in 'bepelias'
-
+- Include streets without any non-null coordinates
+- part_of_municipality value in addendum

@@ -103,12 +103,13 @@ def build_addendum(fields, dfr):
     res=""
     for fld in fields:
         for lang in ["fr", "nl", "de"]:
-
-            fld_val = dfr[f"{fld}_{lang}"]
-            res += np.where(
-                fld_val.isnull(),
-                "",
-                f'"{fld}_{lang}": "'+fld_val.fillna("").str.replace('"', "'")+'", ')
+            fld_name = f"{fld}_{lang}"
+            if fld_name in dfr:
+                fld_val = dfr[f"{fld}_{lang}"]
+                res += np.where(
+                    fld_val.isnull(),
+                    "",
+                    f'"{fld}_{lang}": "'+fld_val.fillna("").str.replace('"', "'")+'", ')
     return res
 
 
@@ -191,7 +192,8 @@ def get_base_data_xml(region):
     box_info = with_box.groupby(["house_number",
                                  "municipality_id", "municipality_name_de",
                                  "municipality_name_fr", "municipality_name_nl",
-                                 "postcode", "postname_fr", "postname_nl",
+                                 "postcode", "postname_fr", "postname_nl","postname_de",
+                                 #"part_of_municipality_id", "part_of_municipality_name_nl", "part_of_municipality_name_fr", "part_of_municipality_name_de",
                                  "street_id", "streetname_de", "streetname_fr", "streetname_nl"],dropna=False )[["lat", "lon",
                                                                 "box_number",
                                                                 "address_id",
@@ -222,7 +224,7 @@ def get_base_data_xml(region):
 
     log(f"[base-{region}] -   Adding language data")
     for lang in ["fr", "nl", "de"]:
-        data[f"name_{lang}"]=data["house_number"].fillna("")+", "+                           data[f"streetname_{lang}"].fillna("")+", "+                           data["postcode"].fillna("").astype(str)+" "+                           data[f"municipality_name_{lang}"].fillna("")
+        data[f"name_{lang}"]=data["house_number"].fillna("")+", "+ data[f"streetname_{lang}"].fillna("")+", "+ data["postcode"].fillna("").astype(str)+" "+                           data[f"municipality_name_{lang}"].fillna("")
 
         data[f"name_{lang}"] = data[f"name_{lang}"].where(data[f"streetname_{lang}"].notnull(),
                                                           pd.NA)
@@ -236,11 +238,20 @@ def get_base_data_xml(region):
     addendum_json_best='{"best_id": "'+data["address_id"].astype(str)+'", '
 
     addendum_json_best += build_addendum(["name", "streetname",
-                                          "municipality_name", "postname"],
+                                          "municipality_name", 
+                                          "part_of_municipality_name", 
+                                          "postname"],
                                            data)
-
+    
+    # log("Will create addendum based on : ")
+    # log(data)
+    # log(data.columns)
+    # log('part_of_municipality_id' in data)
+    # log(data["part_of_municipality_id"].notnull().any())
+    
     addendum_json_best += '"NIS": '+data.municipality_id.str.extract(r"/([0-9]{5})/")[0] +', ' +  \
         '"municipality_id": "'+data.municipality_id.astype(str) +'", ' +\
+       ('"part_of_municipality_id": "'+data.part_of_municipality_id.astype(str) +'", ' if 'part_of_municipality_id' in data and data["part_of_municipality_id"].notnull().any() else "" )+\
         '"street_id": "'+ data.street_id.astype(str)+'", ' +\
         '"status": "'+ data.status + '"'
 
@@ -320,7 +331,7 @@ def get_empty_data_xml(region):
 
         empty_streets_lg["name"] =   empty_streets_lg["street"]+", " + empty_streets_lg["postalcode"].astype(str)+" " + empty_streets_lg["locality"]
 
-        empty_streets_lg["addendum_json_best"]='{' +            build_addendum(["streetname", "municipality_name", "postname"],
+        empty_streets_lg["addendum_json_best"]='{' + build_addendum(["streetname", "municipality_name", "postname", "part_of_municipality_name"],
                            empty_streets_lg) +\
             '"NIS": '+empty_streets_lg.municipality_id.str.extract(r"/([0-9]{5})/")[0] +', ' +\
             '"municipality_id": "'+empty_streets_lg.municipality_id.astype(str) +'", ' +\
@@ -440,7 +451,7 @@ def get_base_data_csv(region):
     addendum_json_best='{"best_id": '+data["address_id"].astype(str)+', '
 
     addendum_json_best += build_addendum(["name", "streetname",
-                                          "municipality_name", "postname"],
+                                          "municipality_name", "postname", "part_of_municipality_name"],
                                            data)
 
     addendum_json_best += '"NIS": '+data.municipality_id.astype(str) +', ' +\
@@ -540,7 +551,7 @@ def get_empty_data_csv(region):
                                    + empty_streets_lg["locality"]
 
         empty_streets_lg["addendum_json_best"]='{' +\
-            build_addendum(["streetname", "municipality_name", "postname"],
+            build_addendum(["streetname", "municipality_name", "postname", "part_of_municipality_name"],
                            empty_streets_lg) +\
             '"NIS": '      +empty_streets_lg.municipality_id.astype(str) + ', ' +\
             '"street_id": '+empty_streets_lg.street_id.astype(str) + '}'
@@ -761,7 +772,7 @@ def create_street_data(data, empty_street, region, source):
         data_street_lg["street"] =   data_street_lg[f"streetname_{lang}"]
 
 
-        data_street_lg["addendum_json_best"]='{' +            build_addendum(["streetname", "municipality_name", "postname"],
+        data_street_lg["addendum_json_best"]='{' +            build_addendum(["streetname", "municipality_name", "postname", "part_of_municipality_name"],
                            data_street_lg) +\
             ('"NIS": '      +data_street_lg.municipality_id.str.extract(r"/([0-9]{5})/")[0] + ', ' if source=="xml" else "") +\
             '"municipality_id": "'+data_street_lg.municipality_id.astype(str) +'", ' +\
