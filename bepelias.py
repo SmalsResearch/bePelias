@@ -701,7 +701,7 @@ def search_for_coordinates(feat, pelias_res):
         elif "street_geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0,0]
             feat["geometry"]["coordinates"] = interp["street_geometry"]["coordinates"]
-            pelias_struct["bepelias"]["interpolated"] = "street_center"
+            pelias_res["bepelias"]["interpolated"] = "street_center"
 
 
 

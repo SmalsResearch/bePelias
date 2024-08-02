@@ -745,9 +745,11 @@ def create_street_data(data, empty_street, region, source):
                       "postname_fr",   "postname_nl", "postname_de",
                       "streetname_fr", "streetname_nl", "streetname_de","street_id",
                       "postalcode",    "source", "country"] if f in data]
-    all_streets = data[fields].drop_duplicates()                              .merge(streets_centers_duo[["lat", "lon"]],
-                                     left_on=["municipality_id", "street_id"],
-                                     right_index=True)
+    all_streets = data[fields].drop_duplicates().merge(streets_centers_duo[["lat", "lon"]],
+                                                       left_on=["municipality_id", "street_id"],
+                                                       right_index=True,
+                                                       how="left"
+                                                      ).fillna({"lat": 0, "lon": 0})
 
     data_street_all = []
     for lang in ["fr", "nl", "de"]:

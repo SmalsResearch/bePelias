@@ -194,5 +194,4 @@ In some rare situations, there are no coordinates at the main address level, but
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - Resume precision level in one field in 'bepelias'
-- Include streets without any non-null coordinates
-- part_of_municipality value in addendum
+- 
