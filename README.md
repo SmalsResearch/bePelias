@@ -188,10 +188,26 @@ When an address contains several boxes, BeSt Address provides a BeSt id for the 
 
 In some rare situations, there are no coordinates at the main address level, but there are some at the box level. In such cases, we use those coordinates in the result (with 'bepelias'>'interpolated' = 'from_boxnumber' in the result)
 
+## Precision
+
+Each record contains, in "bepelias" part, a "precision" field, giving information about the first features. We could observe the following values (see also above section "Interpolation"):
+
+- address*: we match the input address to a BeSt Address, with a BeSt id...
+    - address: ...  and coordinates
+    - address_interpol:... but this one does not contain any coordinate. However, by interpolation based on neighbor numbers, we were able to approximate the location
+    - address_streetcenter: ... but were not able to approximate the location. We were however able to provide the geometric center of all the known addresses within this street (see "Street center" section)
+    - address_00: ... but were unable to provide any coordinate. Coordinates in result are then (0,0) 
+- street*: we match the input address to a BeSt street, with a BeSt street id...
+    - street_interpol: ... and, by interpolation, were able to approximate the location
+    - street: ... and provided the coordinates of all the known addresses within this street  (see "Street center" section)
+    - street_00: ... but were unable to provide any coordinate. Coordinates in result are then (0,0) 
+- city: Only city/postcode were matched. Most of the time, we do not get any BeSt result, by only OpenStreetMap or Whosonfirst values 
+- country: Only element larger that a city are matched (region, province...)
+
 # Todo
 
-- Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst"
+- Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst" (locality instead of city in layer?)
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
-- Resume precision level in one field in 'bepelias'
-- 
+- Update Redhat UBI (CentOs deprecated)
+

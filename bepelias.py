@@ -881,6 +881,49 @@ def transform(addr_data, transformer):
 
     return addr_data
 
+
+def get_precision(pelias_res):
+    try: 
+        # if len(pelias_res["features"]) == 0:
+        #     return "no_feat"
+        feat= pelias_res["features"][0]
+        feat_prop = feat["properties"]
+        if feat_prop["layer"]=="address":
+            if feat["geometry"]["coordinates"]==[0,0]:
+                return "address_00"
+            if 'interpolated' in pelias_res['bepelias'] and pelias_res['bepelias']['interpolated'] == 'street_center':
+                return "address_streetcenter"
+            if 'interpolated' in pelias_res['bepelias'] and pelias_res['bepelias']['interpolated'] is True:
+                return "address_interpol"
+            if  feat_prop["match_type"] == "interpolated" :
+                if "/streetname/" in feat_prop["id"].lower() or "/straatnaam/" in feat_prop["id"].lower() :
+                    return "street_interpol"
+                return "address_interpol2" # Should not occur?
+
+            if feat_prop["match_type"] == "exact" or feat_prop["accuracy"]=="point":
+                return "address"
+        
+        if feat_prop["layer"]=="street":
+            if feat["geometry"]["coordinates"]==[0,0]:
+                return "street_00"
+            # if  feat_prop["match_type"] == "interpolated" :
+                 # return "street_interpol"
+        
+            return "street"
+        if feat_prop["layer"] in ("city", "locality", "postalcode", "localadmin", "neighbourhood"):
+            if feat["geometry"]["coordinates"]==[0,0]:
+                return "city_00"
+            return "city"
+        
+        if feat_prop["layer"] in ("region", "macroregion", "county"):
+            return "country"
+    
+    except KeyError as e:
+        log(e)
+        return "[keyerror]"
+        
+    return "[todo]"
+
 # WARNING : no logs
 # INFO : a few logs
 # DEBUG : lots of logs
@@ -1033,6 +1076,8 @@ transformer_sequence = [
 ]
 
 
+    
+
 @namespace.route('/geocode')
 class Geocode(Resource):
     """ Single address geocoding"""
@@ -1125,16 +1170,18 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
                         if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
                             pelias_res["bepelias"]["pelias_call_count"]=call_cnt
+                            pelias_res["bepelias"]["precision"] = get_precision(pelias_res)
                             return pelias_res
                         all_res.append(pelias_res)
                 if sum([len(r["features"]) for r in all_res]) >0: # If some result were found (even street-level), we stop here and select the best one. 
                                     # Otherwise, we start again, accepting any postcode in the result
-                    log("Some result  found with check_postcode=True")
+                    log("Some result found with check_postcode=True")
                     log(all_res)
                     break
 
             log("No building result, keep the best match")
-
+            
+            # if len(all_
             # Get a score for each result
             fields = ["housenumber", "street", "locality", "postalcode"]
             log(" ".join([f"{f:20}" for f in fields]) + "     score")
@@ -1175,10 +1222,18 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             
             if len(all_res)>0:
                 final_res= all_res[0]
+                
+                if len(final_res["features"]) ==0:
+                    return "No result", 204
+                   
+            
+                   
 
                 final_res["bepelias"]["pelias_call_count"]=call_cnt
+                final_res["bepelias"]["precision"] = get_precision(final_res)                                                   
+                                                   
                 return final_res
-            return None
+            return "No result", 204
                 
 
         return "Wrong mode!" # Should neve occur...
