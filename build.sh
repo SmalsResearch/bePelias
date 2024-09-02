@@ -126,7 +126,7 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" ]]; then
     rm -f data/bestaddresses_*.csv
     
     mkdir -p data
-    $DOCKER run --rm -v $(pwd)/data:/data bepelias_dataprep /run.sh prepare_from_xml
+    $DOCKER run --rm -v $(pwd)/data:/data bepelias/dataprep /run.sh prepare_from_xml
 
     set +x
 fi
@@ -147,7 +147,7 @@ if [[ $ACTION == "update" ||  $ACTION == "update2" ]] ; then
     set -x
 
     cp pelias.json $DIR
-    mv data/bestaddresses_*.csv $DIR/data
+    mv -f data/bestaddresses_*.csv $DIR/data
 
     echo "Import addresses"
     cd $DIR
@@ -167,10 +167,15 @@ fi
 if [[ $ACTION == "build_api"  ]]; then
     echo "Build API"
     chmod a+x run.sh
+    $DOCKER build -f Dockerfile_base . -t bepelias/base
+    $DOCKER build -f Dockerfile_api . -t bepelias/api
+    
+    
     $DOCKER build . -t bepelias
     
     echo "Build dataprep"
-    $DOCKER build -f Dockerfile_preparedata . -t bepelias_dataprep
+    $DOCKER build -f Dockerfile_dataprep . -t bepelias/dataprep
+    
 fi
 
 
@@ -180,7 +185,7 @@ if [[ $ACTION == "run_api" ]]; then
         $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
     fi
     set -x    
-    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME -v $(pwd)/data:/data bepelias
+    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME -v $(pwd)/data:/data bepelias/api
     set +x
     echo "run 'docker logs -f $CNT_NAME' "
 fi

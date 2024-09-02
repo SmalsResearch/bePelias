@@ -1,0 +1,10 @@
+FROM redhat/ubi9
+
+USER root
+
+RUN yum -y install python39 python3-pip
+RUN yum -y remove python3-requests
+RUN pip3 install pip==24.2
+
+COPY requirements_base.txt ./
+RUN pip3 install -r requirements_base.txt

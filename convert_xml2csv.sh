@@ -26,5 +26,4 @@ do
     rm -f *.xml openaddress-be*.csv *_municipalities.csv *_postal_street.csv  *_postalinfo.csv *_streetnames.csv
 done
 
-
 set +x

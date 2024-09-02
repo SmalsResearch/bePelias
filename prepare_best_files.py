@@ -851,8 +851,9 @@ def create_locality_data(data, region, source):
             data_localities_lg["id"] = data_localities_lg.municipality_id+f"_{lang}"
 
 
-        data_localities_lg["layer"]="city"
-        data_localities_lg["name"] = data_localities_lg["postalcode"].astype(str)+" "+            data_localities_lg[f"municipality_name_{lang}"] +            np.where(
+        #data_localities_lg["layer"]="city"
+        data_localities_lg["layer"]="locality"
+        data_localities_lg["name"] = data_localities_lg["postalcode"].astype(str)+" "+ data_localities_lg[f"municipality_name_{lang}"] +            np.where(
                 (data_localities_lg[f"municipality_name_{lang}"]==data_localities_lg[f"postname_{lang}"]) |
                       data_localities_lg[f"postname_{lang}"].isnull() ,
                 "",

@@ -209,5 +209,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst" (locality instead of city in layer?)
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
-- Update Redhat UBI (CentOs deprecated)
+- Uniformize prepare_csv and prepare_xml (using bepelias/dataprep for both)
+- autocomplete in place of unstructured
 
