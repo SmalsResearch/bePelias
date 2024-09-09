@@ -181,7 +181,7 @@ class Pelias:
                 log(f"Cannot get Pelias results ({url}): {exc}")
                 raise exc
 
-    def geocode(self, query):
+    def geocode(self, query, layers=None):
         """
         Call Pelias geocoder
 
@@ -213,6 +213,9 @@ class Pelias:
         else:
             struct=False
             params = {'text': query}
+        
+        if layers: 
+            params["layers"] = layers
 
         url = self.geocode_struct_api if struct else self.geocode_api
 
@@ -318,10 +321,10 @@ def wait_for_pelias():
 
 
 
-def pelias_check_postcode(pelias_res, postcode):
+def pelias_check_postcode(pelias_res, postcode, match_length=3):
     """
     List a Pelias feature list by removing all feature having a postcode which
-    does not start by the same two digits as 'postcode'. If no postal code is
+    does not start by the same 'match_length' digits as 'postcode'. If no postal code is
     provide in a feature, keep it
 
     Parameters
@@ -342,7 +345,7 @@ def pelias_check_postcode(pelias_res, postcode):
         pelias_res["features"] = []
 
     nb_res = len(pelias_res["features"])
-    filtered_feat = list(filter(lambda feat: not "postalcode"  in feat["properties"] or str(feat["properties"]["postalcode"])[0:2] == str(postcode)[0:2], pelias_res["features"]))
+    filtered_feat = list(filter(lambda feat: not "postalcode"  in feat["properties"] or str(feat["properties"]["postalcode"])[0:match_length] == str(postcode)[0:match_length], pelias_res["features"]))
 
     pelias_res["features"] = filtered_feat
 
@@ -615,6 +618,9 @@ def interpolate(feature):
     street_res = pelias.geocode(addr)
     log(f"Interpolate: street center: {street_res}")
 
+    # Keep only results maching input postalcode
+    
+    street_res["features"] = list(filter(lambda f: f["properties"]["postalcode"] ==  feature['properties']['postalcode'] if "postalcode" in f["properties"] else False,  street_res["features"]))
 
     if len(street_res["features"]) == 0:
         return {}
@@ -654,10 +660,10 @@ def build_address(street_name, house_number):
         "street_name, house_number", unless one of them is empty
 
     """
-    if pd.isnull(street_name) or len(street_name)==0:
+    if pd.isnull(street_name) or len(street_name.strip())==0:
         return ""
 
-    if pd.isnull(house_number) or len(house_number)==0:
+    if pd.isnull(house_number) or len(house_number.strip())==0:
         return street_name
 
     return f"{street_name}, {house_number}"
@@ -689,7 +695,7 @@ def search_for_coordinates(feat, pelias_res):
     if len(boxes)>0 and boxes[0]["lat"] !=0:
         vlog("Found coordinates in first box number")
         feat["geometry"]["coordinates_orig"] = [0,0]
-        feat["geometry"]["coordinates"] = boxes[0]["lat"], boxes[0]["lon"]
+        feat["geometry"]["coordinates"] = boxes[0]["lon"], boxes[0]["lat"]
         pelias_res["bepelias"]["interpolated"] = "from_boxnumber"
     else: 
         log("Coordinates==0,0, try to interpolate...")
@@ -734,7 +740,9 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
         addr["postalcode"] = post_code
 
     vlog(f"Call struct: {addr}")
-    pelias_struct= pelias.geocode(addr)
+    
+    # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
+    pelias_struct= pelias.geocode(addr, layers = "locality" if len(addr)==0 else None )
     pelias_struct["bepelias"] = {"call_type": "struct",
                                  "in_addr": addr, 
                                  "pelias_call_count":1}
@@ -766,13 +774,17 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
                 return pelias_struct
 
     # Try unstructured
+    
     addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
+    addr = re.sub("^,", "", addr.strip()).strip()
+    addr = re.sub(",$", "", addr).strip()
     vlog(f"Call unstruct: '{addr}'")
-    if addr and len(addr.strip())>0:
-        pelias_unstruct= pelias.geocode(addr)
+    if addr and len(addr.strip())>0 and not re.match("^[0-9]+$", addr):
+        # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
+        pelias_unstruct= pelias.geocode(addr, layers = "locality" if street_name is None or len(street_name)==0 else None)
         cnt=2
     else: 
-        vlog("Unstructured: empty inputs, skip call")
+        vlog("Unstructured: empty inputs or only numbers, skip call")
         cnt=1
         pelias_unstruct = { "features": []}
     pelias_unstruct["bepelias"] = {"call_type": "unstruct",
@@ -833,7 +845,7 @@ remove_patterns = [(r"\(.+\)$",      ""),
                ("' ", "'"),
                (" [a-zA-Z][. ]", " "),
                ("[.]", " "),
-               (",[a-zA-Z .]*$", " ")
+               (",[a-zA-Z .'-]*$", " ")
               ]
 
 def transform(addr_data, transformer):
@@ -864,6 +876,10 @@ def transform(addr_data, transformer):
         addr_data["post_name"] = ""
 
     elif transformer=="no_hn":
+        addr_data["house_number"] = ""
+
+    elif transformer=="no_street":
+        addr_data["street_name"] = ""
         addr_data["house_number"] = ""
 
     elif transformer=="clean_hn":
@@ -1073,6 +1089,7 @@ transformer_sequence = [
     ["clean", "no_city", "clean_hn"],
     ["no_hn"],
     ["no_city", "no_hn"],
+    ["no_street"],
 ]
 
 

@@ -76,7 +76,7 @@ is_building(feature) is True if (and only if):
 
 check_postcode(features, postcode): keep only a feature from features if: 
 - "postalcode" does not exists in "properties"
-- OR the first two characters of "postalcode" are equal to the first two characters in postcode
+- OR the first three characters of "postalcode" are equal to the first three characters in postcode
 
 ## Struct or Unstruct
 
@@ -206,9 +206,9 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 
 # Todo
 
-- Use "localities" files instead of WOF for "cities". For now, "localities" files are ignored, a search with just a city name only returns a result from "whosonfirst" (locality instead of city in layer?)
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - Uniformize prepare_csv and prepare_xml (using bepelias/dataprep for both)
 - autocomplete in place of unstructured
+- We have sometimes "building" result, but with "no_hn" transformer. 
 

@@ -180,6 +180,11 @@ def get_base_data_xml(region):
         "gpsx": "lon"
     })
     
+    
+    data["lon"] = data["lon"].where(data["lambertx"]!=0, pd.NA)
+    data["lat"] = data["lat"].where(data["lamberty"]!=0, pd.NA)
+    
+    
     log(f"[base-{region}] - Combining boxes ...")
 
     # log(data.iloc[0])
@@ -189,7 +194,7 @@ def get_base_data_xml(region):
     
     
     
-    box_info = with_box.groupby(["house_number",
+    box_info = with_box.fillna({"lat" :0, "lon":0}).groupby(["house_number",
                                  "municipality_id", "municipality_name_de",
                                  "municipality_name_fr", "municipality_name_nl",
                                  "postcode", "postname_fr", "postname_nl","postname_de",
@@ -219,8 +224,6 @@ def get_base_data_xml(region):
     if "postname_de" not in data:
         data["postname_de"]=pd.NA
 
-    data["lon"] = data["lon"].where(data["lambertx"]!=0, pd.NA)
-    data["lat"] = data["lat"].where(data["lamberty"]!=0, pd.NA)
 
     log(f"[base-{region}] -   Adding language data")
     for lang in ["fr", "nl", "de"]:
@@ -269,6 +272,8 @@ def get_base_data_xml(region):
                                 "house_number":  "housenumber",
                                "postcode":      "postalcode" 
                                })
+    
+    log(data[data.lat.isnull()])
     log(f"[base-{region}] Done!")
     return data
 
@@ -394,6 +399,9 @@ def get_base_data_csv(region):
     log(f"[base-{region}] - Reading")
     data = pd.read_csv(best_fn, dtype=dtypes)
 
+    data["EPSG:4326_lat"] = data["EPSG:4326_lat"].where(data["EPSG:31370_y"]!=0, pd.NA)
+    data["EPSG:4326_lon"] = data["EPSG:4326_lon"].where(data["EPSG:31370_x"]!=0, pd.NA)
+    
     log(f"[base-{region}] - Combining boxes ...")
 
     # Combine all addresses at the same number in one record with "box_info" field
@@ -430,8 +438,7 @@ def get_base_data_csv(region):
     if "postname_de" not in data:
         data["postname_de"]=pd.NA
 
-    data["EPSG:4326_lat"] = data["EPSG:4326_lat"].where(data["EPSG:31370_y"]!=0, pd.NA)
-    data["EPSG:4326_lon"] = data["EPSG:4326_lon"].where(data["EPSG:31370_x"]!=0, pd.NA)
+    
 
     log(f"[base-{region}] -   Adding language data")
     for lang in ["fr", "nl", "de"]:
@@ -848,7 +855,7 @@ def create_locality_data(data, region, source):
                 data_localities_lg["postalcode"].astype(str)+"_"+\
                 data_localities_lg.index.astype(str)
         else:
-            data_localities_lg["id"] = data_localities_lg.municipality_id+f"_{lang}"
+            data_localities_lg["id"] = data_localities_lg.municipality_id+"_"+data_localities_lg.postalcode.astype(str)+f"_{lang}"
 
 
         #data_localities_lg["layer"]="city"
@@ -866,7 +873,8 @@ def create_locality_data(data, region, source):
                                                                      "postname"],
                                                                      data_localities_lg)+\
             ('"NIS": '+data_localities_lg.municipality_id.astype(str).str.extract(r"/([0-9]{5})/")[0] +", " if source == "xml" else "")+\
-            '"municipality_id": "'+data_localities_lg.municipality_id.astype(str) +'"'+\
+            '"municipality_id": "'+data_localities_lg.municipality_id.astype(str) +'", '+\
+            '"postal_code": "'+data_localities_lg.postalcode.astype(str) +'"'+\
         '}'
 
 
