@@ -110,15 +110,22 @@ def build_addendum(fields, dfr):
     """
     res=""
     for fld in fields:
+        # item = 
+        item_lg=pd.Series("", dtype=str, index=dfr.index)
         for lang in ["fr", "nl", "de"]:
             fld_name = f"{fld}_{lang}"
             if fld_name in dfr:
                 fld_val = dfr[f"{fld}_{lang}"]
-                res += np.where(
+                item_lg += np.where(
                     fld_val.isnull(),
                     "",
-                    f'"{fld}_{lang}": "'+fld_val.fillna("").str.replace('"', "'")+'", ')
+                    f'"{lang}": "'+fld_val.fillna("").str.replace('"', "'")+'", ')
+        res += np.where(item_lg.str.len()>0,
+                       f'"{fld}": {{' + item_lg.str[:-2] + '}, ',
+                        ""
+                       )
     return res
+
 
 
 def build_addendum_ids(items, data):
@@ -286,13 +293,13 @@ def get_base_data_xml(region):
         del data
         data = pd.concat(data_all).reset_index()
         del data_all
-        data["id"] = data.address_id +"_"+data.index.astype(str)
+
         
+        # add a stable suffix to best id to avoid duplicates
+        epoch= data.groupby("address_id").cumcount()+1
+        data["id"] = data.address_id +"_"+epoch.astype(str)
         
         log(f"[base-{region}]        out: {data.shape[0]} ")
-        
-        
-        
             
     else:
         log(f"[base-{region}] -   Adding language data")
@@ -630,14 +637,6 @@ def create_street_data(data, empty_street, region):
     
     log(f"[street-{region}] - Combining data and empty streets")
 
-    log("all_streets: ")
-    log(all_streets)
-    log(all_streets.columns)
-
-    log("empty_street: ")
-    log(empty_street)
-    log(empty_street.columns)
-
     all_streets = pd.concat([all_streets, empty_street])
 
     # data_street = all_streets.copy()
@@ -647,7 +646,13 @@ def create_street_data(data, empty_street, region):
 
     if split_records:
         all_streets[f"name"] = all_streets[f"streetname"]+", "+ all_streets["postalcode"].astype(str)+" "+ all_streets[f"locality"]
-        all_streets["id"] = all_streets.street_id+"_"+all_streets.index.astype(str)
+        
+        # add a stable suffix to best id to avoid duplicates
+        epoch= all_streets.groupby("street_id").cumcount()+1
+        all_streets["id"] = all_streets.street_id +"_"+epoch.astype(str)
+        
+        
+        #all_streets["id"] = all_streets.street_id+"_"+all_streets.index.astype(str)
         
     else:
         for lang in ["fr", "nl", "de"]: 
@@ -744,7 +749,12 @@ def create_locality_data(data, region):
     
     data_localities_all["addendum_json_best"]+= '}'
 
-    data_localities_all["id"] = data_localities_all.municipality_id+"_"+data_localities_all.index.astype(str)
+    # add a stable suffix to best id to avoid duplicates
+    epoch= data_localities_all.groupby("municipality_id").cumcount()+1
+    data_localities_all["id"] = data_localities_all.municipality_id +"_"+epoch.astype(str)
+
+        
+    # data_localities_all["id"] = data_localities_all.municipality_id+"_"+data_localities_all.index.astype(str)
 
     if split_records:
         data_localities_all[f"name"] = data_localities_all["postalcode"].astype(str)+" "+ data_localities_all[f"locality"] 

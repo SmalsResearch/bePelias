@@ -108,7 +108,7 @@ if [[ $ACTION == "cleanup" ]]; then
     "
 fi
 
-if [[ $ACTION == "resset_data" ]]; then
+if [[ $ACTION == "reset_data" ]]; then
 # To use to reset data and reload new CSV files
     set -x
     cd $DIR

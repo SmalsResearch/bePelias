@@ -814,7 +814,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
     
     layers = None
     # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
-    if len(street_name)==0: 
+    if street_name is None or len(street_name)==0: 
         layers = "locality"
     # If there is no digit in street+housenumber, only keep street and locality layers
     elif re.search("[0-9]", addr["address"]) is None: 
