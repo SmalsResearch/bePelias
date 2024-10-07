@@ -639,8 +639,6 @@ def create_street_data(data, empty_street, region):
 
     all_streets = pd.concat([all_streets, empty_street])
 
-    # data_street = all_streets.copy()
-    
     all_streets["id"] = all_streets.street_id
 
 
@@ -652,15 +650,9 @@ def create_street_data(data, empty_street, region):
         all_streets["id"] = all_streets.street_id +"_"+epoch.astype(str)
         
         
-        #all_streets["id"] = all_streets.street_id+"_"+all_streets.index.astype(str)
-        
     else:
         for lang in ["fr", "nl", "de"]: 
             all_streets[f"name_{lang}"] = all_streets[f"streetname_{lang}"]+", "+ all_streets["postalcode"].astype(str)+" "+ all_streets[f"locality_{lang}"]
-
-
-    #        all_streets = all_streets.rename(columns= {f"municipality_name_{lang}": f"locality_{lang}",
-    #                                                f"streetname_{lang}" : f"street_{lang}"})
 
 
         (lg1, lg2, lg3) = get_language_prefered_order(region) 
@@ -668,10 +660,6 @@ def create_street_data(data, empty_street, region):
         for f in ["name"]: #, "street", "locality":
             data_cols = all_streets[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
             all_streets[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst)>0 else pd.NA)
-
-        # all_streets[f] = all_streets[f"{f}_{lg1}"] \
-        #           + np.where(all_streets[f"{f}_{lg2}"].isnull(), "", " / "+all_streets[f"{f}_{lg2}"]) \
-        #           + np.where(all_streets[f"{f}_{lg3}"].isnull(), "", " / "+all_streets[f"{f}_{lg3}"])
 
     
     all_streets["addendum_json_best"]='{' + build_addendum(["streetname", "municipality_name", "postname", "part_of_municipality_name"],

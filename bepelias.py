@@ -27,7 +27,7 @@ from urllib.parse import unquote_plus
 import textdistance
 from unidecode import unidecode
 
-from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch import Elasticsearch, NotFoundError, ConnectionError
 
 from flask import Flask,  request, url_for
 from flask_restx import Api, Resource, reqparse
@@ -176,7 +176,10 @@ class Pelias:
                 log(f"Cannot get Pelias results ({url}): {exc}. Try again in {delay} seconds...")
                 time.sleep(delay)
                 delay += 0.5
-
+            except ConnectionRefusedError as exc:
+                raise PeliasException (f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
+            except urllib.error.URLError as exc:
+                raise PeliasException (f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
             except Exception as exc:
                 log(f"Cannot get Pelias results ({url}): {exc}")
                 raise exc
@@ -1036,6 +1039,7 @@ else :
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("elasticsearch").setLevel(logging.WARNING)
 
 env_pelias_host = os.getenv('PELIAS_HOST')
 if env_pelias_host:
@@ -1061,11 +1065,14 @@ log(f"TIMING: {with_timing_info} ({with_timing})")
 pelias = Pelias(domain=pelias_host)
 
 log("test Pelias: ")
-log(pelias.geocode("20, Avenue Fonsny, 1060 Bruxelles"))
+try:
+    
+    log(pelias.geocode("20, Avenue Fonsny, 1060 Bruxelles"))
+except PeliasException as exc:
+    log("Test failed!!")
+    log(exc)
 
 city_test_from="Bruxelles"
-
-
 
 
 wait_for_pelias()
@@ -1147,7 +1154,6 @@ single_parser.add_argument('postName',
                           )
 
 
-
 city_search_parser = reqparse.RequestParser()
 city_search_parser.add_argument('postCode',
                           type=str,
@@ -1171,8 +1177,6 @@ id_parser.add_argument('bestid',
                           help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
                           location='query'
                           )
-
-
 
 
 transformer_sequence = [
@@ -1228,153 +1232,159 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
 
         log(f"Mode: {mode}")
-        if mode in ("basic", "pelias_struct"):
-            pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
-                                        "postalcode": post_code,
-                                        "locality": post_name})
+        
+        try:
+        
+            if mode in ("basic", "pelias_struct"):
+                pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
+                                            "postalcode": post_code,
+                                            "locality": post_name})
 
-            return pelias_res
+                return pelias_res
 
-        if mode == "pelias_struct_noloc":
-            pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
-                                        "postalcode": post_code})
+            if mode == "pelias_struct_noloc":
+                pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
+                                            "postalcode": post_code})
 
-            return pelias_res
+                return pelias_res
 
-        if mode == "pelias_unstruct":
-            addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
-            pelias_res= pelias.geocode(addr)
+            if mode == "pelias_unstruct":
+                addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
+                pelias_res= pelias.geocode(addr)
 
-            return pelias_res
+                return pelias_res
 
 
-        if mode == "simple":
-            return struct_or_unstruct(street_name, house_number, post_code, post_name)
+            if mode == "simple":
+                return struct_or_unstruct(street_name, house_number, post_code, post_name)
 
-        if mode == "advanced":
-            vlog("advanced...")
-            addr_data = {"street_name": street_name,
-                        "house_number": house_number,
-                        "post_name": post_name,
-                        "post_code": post_code}
-            all_res=[]
-            
-           
-            call_cnt=0
-            for check_postcode in [True, False]:
-                previous_attempts = []
-                for transf in transformer_sequence:
-                    transf_addr_data = addr_data.copy()
-                    for t in transf:
-                        transf_addr_data = transform(transf_addr_data, t)
+            if mode == "advanced":
+                vlog("advanced...")
+                addr_data = {"street_name": street_name,
+                            "house_number": house_number,
+                            "post_name": post_name,
+                            "post_code": post_code}
+                all_res=[]
 
-                    log(f"transformed address: ({ ';'.join(transf)})")
-                    #if addr_data == transf_addr_data and len(transf)>0:
-                    if transf_addr_data in previous_attempts:
-                        vlog("Transformed address already tried, skip Pelias call")
 
-                    elif len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
-                        vlog("No value to send, skip Pelias call")
-                    else:
+                call_cnt=0
+                for check_postcode in [True, False]:
+                    previous_attempts = []
+                    for transf in transformer_sequence:
+                        transf_addr_data = addr_data.copy()
+                        for t in transf:
+                            transf_addr_data = transform(transf_addr_data, t)
 
-                        previous_attempts.append(transf_addr_data)
+                        log(f"transformed address: ({ ';'.join(transf)})")
+                        #if addr_data == transf_addr_data and len(transf)>0:
+                        if transf_addr_data in previous_attempts:
+                            vlog("Transformed address already tried, skip Pelias call")
 
-                        pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
-                                                         transf_addr_data["house_number"],
-                                                         transf_addr_data["post_code"],
-                                                         transf_addr_data["post_name"], check_postcode=check_postcode)
-                        pelias_res["bepelias"]["transformers"] = ";".join(transf) + ("(no postcode check)" if not check_postcode else "")
-                        call_cnt+= pelias_res["bepelias"]["pelias_call_count"]
-
-                        if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
-                            pelias_res["bepelias"]["pelias_call_count"]=call_cnt
-                            pelias_res["bepelias"]["precision"] = get_precision(pelias_res)
-                            return pelias_res
-                        all_res.append(pelias_res)
-                if sum([len(r["features"]) for r in all_res]) >0: # If some result were found (even street-level), we stop here and select the best one. 
-                                    # Otherwise, we start again, accepting any postcode in the result
-                    log("Some result found with check_postcode=True")
-                    # log(all_res)
-                    break
-
-            log("No building result, keep the best match")
-            
-            # Get a score for each result
-            fields = ["housenumber", "street", "locality", "postalcode"]
-            
-            scores= []
-            for res in all_res:
-                score= {}
-                res["score"]=0
-                if len(res["features"]) >0:
-                    prop = res["features"][0]["properties"]
-                    #log(prop)
-                    if  "postalcode" in prop and prop["postalcode"] == post_code:
-                        # res["score"] += 1.5
-                        score["postalcode"] = 1.5
-                        
-                    locality_sim = check_locality(res["features"][0], post_name, threshold=0.8)
-                    if locality_sim:
-                        # vlog(f"Sim locality: {locality_sim}")
-                        # res["score"] += 1+locality_sim
-                        score["locality"] = 1.0+locality_sim
-
-                    if  "street" in prop :
-                        score["street"] = 1.0
-                        
-                        street_sim = check_streetname(res["features"][0], street_name, threshold=0.8)
-                        # vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
-                        if street_sim:
-                            score["street"] += street_sim
-
-                    if  "housenumber" in prop :
-                        score["housescore"] = 0.5
-                        if prop["housenumber"] == house_number:
-                            score["housescore"] += 1.0
+                        elif len(list(filter(lambda v: v and len(v)>0, transf_addr_data.values())))==0:
+                            vlog("No value to send, skip Pelias call")
                         else:
-                            n1 = re.match("[0-9]+", prop["housenumber"])
-                            n2 = re.match("[0-9]+", house_number)
-                            if n1 and n2 and n1[0] == n2[0] : #len(n1)>0 and n1==n2:
-                                score["housescore"] += 0.8
-                    if res["features"][0]["geometry"]["coordinates"] != [0,0]:
-                        score["coordinates"] = 1.5
-                    
-                    res["score"] = sum(score.values())
-                    # log(score)
-                    
-                    
-                    score_line = {f: prop[f] if f in prop else '[NA]' for f in fields}
-                    score_line["coordinates"] = str(res["features"][0]["geometry"]["coordinates"] )
-                    for f in fields + [ "coordinates" ]:
-                        if f in score:
-                            score_line[f] +=  f" ({score[f]:.3})"
-                    
-                    
-                    score_line["score"] = res["score"] 
-                    scores.append(score_line)
-                    
-                
-            with pd.option_context("display.max_columns", None, 'display.width', None):
-                log("\n"+str(pd.DataFrame(scores)))
+
+                            previous_attempts.append(transf_addr_data)
+
+                            pelias_res =  struct_or_unstruct(transf_addr_data["street_name"],
+                                                             transf_addr_data["house_number"],
+                                                             transf_addr_data["post_code"],
+                                                             transf_addr_data["post_name"], check_postcode=check_postcode)
+                            pelias_res["bepelias"]["transformers"] = ";".join(transf) + ("(no postcode check)" if not check_postcode else "")
+                            call_cnt+= pelias_res["bepelias"]["pelias_call_count"]
+
+                            if len(pelias_res["features"])>0 and is_building(pelias_res["features"][0]):
+                                pelias_res["bepelias"]["pelias_call_count"]=call_cnt
+                                pelias_res["bepelias"]["precision"] = get_precision(pelias_res)
+                                return pelias_res
+                            all_res.append(pelias_res)
+                    if sum([len(r["features"]) for r in all_res]) >0: # If some result were found (even street-level), we stop here and select the best one. 
+                                        # Otherwise, we start again, accepting any postcode in the result
+                        log("Some result found with check_postcode=True")
+                        # log(all_res)
+                        break
+
+                log("No building result, keep the best match")
+
+                # Get a score for each result
+                fields = ["housenumber", "street", "locality", "postalcode"]
+
+                scores= []
+                for res in all_res:
+                    score= {}
+                    res["score"]=0
+                    if len(res["features"]) >0:
+                        prop = res["features"][0]["properties"]
+                        #log(prop)
+                        if  "postalcode" in prop and prop["postalcode"] == post_code:
+                            # res["score"] += 1.5
+                            score["postalcode"] = 1.5
+
+                        locality_sim = check_locality(res["features"][0], post_name, threshold=0.8)
+                        if locality_sim:
+                            # vlog(f"Sim locality: {locality_sim}")
+                            # res["score"] += 1+locality_sim
+                            score["locality"] = 1.0+locality_sim
+
+                        if  "street" in prop :
+                            score["street"] = 1.0
+
+                            street_sim = check_streetname(res["features"][0], street_name, threshold=0.8)
+                            # vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
+                            if street_sim:
+                                score["street"] += street_sim
+
+                        if  "housenumber" in prop :
+                            score["housescore"] = 0.5
+                            if prop["housenumber"] == house_number:
+                                score["housescore"] += 1.0
+                            else:
+                                n1 = re.match("[0-9]+", prop["housenumber"])
+                                n2 = re.match("[0-9]+", house_number)
+                                if n1 and n2 and n1[0] == n2[0] : #len(n1)>0 and n1==n2:
+                                    score["housescore"] += 0.8
+                        if res["features"][0]["geometry"]["coordinates"] != [0,0]:
+                            score["coordinates"] = 1.5
+
+                        res["score"] = sum(score.values())
+                        # log(score)
 
 
-            all_res = sorted(all_res, key= lambda x: -x["score"])
-            
-            if len(all_res)>0:
-                final_res= all_res[0]
-                
-                if len(final_res["features"]) ==0:
-                    return "No result", 204
-                   
-            
-                   
+                        score_line = {f: prop[f] if f in prop else '[NA]' for f in fields}
+                        score_line["coordinates"] = str(res["features"][0]["geometry"]["coordinates"] )
+                        for f in fields + [ "coordinates" ]:
+                            if f in score:
+                                score_line[f] +=  f" ({score[f]:.3})"
 
-                final_res["bepelias"]["pelias_call_count"]=call_cnt
-                final_res["bepelias"]["precision"] = get_precision(final_res)                                                   
-                                                   
-                return final_res
-            return "No result", 204
-                
+
+                        score_line["score"] = res["score"] 
+                        scores.append(score_line)
+
+
+                with pd.option_context("display.max_columns", None, 'display.width', None):
+                    log("\n"+str(pd.DataFrame(scores)))
+
+
+                all_res = sorted(all_res, key= lambda x: -x["score"])
+
+                if len(all_res)>0:
+                    final_res= all_res[0]
+
+                    if len(final_res["features"]) ==0:
+                        return "No result", 204
+
+
+
+
+                    final_res["bepelias"]["pelias_call_count"]=call_cnt
+                    final_res["bepelias"]["precision"] = get_precision(final_res)                                                   
+
+                    return final_res
+                return "No result", 204
+        except PeliasException as exc:
+            log("Exception during process: ")
+            log(exc)
+            return str(exc), 500
 
         return "Wrong mode!" # Should neve occur...
 
@@ -1441,6 +1451,11 @@ Search a city based on a postal code or a name (could be municipality name, part
             return final_result
         except NotFoundError: 
             pass
+        except ConnectionError as exc:
+            log("ES ConnectionError")
+            log(exc)
+            
+            return f"Cannot connect to Elastic: {exc}", 500
                 # log("Not found !")
         return "Object not found", 204
 
@@ -1531,6 +1546,17 @@ class GetById(Resource):
             return resp
         except NotFoundError: 
             pass
+        except ConnectionRefusedError as exc:
+            log("ES ConnectionRefusedError")
+            log(exc)
+            
+            return f"Cannot connect to Elastic: {exc}", 500
+            
+        except ConnectionError as exc:
+            log("ES ConnectionError")
+            log(exc)
+            
+            return f"Cannot connect to Elastic: {exc}", 500
                 # log("Not found !")
+        # log("Not found !")
         return "Object not found", 204
-
