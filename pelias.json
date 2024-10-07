@@ -1,6 +1,6 @@
 {
     "logger": {
-"level": "debug",
+"level": "warning",
 "timestamp": false
 },
 "esclient": {

@@ -30,8 +30,8 @@ Note: in order to avoid to make 3 components, we put in the same docker image th
 Steps: 
 
 ```
-./build.sh build_api                    # Build bePelias container (~5 minutes)
-./build.sh prepare_csv                  # Prepare files for Pelias, within bePelias container (~20 min)
+./build.sh build_api                    # Build bepelias/api container (~5 minutes)
+./build.sh prepare_csv                  # Prepare files for Pelias, within bepelias/dataprep container (~20 min)
 ./build.sh build_pelias                 # Build & run Pelias (~1h10)
 ./build.sh run_api  xx.xx.xx.xx:4000    # Start bePelias API, giving the Pelias IP/port 
 ```
@@ -211,4 +211,8 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - Uniformize prepare_csv and prepare_xml (using bepelias/dataprep for both)
 - autocomplete in place of unstructured
 - We have sometimes "building" result, but with "no_hn" transformer. 
-
+- add a "reverse" endpoint
+- add a "search" endpoint, for locality search based on zipcode or municipality/part of municipality/postal names
+- in Best addendum: "streetname_fr":"...", "streetname_nl":"..." --> "streetname": {"fr": "...", "nl":"..."}
+- add a health endpoint
+- clean error answer if pelias is down

@@ -23,9 +23,7 @@ NB_WORKERS=${4:-1}
 
 CNT_NAME=bepelias_cnt
 
-
 # Pelias
-
 
 
 if [[ $ACTION == "build_pelias" ]]; then
@@ -110,16 +108,21 @@ if [[ $ACTION == "cleanup" ]]; then
     "
 fi
 
-# if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" ]]; then
-#     echo "Prepare CSV"
-#     set -x
-#     mkdir -p data
-#     $DOCKER run --rm -v $(pwd)/data:/data bepelias ./run.sh prepare
+if [[ $ACTION == "resset_data" ]]; then
+# To use to reset data and reload new CSV files
+    set -x
+    cd $DIR
+    $PELIAS elastic stop
+    rm -rf data/elasticsearch/ 
+    $PELIAS elastic start
+    $PELIAS elastic wait
+    $PELIAS elastic create
+    $PELIAS prepare interpolation
+    cd -
+    set +x
+fi
 
-#     set +x
-# fi
-
-if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" ]]; then
+if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" || $ACTION ==  "reset_data" ]]; then
     echo "Prepare CSV (from xml)"
     set -x
     
@@ -128,21 +131,12 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" ]]; then
     mkdir -p data
     $DOCKER run --rm -v $(pwd)/data:/data bepelias/dataprep /run.sh prepare_from_xml
 
+    # rm -f data/in/*.csv
     set +x
 fi
 
-if [[ $ACTION == "prepare_csv2" ||  $ACTION == "update2" ]]; then
-    echo "Prepare CSV (from csv)"
-    set -x
-    
-    rm -f data/bestaddresses_*.csv
-    
-    mkdir -p data
-    $DOCKER run --rm -v $(pwd)/data:/data bepelias ./run.sh prepare_from_csv
-    set +x
-fi
 
-if [[ $ACTION == "update" ||  $ACTION == "update2" ]] ; then
+if [[ $ACTION == "update" ||  $ACTION == "reset_data" ]] ; then
     echo "Update"
     set -x
 
@@ -170,17 +164,12 @@ if [[ $ACTION == "build_api"  ]]; then
     $DOCKER build -f Dockerfile_base . -t bepelias/base
     $DOCKER build -f Dockerfile_api . -t bepelias/api
     
-    
-    $DOCKER build . -t bepelias
-    
     echo "Build dataprep"
     $DOCKER build -f Dockerfile_dataprep . -t bepelias/dataprep
-    
 fi
 
 
 if [[ $ACTION == "run_api" ]]; then
-
     if [[ $($DOCKER ps | grep bepelias) ]] ; then
         $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
     fi

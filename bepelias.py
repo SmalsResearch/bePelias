@@ -400,6 +400,12 @@ def remove_street_types(street_name):
     for s in to_remove:
         street_name = re.sub(s, "", street_name)
 
+    to_remove=["^DE LA ", "^DE ", "^DU ", "^DES "]
+
+    for s in to_remove:
+        street_name = re.sub(s, "", street_name)
+
+    
     return street_name.strip()
 
 
@@ -407,7 +413,7 @@ def is_partial_substring(s1, s2):
     """
     Check that s1 (assuming s1 is shorter than s2) is a subsequence of s2, i.e.,
     s1 can be obtained by removing some characters to s2.
-    Example:"Rue Albert" vs "Rue Marcel Albert", or vs "Rue Albert Marcel"
+    Example:"Rue Albert" vs "Rue Marcel Albert", or vs "Rue Albert Marcel". "Rue M. Albert" vs "Rue Marcel Albert"
 
     Parameters
     ----------
@@ -423,8 +429,8 @@ def is_partial_substring(s1, s2):
         0 otherwise
     """
 
-    s1 = re.sub(" ", "", s1)
-    s2 = re.sub(" ", "", s2)
+    s1 = re.sub("[. ]", "", s1)
+    s2 = re.sub("[. ]", "", s2)
 
     if len(s1)>len(s2):
         s1, s2=s2, s1
@@ -470,9 +476,57 @@ def apply_sim_functions(str1, str2, threshold):
                     ]
     for sim_fct in sim_functions:
         sim = sim_fct(str1, str2)
+        # vlog(f"'{str1}' vs '{str2}': {sim}")
         if sim >= threshold:
             return sim
     return None
+
+def check_locality(feature, locality_name, threshold=0.8):
+    """
+    Check that a feature contains a locality name close enough to "locality_name"
+    (with a similarity at least equal to threshold)
+
+    Parameters
+    ----------
+    feature : dict
+        A Pelias feature.
+    locality_name : str
+        Input locality name.
+    threshold : float, optional
+        DESCRIPTION. The default is 0.8.
+
+    Returns
+    -------
+    float or None
+        1 if feature does not contain any street name or locality_name is null.
+        a value between threshold and 1 if a street name matches
+        None if no street name matches
+    """
+
+    if pd.isnull(locality_name):
+        return 1
+    # log(feature)
+    prop = feature["properties"]
+    sims = []
+    if  "locality" in prop :
+        sim =  apply_sim_functions(unidecode(locality_name).lower(), prop["locality"].lower(), threshold)
+        if sim and sim >= threshold:
+            vlog(f"locality ('{locality_name}' vs '{prop['locality']}'): {sim}" )
+            return sim
+    
+    if "addendum" in prop and "best" in prop["addendum"] :
+        for c in ["postname", "municipality_name", "part_of_municipality_name"]:
+            for lang in ["fr", "nl", "de"]:
+                if f"{c}_{lang}" in prop["addendum"]["best"]:
+                    
+                    cty = unidecode(prop["addendum"]["best"][f"{c}_{lang}" ].lower())
+                    sim =  apply_sim_functions(unidecode(locality_name).lower(), cty, threshold)
+                    vlog(f"{c}_{lang} ('{locality_name}' vs '{cty}'): {sim}" )
+                    if sim and sim >= threshold:
+                        return sim
+
+    return None
+
 
 def check_streetname(feature, street_name, threshold=0.8):
     """
@@ -500,16 +554,21 @@ def check_streetname(feature, street_name, threshold=0.8):
         return 1
 
     street_name = remove_street_types(unidecode(street_name.upper()))
-
+    
+    for pat, rep in remove_patterns:
+        street_name = re.sub(pat, rep, street_name) if not pd.isnull(street_name) else None
+    
     feat_street_names= []
 
+    vlog(f"checking '{street_name}'")
     for feat_street_name in get_street_names(feature):
 
         feat_street_name = remove_street_types(unidecode(feat_street_name))
         if feat_street_name in feat_street_names:
             continue
-
+        
         sim = apply_sim_functions(feat_street_name, street_name, threshold)
+        vlog(f"'{street_name}' vs '{feat_street_name}': {sim}")
         if sim:
             return sim
 
@@ -612,6 +671,16 @@ def interpolate(feature):
     """
 
     # get street center
+    if 'street' not in feature['properties']:
+        log("No street property in feature: ")
+        log(feature['properties'])
+        return {}
+    if 'postalcode' not in feature['properties']:
+        log("No postalcode property in feature: ")
+        log(feature['properties'])
+        return {}
+    
+    
     addr = {"address": f"{feature['properties']['street']}",
             "postalcode": feature['properties']['postalcode'],
             "locality": ""}
@@ -733,6 +802,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
 
     """
     vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}', {check_postcode})")
+   
     # Try structured
     addr= {"address": build_address(street_name, house_number),
            "locality": post_name}
@@ -741,8 +811,16 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
 
     vlog(f"Call struct: {addr}")
     
+    
+    layers = None
     # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
-    pelias_struct= pelias.geocode(addr, layers = "locality" if len(addr)==0 else None )
+    if len(street_name)==0: 
+        layers = "locality"
+    # If there is no digit in street+housenumber, only keep street and locality layers
+    elif re.search("[0-9]", addr["address"]) is None: 
+        layers = "street,locality"
+    pelias_struct= pelias.geocode(addr, layers = layers)
+    
     pelias_struct["bepelias"] = {"call_type": "struct",
                                  "in_addr": addr, 
                                  "pelias_call_count":1}
@@ -781,7 +859,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, check_po
     vlog(f"Call unstruct: '{addr}'")
     if addr and len(addr.strip())>0 and not re.match("^[0-9]+$", addr):
         # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
-        pelias_unstruct= pelias.geocode(addr, layers = "locality" if street_name is None or len(street_name)==0 else None)
+        pelias_unstruct= pelias.geocode(addr, layers = layers)
         cnt=2
     else: 
         vlog("Unstructured: empty inputs or only numbers, skip call")
@@ -1069,6 +1147,23 @@ single_parser.add_argument('postName',
                           )
 
 
+
+city_search_parser = reqparse.RequestParser()
+city_search_parser.add_argument('postCode',
+                          type=str,
+                          default='1060',
+                          help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
+                          # example= "Avenue Fonsny"
+                          )
+
+city_search_parser.add_argument('postName',
+                          type=str,
+                          default='Saint-Gilles',
+                          help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
+                          )
+
+
+
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
                           type=str,
@@ -1076,6 +1171,7 @@ id_parser.add_argument('bestid',
                           help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
                           location='query'
                           )
+
 
 
 
@@ -1119,10 +1215,15 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             namespace.abort(400, f"Invalid mode {mode}")
 
 
-        street_name = get_arg("streetName", None)
+        street_name =  get_arg("streetName", None)
         house_number = get_arg("houseNumber", None)
-        post_code= get_arg("postCode", None)
-        post_name = get_arg("postName", None)
+        post_code=     get_arg("postCode", None)
+        post_name =    get_arg("postName", None)
+        
+        if street_name: street_name = street_name.strip()
+        if house_number: house_number = house_number.strip()
+        if post_code: post_code = post_code.strip()
+        if post_name: post_name = post_name.strip()
 
         log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
 
@@ -1193,46 +1294,68 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                 if sum([len(r["features"]) for r in all_res]) >0: # If some result were found (even street-level), we stop here and select the best one. 
                                     # Otherwise, we start again, accepting any postcode in the result
                     log("Some result found with check_postcode=True")
-                    log(all_res)
+                    # log(all_res)
                     break
 
             log("No building result, keep the best match")
             
-            # if len(all_
             # Get a score for each result
             fields = ["housenumber", "street", "locality", "postalcode"]
-            log(" ".join([f"{f:20}" for f in fields]) + "     score")
+            
+            scores= []
             for res in all_res:
+                score= {}
                 res["score"]=0
                 if len(res["features"]) >0:
                     prop = res["features"][0]["properties"]
                     #log(prop)
                     if  "postalcode" in prop and prop["postalcode"] == post_code:
-                        res["score"] += 3
-                    if  "locality" in prop and prop["locality"].lower() == (post_name or "").lower():
-                        res["score"] += 2
+                        # res["score"] += 1.5
+                        score["postalcode"] = 1.5
+                        
+                    locality_sim = check_locality(res["features"][0], post_name, threshold=0.8)
+                    if locality_sim:
+                        # vlog(f"Sim locality: {locality_sim}")
+                        # res["score"] += 1+locality_sim
+                        score["locality"] = 1.0+locality_sim
 
                     if  "street" in prop :
-                        res["score"] += 1
+                        score["street"] = 1.0
+                        
                         street_sim = check_streetname(res["features"][0], street_name, threshold=0.8)
-                        vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
+                        # vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
                         if street_sim:
-                            res["score"] += street_sim
+                            score["street"] += street_sim
 
                     if  "housenumber" in prop :
-                        res["score"] += 0.5
+                        score["housescore"] = 0.5
                         if prop["housenumber"] == house_number:
-                            res["score"] += 1
+                            score["housescore"] += 1.0
                         else:
                             n1 = re.match("[0-9]+", prop["housenumber"])
                             n2 = re.match("[0-9]+", house_number)
                             if n1 and n2 and n1[0] == n2[0] : #len(n1)>0 and n1==n2:
-                                res["score"] += 0.8
+                                score["housescore"] += 0.8
                     if res["features"][0]["geometry"]["coordinates"] != [0,0]:
-                        res["score"] += 1.5
-
-
-                    log(" ".join([f"{prop[f] if f in prop else '[NA]':20}" for f in fields]) + str(res["features"][0]["geometry"]["coordinates"])+ f"  -> {res['score']}")
+                        score["coordinates"] = 1.5
+                    
+                    res["score"] = sum(score.values())
+                    # log(score)
+                    
+                    
+                    score_line = {f: prop[f] if f in prop else '[NA]' for f in fields}
+                    score_line["coordinates"] = str(res["features"][0]["geometry"]["coordinates"] )
+                    for f in fields + [ "coordinates" ]:
+                        if f in score:
+                            score_line[f] +=  f" ({score[f]:.3})"
+                    
+                    
+                    score_line["score"] = res["score"] 
+                    scores.append(score_line)
+                    
+                
+            with pd.option_context("display.max_columns", None, 'display.width', None):
+                log("\n"+str(pd.DataFrame(scores)))
 
 
             all_res = sorted(all_res, key= lambda x: -x["score"])
@@ -1255,6 +1378,74 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
         return "Wrong mode!" # Should neve occur...
 
+@namespace.route('/search_city')
+class SearchCity(Resource):
+    """ Search city level results"""
+
+    @namespace.expect(city_search_parser)
+
+    @namespace.response(400, 'Error in arguments')
+    @namespace.response(500, 'Internal Server error')
+    @namespace.response(204, 'No address found')
+
+    
+
+    def get(self):
+        """
+Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
+
+        """
+
+        log("search city")
+
+        post_code= get_arg("postCode", None)
+        post_name = get_arg("postName", None)
+
+        must = [{"term": {"layer": "locality"}}]
+        if post_code: 
+            must.append({"term": {"address_parts.zip": post_code}})
+        if post_name:
+            must.append({"query_string": { "query": f"name.default:\"{post_name}\""}})
+            
+                 
+        try: 
+            #resp = client.get(index="pelias", id=f"{reg}:{obj_type}:{bestid}_{lg}")
+            client = Elasticsearch(pelias.elastic_api)
+            resp = client.search(index="pelias", body={
+                "query":{
+                    "bool":{
+                        "must":must
+                    }
+                }
+            })
+            log("resp:")
+            log(resp)
+            
+            resp = resp["hits"]["hits"]
+            
+            final_result = []
+            for resp_item in resp:
+                if "addendum" in resp_item["_source"] and "best" in  resp_item["_source"]["addendum"]:
+                    it = {"best":json.loads(resp_item["_source"]["addendum"]["best"])}
+                    if "center_point" in resp_item["_source"]:
+                        it["center_point"] = resp_item["_source"]["center_point"]
+                    it["name"] = resp_item["_source"]["name"]
+                            
+                    
+                    final_result.append(it)
+            # for i in range(len(resp)):
+                # resp[i]["_source"]["addendum"]["best"] =json.loads(resp[i]["_source"]["addendum"]["best"])
+                
+            if len(final_result) == 0:
+                return "Object not found", 204
+            return final_result
+        except NotFoundError: 
+            pass
+                # log("Not found !")
+        return "Object not found", 204
+
+
+    
     
 @namespace.route('/id/<string:bestid>')
 # @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/')
@@ -1301,35 +1492,45 @@ class GetById(Resource):
         if mtch is None or len(mtch.groups()) != 2:
              namespace.abort(400, f"Cannot parse best id '{bestid}'")
 
-        reg_map = {
-            "geodata.wallonie.be": "be-wal",
-            "databrussels.be" :    "be-bru",
-            "data.vlaanderen.be":  "be-vlg"
-        }
-        if mtch[1] not in reg_map:
-            namespace.abort(400, f"Cannot find a valid domain in {bestid} ({mtch[1]})")
-        reg = reg_map[mtch[1]]
+        # reg_map = {
+        #     "geodata.wallonie.be": "be-wal",
+        #     "databrussels.be" :    "be-bru",
+        #     "data.vlaanderen.be":  "be-vlg"
+        # }
+        # if mtch[1] not in reg_map:
+        #     namespace.abort(400, f"Cannot find a valid domain in {bestid} ({mtch[1]})")
+        # reg = reg_map[mtch[1]]
         
         log(f"mtch[2].lower(): '{mtch[2].lower()}'")
         if mtch[2].lower() in ["address", "adres"]:
             obj_type = "address"
-        elif mtch[2].lower() in ["streetname", "straatname"]:
+        elif mtch[2].lower() in ["streetname", "straatnaam"]:
             obj_type = "street"
         elif mtch[2].lower() in ["municipality", "gemeente"]:
-            obj_type = "city"
+            obj_type = "locality"
         else :
             namespace.abort(400, f"Object type '{mtch[2]}' not supported so far in '{bestid}'")
                 
         
-        lg_sequence = ["fr", "nl", "de"] if reg == "be-bru" else ["fr", "de", "nl"] if reg == "be-wal" else ["nl", "fr", "de"]
-        for lg in lg_sequence:
-            try: 
-                resp = client.get(index="pelias", id=f"{reg}:{obj_type}:{bestid}_{lg}")
-                
-                resp["_source"]["addendum"]["best"] =json.loads(resp["_source"]["addendum"]["best"])
-                return resp
-            except NotFoundError: 
-                pass
+        try: 
+            resp = client.search(index="pelias", body={
+                "query":{
+                    "bool":{
+                        "must":[
+                            {"term": {"layer": obj_type}},
+                            {"prefix": {"source_id": {"value":bestid.lower() }}}
+                        ]
+                    }
+                }
+            })
+            
+            resp = resp["hits"]["hits"]
+            
+            for i in range(len(resp)):
+                resp[i]["_source"]["addendum"]["best"] =json.loads(resp[i]["_source"]["addendum"]["best"])
+            return resp
+        except NotFoundError: 
+            pass
                 # log("Not found !")
         return "Object not found", 204
 
