@@ -699,7 +699,7 @@ def interpolate(feature):
 
     street_center_coords = street_res["features"][0]["geometry"]["coordinates"]
     log(f"street_center_coords: {street_center_coords}")
-
+    
     interp_res=pelias.interpolate(lat=street_center_coords[1],
                                 lon=street_center_coords[0],
                                 number=feature['properties']['housenumber'],
@@ -1560,3 +1560,61 @@ class GetById(Resource):
                 # log("Not found !")
         # log("Not found !")
         return "Object not found", 204
+
+    
+    
+@namespace.route('/health', methods=['GET'])
+class Health(Resource):
+    """ Check service status """
+    @namespace.response(500, 'Internal Server error')
+    @namespace.response(503, 'Service is "DOWN"')
+    @namespace.response(200, 'Service is "UP" or "DEGRADED"')
+
+    def get(self):
+        """Health status
+
+        Returns
+        -------
+        - {'status': 'DOWN'}: Pelias server does not answer (or gives an unexpected answer)
+        - {'status': 'DEGRADED'}: Either Libpostal or Photon is down (or gives an unexpected answer). Geocoding is still possible as long as it does not requires one of those transformers
+        - {'status': 'UP'}: Service works correctly
+
+        """
+        # Checking Pelias
+
+        pelias_res = check_pelias()
+
+        if pelias_res is False:
+            log("Pelias not up & running")
+            log(f"Pelias host: {pelias_host}")
+
+            return {"status": "DOWN",
+                    "details": {"errorMessage": "Pelias server does not answer",
+                                "details": "Pelias server does not answer"}}, 503
+        if pelias_res is not True:
+            return {"status": "DOWN",
+                    "details": {"errorMessage": "Pelias server answers, but gives an unexpected answer",
+                                "details": f"Pelias answer: {osm_res}"}}, 503
+
+        # Checking Interpolation
+          
+        try: 
+            interp_res = pelias.interpolate(lat=50.83582,
+                                lon=4.33844,
+                                number=20,
+                                street="Avenue Fonsny")
+            log(interp_res)
+            if len({}) > 0 and not "geometry" in interp_res :
+                return {
+                    "status": "DEGRADED",
+                    "details": {
+                        "errorMessage": "Interpolation server answers, but gives an unexpected answer",
+                        "details": f"Interpolation answer: {interp_res}"
+                    }}, 200
+
+        except Exception as exc:
+            return {"status": "DEGRADED",
+                    "details": {"errorMessage": "Interpolation server does not answer",
+                                "details": "Interpolation server does not answer"}}, 200
+
+        return {"status": "UP"}, 200
