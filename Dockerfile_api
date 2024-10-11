@@ -3,7 +3,7 @@ FROM bepelias/base
 COPY requirements_api.txt ./
 RUN pip3 install -r requirements_api.txt
 
-COPY run.sh bepelias.py prepare_best_files.py ./
+COPY run.sh bepelias.py pelias.py utils.py ./
 
 CMD ["./run.sh", "run"]
 
