@@ -47,7 +47,7 @@ elif env_log_level == "MEDIUM":
     logger.setLevel(logging.INFO)
 elif env_log_level == "HIGH":
     logger.setLevel(logging.DEBUG)
-else :
+else:
     print(f"Unkown log level '{env_log_level}'. Should be LOW/MEDIUM/HIGH")
 
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -58,21 +58,19 @@ env_pelias_host = os.getenv('PELIAS_HOST')
 if env_pelias_host:
     logging.info("get PELIAS_HOST from env: %s", env_pelias_host)
     pelias_host = env_pelias_host
-else :
+else:
     pelias_host = "10.0.2.15:4000"
     logging.info("Use default osm host: %s", pelias_host)
 
-
-
-with_timing = os.getenv('TIMING', "NO").upper().strip()
-if with_timing == "NO":
-    with_timing_info = False
-elif with_timing == "YES":
-    with_timing_info = True
-else:
-    print(f"Unkown TIMING '{with_timing}'. Should be YES/NO")
-    with_timing_info = False
-log(f"TIMING: {with_timing_info} ({with_timing})")
+# with_timing = os.getenv('TIMING', "NO").upper().strip()
+# if with_timing == "NO":
+#     with_timing_info = False
+# elif with_timing == "YES":
+#     with_timing_info = True
+# else:
+#     print(f"Unkown TIMING '{with_timing}'. Should be YES/NO")
+#     with_timing_info = False
+# log(f"TIMING: {with_timing_info} ({with_timing})")
 
 
 pelias = Pelias(domain=pelias_host)
@@ -102,8 +100,8 @@ api = Api(app,
           doc='/doc',
           prefix='/REST/bepelias/v1',
           contact='Vandy BERTEN',
-          contact_email='vandy.berten@smals.be',
-)
+          contact_email='vandy.berten@smals.be'
+          )
 
 namespace = api.namespace(
     '',
@@ -111,7 +109,7 @@ namespace = api.namespace(
 
 with_https = os.getenv('HTTPS', "NO").upper().strip()
 
-if with_https=="YES":
+if with_https == "YES":
     # It runs behind a reverse proxy
     @property
     def specs_url(self):
@@ -125,10 +123,10 @@ if with_https=="YES":
 single_parser = reqparse.RequestParser()
 
 single_parser.add_argument('mode',
-                          type=str,
-                          choices=('basic', 'simple', 'advanced'),
-                          default='advanced',
-                          help="""
+                           type=str,
+                           choices=('basic', 'simple', 'advanced'),
+                           default='advanced',
+                           help="""
 How Pelias is used:
 
 - basic: Just call the structured version of Pelias
@@ -136,74 +134,69 @@ How Pelias is used:
 - advanced: try several variants until it gives a result""")
 
 single_parser.add_argument('streetName',
-                          type=str,
-                          default='Avenue Fonsny',
-                          help="The name of a passage or way through from one location to another (cf. Fedvoc). Example: 'Avenue Fonsny'",
-                          # example= "Avenue Fonsny"
-                          )
+                           type=str,
+                           default='Avenue Fonsny',
+                           help="The name of a passage or way through from one location to another (cf. Fedvoc). Example: 'Avenue Fonsny'",
+                           # example= "Avenue Fonsny"
+                           )
 
 single_parser.add_argument('houseNumber',
-                          type=str,
-                          default='20',
-                          help="An official alphanumeric code assigned to building units, mooring places, stands or parcels (cf. Fedvoc). Example: '20'",
-                          )
+                           type=str,
+                           default='20',
+                           help="An official alphanumeric code assigned to building units, mooring places, stands or parcels (cf. Fedvoc). Example: '20'",
+                           )
 
 single_parser.add_argument('postCode',
-                          type=str,
-                          default='1060',
-                          help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
-                          # example= "Avenue Fonsny"
-                          )
+                           type=str,
+                           default='1060',
+                           help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
+                           # example= "Avenue Fonsny"
+                           )
 
 single_parser.add_argument('postName',
-                          type=str,
-                          default='Saint-Gilles',
-                          help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
-                          )
+                           type=str,
+                           default='Saint-Gilles',
+                           help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
+                           )
 
 single_parser.add_argument('raw',
-                          type=bool,
-                          default=False,
-                          help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
-                          )
+                           type=bool,
+                           default=False,
+                           help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
+                           )
 
 
 city_search_parser = reqparse.RequestParser()
 city_search_parser.add_argument('postCode',
-                          type=str,
-                          default='1060',
-                          help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
-                          # example= "Avenue Fonsny"
-                          )
+                                type=str,
+                                default='1060',
+                                help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
+                                # example= "Avenue Fonsny"
+                                )
 
 city_search_parser.add_argument('postName',
-                          type=str,
-                          default='Saint-Gilles',
-                          help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
-                          )
+                                type=str,
+                                default='Saint-Gilles',
+                                help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
+                                )
 city_search_parser.add_argument('raw',
-                          type=bool,
-                          default=False,
-                          help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
-                          )
-
-
+                                type=bool,
+                                default=False,
+                                help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
+                                )
 
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
-                          type=str,
-                          default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
-                          help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
-                          location='query'
-                          )
+                       type=str,
+                       default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                       help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
+                       location='query'
+                       )
 id_parser.add_argument('raw',
-                          type=bool,
-                          default=False,
-                          help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
-                          )
-
-
-
+                       type=bool,
+                       default=False,
+                       help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
+                       )
 
 
 @namespace.route('/geocode')
@@ -211,12 +204,9 @@ class Geocode(Resource):
     """ Single address geocoding"""
 
     @namespace.expect(single_parser)
-
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
-
-
     def get(self):
         """
 Geocode (postal address cleansing and conversion into geographical coordinates) a single address.
@@ -226,20 +216,19 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log("geocode")
 
         mode = get_arg("mode", "advanced")
-        if not mode in ["basic", "simple", "advanced", "pelias_struct", "pelias_struct_noloc", "pelias_unstruct"]:
+        if mode not in ["basic", "simple", "advanced", "pelias_struct", "pelias_struct_noloc", "pelias_unstruct"]:
             namespace.abort(400, f"Invalid mode {mode}")
 
-
-        street_name =  get_arg("streetName", None)
+        street_name = get_arg("streetName", None)
         house_number = get_arg("houseNumber", None)
-        post_code=     get_arg("postCode", None)
-        post_name =    get_arg("postName", None)
+        post_code = get_arg("postCode", None)
+        post_name = get_arg("postName", None)
 
         raw = get_arg("raw", "False")
-        if raw.lower()=="false":
-            raw=False
-        elif raw.lower()=="true":
-            raw=True
+        if raw.lower() == "false":
+            raw = False
+        elif raw.lower() == "true":
+            raw = True
         else:
             namespace.abort(400, f"Invalid raw value ({mode}). Should be 'true' or 'false'")
 
@@ -259,24 +248,23 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         try:
 
             if mode in ("basic", "pelias_struct"):
-                pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
-                                            "postalcode": post_code,
-                                            "locality": post_name})
+                pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
+                                             "postalcode": post_code,
+                                             "locality": post_name})
 
                 return pelias_res if raw else to_rest_guidelines(pelias_res)
 
             if mode == "pelias_struct_noloc":
-                pelias_res= pelias.geocode({"address": build_address(street_name, house_number),
+                pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
                                             "postalcode": post_code})
 
                 return pelias_res if raw else to_rest_guidelines(pelias_res)
 
             if mode == "pelias_unstruct":
-                addr = build_address(street_name, house_number) + ", "  + build_city(post_code, post_name)
-                pelias_res= pelias.geocode(addr)
+                addr = build_address(street_name, house_number) + ", " + build_city(post_code, post_name)
+                pelias_res = pelias.geocode(addr)
 
                 return pelias_res if raw else to_rest_guidelines(pelias_res)
-
 
             if mode == "simple":
                 pelias_res = struct_or_unstruct(street_name, house_number, post_code, post_name, pelias)
@@ -288,27 +276,22 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                 pelias_res = advanced_mode(street_name, house_number, post_code, post_name, pelias)
                 return pelias_res if raw else to_rest_guidelines(pelias_res)
 
-
-
         except PeliasException as exc:
             log("Exception during process: ")
             log(exc)
             return str(exc), 500
 
-        return "Wrong mode!" # Should neve occur...
+        return "Wrong mode!"  # Should neve occur...
+
 
 @namespace.route('/searchCity')
 class SearchCity(Resource):
     """ Search city level results"""
 
     @namespace.expect(city_search_parser)
-
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
-
-
-
     def get(self):
         """
 Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
@@ -317,32 +300,29 @@ Search a city based on a postal code or a name (could be municipality name, part
 
         log("search city")
 
-        post_code= get_arg("postCode", None)
+        post_code = get_arg("postCode", None)
         post_name = get_arg("postName", None)
 
         raw = get_arg("raw", False)
-        if raw.lower()=="false":
-            raw=False
-        elif raw.lower()=="true":
-            raw=True
+        if raw.lower() == "false":
+            raw = False
+        elif raw.lower() == "true":
+            raw = True
         else:
             namespace.abort(400, f"Invalid raw value ({raw}). Should be 'true' or 'false'")
-
 
         must = [{"term": {"layer": "locality"}}]
         if post_code:
             must.append({"term": {"address_parts.zip": post_code}})
         if post_name:
-            must.append({"query_string": { "query": f"name.default:\"{post_name}\""}})
-
+            must.append({"query_string": {"query": f"name.default:\"{post_name}\""}})
 
         try:
-            #resp = client.get(index="pelias", id=f"{reg}:{obj_type}:{bestid}_{lg}")
             client = Elasticsearch(pelias.elastic_api)
             resp = client.search(index="pelias", body={
-                "query":{
-                    "bool":{
-                        "must":must
+                "query": {
+                    "bool": {
+                        "must": must
                     }
                 }
             })
@@ -353,12 +333,11 @@ Search a city based on a postal code or a name (could be municipality name, part
 
             final_result = []
             for resp_item in resp:
-                if "addendum" in resp_item["_source"] and "best" in  resp_item["_source"]["addendum"]:
-                    it = {"best":json.loads(resp_item["_source"]["addendum"]["best"])}
+                if "addendum" in resp_item["_source"] and "best" in resp_item["_source"]["addendum"]:
+                    it = {"best": json.loads(resp_item["_source"]["addendum"]["best"])}
                     if "center_point" in resp_item["_source"]:
                         it["center_point"] = resp_item["_source"]["center_point"]
                     it["name"] = resp_item["_source"]["name"]
-
 
                     final_result.append(it)
             # for i in range(len(resp)):
@@ -379,19 +358,17 @@ Search a city based on a postal code or a name (could be municipality name, part
             log(exc)
 
             return f"Cannot connect to Elastic: {exc}", 500
-                # log("Not found !")
+
         return "Object not found", 204
-
-
 
 
 @namespace.route('/id/<string:bestid>')
 # @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/')
 # @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/<string:a5>/')
 @namespace.param('bestid',
-                          type=str,
-                          default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
-                          help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')")
+                 type=str,
+                 default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                 help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')")
 class GetById(Resource):
     """ Get ressource by best id. This does not replace a call to Bosa BeSt Address API !!
     Only works for addresses, streets and municipalities (not for postalinfos, part of municipalities)
@@ -402,9 +379,7 @@ class GetById(Resource):
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
-
-
-    # def get(self, bestid, a1=None, a2=None, a3=None, a4=None, a5=None):
+    #  def get(self, bestid, a1=None, a2=None, a3=None, a4=None, a5=None):
     def get(self, bestid):
         """Search for a Best item by its id in Elastic database
 
@@ -425,8 +400,6 @@ class GetById(Resource):
         #     if a :
         #         bestid += "/"+a
 
-
-
         log(f"get by id: {bestid}")
 
         client = Elasticsearch(pelias.elastic_api)
@@ -437,24 +410,23 @@ class GetById(Resource):
             namespace.abort(400, f"Cannot parse best id '{bestid}'")
 
         log(f"mtch[2].lower(): '{mtch[2].lower()}'")
-        obj_type=None
+        obj_type = None
         if mtch[2].lower() in ["address", "adres"]:
             obj_type = "address"
         elif mtch[2].lower() in ["streetname", "straatnaam"]:
             obj_type = "street"
         elif mtch[2].lower() in ["municipality", "gemeente"]:
             obj_type = "locality"
-        else :
+        else:
             namespace.abort(400, f"Object type '{mtch[2]}' not supported so far in '{bestid}'")
-
 
         try:
             resp = client.search(index="pelias", body={
-                "query":{
-                    "bool":{
-                        "must":[
+                "query": {
+                    "bool": {
+                        "must": [
                             {"term": {"layer": obj_type}},
-                            {"prefix": {"source_id": {"value":bestid.lower() }}}
+                            {"prefix": {"source_id": {"value": bestid.lower()}}}
                         ]
                     }
                 }
@@ -463,7 +435,7 @@ class GetById(Resource):
             resp = resp["hits"]["hits"]
 
             for i, _ in enumerate(resp):
-                resp[i]["_source"]["addendum"]["best"] =json.loads(resp[i]["_source"]["addendum"]["best"])
+                resp[i]["_source"]["addendum"]["best"] = json.loads(resp[i]["_source"]["addendum"]["best"])
 
             return resp if raw else to_rest_guidelines(resp)
         except NotFoundError:
@@ -479,10 +451,8 @@ class GetById(Resource):
             log(exc)
 
             return f"Cannot connect to Elastic: {exc}", 500
-                # log("Not found !")
         # log("Not found !")
         return "Object not found", 204
-
 
 
 @namespace.route('/health', methods=['GET'])
@@ -491,7 +461,6 @@ class Health(Resource):
     @namespace.response(500, 'Internal Server error')
     @namespace.response(503, 'Service is "DOWN"')
     @namespace.response(200, 'Service is "UP" or "DEGRADED"')
-
     def get(self):
         """Health status
 
@@ -522,11 +491,11 @@ class Health(Resource):
 
         try:
             interp_res = pelias.interpolate(lat=50.83582,
-                                lon=4.33844,
-                                number=20,
-                                street="Avenue Fonsny")
+                                            lon=4.33844,
+                                            number=20,
+                                            street="Avenue Fonsny")
             log(interp_res)
-            if len({}) > 0 and not "geometry" in interp_res :
+            if len({}) > 0 and "geometry" not in interp_res:
                 return {
                     "status": "DEGRADED",
                     "details": {

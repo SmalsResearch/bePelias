@@ -11,11 +11,13 @@ import json
 
 from utils import (log, vlog)
 
-## Pelias functions/classes
+
+# Pelias functions/classes
 class PeliasException(Exception):
     """
     Exceptions related to Pelias
     """
+
 
 class Pelias:
     """
@@ -32,7 +34,7 @@ class Pelias:
 
         self.interpolate_path = '/search/geojson'
 
-        self.verbose=False
+        self.verbose = False
         self.scheme = scheme
         self.domain = domain.strip('/')
 
@@ -52,8 +54,7 @@ class Pelias:
             f'{self.scheme}://{self.domain.replace("4000", "9200")}'
         )
 
-
-    def call_service(self, url, nb_attempts = 6):
+    def call_service(self, url, nb_attempts=6):
         """
         Call URL. If something went wrong, wait a short delay, and try again,
         up to nb_attempts times
@@ -75,29 +76,29 @@ class Pelias:
         dict
             Pelias result.
         """
-        delay=1
-        while nb_attempts>0:
+        delay = 1
+        while nb_attempts > 0:
             try:
                 with urllib.request.urlopen(url) as response:
                     res = response.read()
                     res = json.loads(res)
                     return res
             except urllib.error.HTTPError as exc:
-                if exc.code==400 and self.interpolate_api in url: # bad request, typically bad house number format
+                if exc.code == 400 and self.interpolate_api in url:  # bad request, typically bad house number format
                     log(f"Error 400 ({url}): {exc}")
                     return {}
 
-                if nb_attempts==1:
+                if nb_attempts == 1:
                     log(f"Cannot get Pelias results after several attempts({url}): {exc}")
-                    raise PeliasException (f"Cannot get Pelias results after several attempts ({url}): {exc}") from exc
-                nb_attempts-=1
+                    raise PeliasException(f"Cannot get Pelias results after several attempts ({url}): {exc}") from exc
+                nb_attempts -= 1
                 log(f"Cannot get Pelias results ({url}): {exc}. Try again in {delay} seconds...")
                 time.sleep(delay)
                 delay += 0.5
             except ConnectionRefusedError as exc:
-                raise PeliasException (f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
+                raise PeliasException(f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
             except urllib.error.URLError as exc:
-                raise PeliasException (f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
+                raise PeliasException(f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
             except Exception as exc:
                 log(f"Cannot get Pelias results ({url}): {exc}")
                 raise exc
@@ -123,8 +124,8 @@ class Pelias:
             Pelias result.
         """
         if isinstance(query, dict):
-            struct=True
-            params={
+            struct = True
+            params = {
                 'address':    query['address'],
                 'locality':   query['locality']
             }
@@ -132,7 +133,7 @@ class Pelias:
                 params["postalcode"] = query['postalcode']
 
         else:
-            struct=False
+            struct = False
             params = {'text': query}
 
         if layers:
@@ -140,15 +141,12 @@ class Pelias:
 
         url = self.geocode_struct_api if struct else self.geocode_api
 
-
         params = urllib.parse.urlencode(params)
-
 
         url = f"{url}?{params}"
         vlog(f"Call to Pelias: {url}")
 
         return self.call_service(url)
-
 
     def interpolate(self, lat, lon, number, street):
         """
@@ -200,7 +198,7 @@ class Pelias:
         try:
             pelias_res = self.geocode(city_test_from)
             if city_test_from.lower() == pelias_res["geocoding"]["query"]["text"].lower():
-                return True # Everything is fine
+                return True  # Everything is fine
             return pelias_res  # Server answers, but gives an unexpected result
         except PeliasException as exc:
             vlog("Exception occured: ")
@@ -217,7 +215,7 @@ class Pelias:
         None.
         """
 
-        delay=2
+        delay = 2
         for i in range(10):
             pel = self.check(city_test_from)
             if pel is True:
@@ -231,9 +229,9 @@ class Pelias:
 
                 log(f"Pelias host: {self.geocode_api }")
 
-                #raise e
+                # raise e
             time.sleep(delay)
-            delay+=0.5
+            delay += 0.5
         if i == 9:
             log("Pelias not up & running !")
             log(f"Pelias: {self.geocode_api }")
