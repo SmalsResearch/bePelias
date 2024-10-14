@@ -513,6 +513,7 @@ def interpolate(feature, pelias):
     log(f"street_center_coords: {street_center_coords}")
 
     interp_res = pelias.interpolate(lat=street_center_coords[1],
+                                    lon=street_center_coords[0],
                                     number=feature['properties']['housenumber'],
                                     street=feature['properties']['street'])
 

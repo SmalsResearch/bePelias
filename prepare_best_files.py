@@ -493,12 +493,12 @@ def create_address_data(data, region):
                                           "postname"],
                                          data)
     addendum_json_best += build_addendum_ids(
-       [["NIS",                     data.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
-        ["postal_code",             "postcode"],
+       [["municipality_code",       data.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
+        ["post_code",               "postcode"],
         ["municipality_id",         "municipality_id"],
         ["part_of_municipality_id", "part_of_municipality_id"],
         ["street_id",               "street_id"],
-        ["housenumber",             "housenumber"],
+        ["housenumber",             "house_number"],
         ["status",                  "status"],
         ], data)
 
@@ -662,9 +662,9 @@ def create_street_data(data, empty_street, region):
     all_streets["addendum_json_best"] = '{' + build_addendum(["streetname", "municipality_name", "postname", "part_of_municipality_name"],
                                                              all_streets)
     all_streets["addendum_json_best"] += build_addendum_ids([
-        ["NIS",              all_streets.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
+        ["municipality_code", all_streets.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
         ["municipality_id",  "municipality_id"],
-        ["postal_code",      "postalcode"],
+        ["post_code",        "postalcode"],
         ["street_id",        "street_id"]], all_streets)
     all_streets["addendum_json_best"] += '}'
 
@@ -719,9 +719,9 @@ def create_locality_data(data, region):
                                                                    data_localities_all)
 
     data_localities_all["addendum_json_best"] += build_addendum_ids([
-        ["NIS",              data_localities_all.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
-        ["municipality_id",  "municipality_id"],
-        ["postal_code",      "postalcode"]], data_localities_all)
+        ["municipality_code",  data_localities_all.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
+        ["municipality_id",   "municipality_id"],
+        ["post_code",         "postalcode"]], data_localities_all)
 
     data_localities_all["addendum_json_best"] += '}'
 
