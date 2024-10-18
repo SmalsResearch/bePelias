@@ -20,7 +20,7 @@ import re
 from urllib.parse import unquote_plus
 
 from flask import Flask, url_for
-from flask_restx import Api, Resource, reqparse
+from flask_restx import Api, Resource, reqparse, fields
 
 from elasticsearch import Elasticsearch, NotFoundError
 
@@ -112,7 +112,7 @@ with_https = os.getenv('HTTPS', "NO").upper().strip()
 if with_https == "YES":
     # It runs behind a reverse proxy
     @property
-    def specs_url(self):
+    def specs_url(self) -> str:
         """
             If it runs behind a reverse proxy
         """
@@ -198,6 +198,12 @@ id_parser.add_argument('raw',
                        help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
                        )
 
+geocode_output_model = namespace.model("GeocodeOutput", {
+    "geocoding": fields.Raw(default="", example="example"),
+   # "features": fields.List([fields.Raw(default="", example="example")])
+    }
+                                       )
+
 
 @namespace.route('/geocode')
 class Geocode(Resource):
@@ -207,6 +213,9 @@ class Geocode(Resource):
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
+    # @namespace.marshal_with(geocode_output_model,
+    #                         description='Found one or several matches for this address',
+    #                         skip_none=True)
     def get(self):
         """
 Geocode (postal address cleansing and conversion into geographical coordinates) a single address.

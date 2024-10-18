@@ -573,7 +573,7 @@ def build_city(post_code, post_name):
     return f"{post_code} {post_name}"
 
 
-def search_for_coordinates(feat, pelias_res, pelias):
+def search_for_coordinates(feat, pelias):
     """
     If a feature has (0,0) as coordinates, try to find better location:
     - If address contains boxes and the first box has non null coordinates, use them
@@ -591,18 +591,18 @@ def search_for_coordinates(feat, pelias_res, pelias):
         vlog("Found coordinates in first box number")
         feat["geometry"]["coordinates_orig"] = [0, 0]
         feat["geometry"]["coordinates"] = boxes[0]["lon"], boxes[0]["lat"]
-        pelias_res["bepelias"]["interpolated"] = "from_boxnumber"
+        feat["bepelias"] = {"interpolated": "from_boxnumber"}
     else:
         log("Coordinates==0,0, try to interpolate...")
         interp = interpolate(feat, pelias)
         if "geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0, 0]
             feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-            pelias_res["bepelias"]["interpolated"] = True
+            feat["bepelias"] = {"interpolated": True}
         elif "street_geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0, 0]
             feat["geometry"]["coordinates"] = interp["street_geometry"]["coordinates"]
-            pelias_res["bepelias"]["interpolated"] = "street_center"
+            feat["bepelias"] = {"interpolated": "street_center"}
 
 
 def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, check_postcode=True):
@@ -663,7 +663,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
 
                 if feat["geometry"]["coordinates"] == [0, 0]:
 
-                    search_for_coordinates(feat, pelias_struct, pelias)
+                    search_for_coordinates(feat, pelias)
 
                 vlog("Found a building in res1")
                 vlog(feat)
@@ -706,7 +706,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
             vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
             if is_building(feat):
                 if feat["geometry"]["coordinates"] == [0, 0]:
-                    search_for_coordinates(feat, pelias_unstruct, pelias)
+                    search_for_coordinates(feat, pelias)
                     # vlog("Coordinates==0,0, try to interpolate...")
                     # interp = interpolate(feat)
                     # if "geometry" in interp:
@@ -797,8 +797,8 @@ def transform(addr_data, transformer):
     return addr_data
 
 
-def get_precision(pelias_res):
-    """Get the precision of the first feature of a pelias result
+def get_precision(feature):
+    """Get the precision of a pelias result feature
 
     Args:
         pelias_res (dict): pelias result
@@ -808,17 +808,19 @@ def get_precision(pelias_res):
                 street_interpol, street_00, street,
                 city_00, city, country
     """
+
+    # log("get_precision")
     try:
         # if len(pelias_res["features"]) == 0:
         #     return "no_feat"
-        feat = pelias_res["features"][0]
-        feat_prop = feat["properties"]
+        
+        feat_prop = feature["properties"]
         if feat_prop["layer"] == "address":
-            if feat["geometry"]["coordinates"] == [0, 0]:
+            if feature["geometry"]["coordinates"] == [0, 0]:
                 return "address_00"
-            if 'interpolated' in pelias_res['bepelias'] and pelias_res['bepelias']['interpolated'] == 'street_center':
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'street_center':
                 return "address_streetcenter"
-            if 'interpolated' in pelias_res['bepelias'] and pelias_res['bepelias']['interpolated'] is True:
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] is True:
                 return "address_interpol"
             if feat_prop["match_type"] == "interpolated":
                 if "/streetname/" in feat_prop["id"].lower() or "/straatnaam/" in feat_prop["id"].lower():
@@ -829,14 +831,14 @@ def get_precision(pelias_res):
                 return "address"
 
         if feat_prop["layer"] == "street":
-            if feat["geometry"]["coordinates"] == [0, 0]:
+            if feature["geometry"]["coordinates"] == [0, 0]:
                 return "street_00"
             # if  feat_prop["match_type"] == "interpolated" :
             #    return "street_interpol"
 
             return "street"
         if feat_prop["layer"] in ("city", "locality", "postalcode", "localadmin", "neighbourhood"):
-            if feat["geometry"]["coordinates"] == [0, 0]:
+            if feature["geometry"]["coordinates"] == [0, 0]:
                 return "city_00"
             return "city"
 
@@ -844,6 +846,8 @@ def get_precision(pelias_res):
             return "country"
 
     except KeyError as e:
+        log("KeyError in get_precision")
+        log(feature)
         log(e)
         return "[keyerror]"
 
@@ -899,7 +903,11 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
                 if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
                     pelias_res["bepelias"]["pelias_call_count"] = call_cnt
-                    pelias_res["bepelias"]["precision"] = get_precision(pelias_res)
+                    for feat in pelias_res["features"]:
+                        if "bepelias" not in feat:
+                            feat["bepelias"] = {}
+                        feat["bepelias"]["precision"] = get_precision(feat)
+                    # log(feat)
                     return pelias_res if pelias_res else to_rest_guidelines(pelias_res)
                 all_res.append(pelias_res)
         if sum([len(r["features"]) for r in all_res]) > 0:
@@ -975,7 +983,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
             return "No result", 204
 
         final_res["bepelias"]["pelias_call_count"] = call_cnt
-        final_res["bepelias"]["precision"] = get_precision(final_res)
+        final_res["bepelias"]["precision"] = get_precision(final_res["features"][0])
 
         return final_res if final_res else to_rest_guidelines(final_res)
     return "No result", 204

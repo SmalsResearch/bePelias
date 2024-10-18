@@ -494,7 +494,7 @@ def create_address_data(data, region):
                                          data)
     addendum_json_best += build_addendum_ids(
        [["municipality_code",       data.municipality_id.str.extract(r"/([0-9]{5})/")[0]],
-        ["post_code",               "postcode"],
+        ["post_code",               "postalcode"],
         ["municipality_id",         "municipality_id"],
         ["part_of_municipality_id", "part_of_municipality_id"],
         ["street_id",               "street_id"],
