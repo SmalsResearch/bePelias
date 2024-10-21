@@ -617,6 +617,7 @@ def create_street_data(data, empty_street, region):
             data_cols = all_streets[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
             all_streets[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst) > 0 else pd.NA)
 
+    all_streets = all_streets.reset_index(drop=True)
     all_streets["addendum_json_best"] = build_addendum({
         # "best_id": all_streets.address_id,
         "street": {

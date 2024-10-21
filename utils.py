@@ -134,11 +134,18 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
         # log(feat)
         if "addendum" in feat["properties"] and "best" in feat["properties"]["addendum"]:
             item = feat["properties"]["addendum"]["best"]
-            
             item |= feat["bepelias"]
 
             item["coordinates"] = feat["geometry"]["coordinates"]
+            # item["name"] = feat["properties"]["name"]
             items.append(item)
+        else:
+            item = {"coordinates": feat["geometry"]["coordinates"],
+                    "name": feat["properties"]["name"]}
+            items.append(item)
+    # Remove duplicate results
+    items = [i for n, i in enumerate(items) if i not in items[:n]]
+
     rest_res = {"items": items}
     rest_res |= pelias_res["bepelias"]
 

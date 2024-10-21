@@ -357,6 +357,7 @@ Search a city based on a postal code or a name (could be municipality name, part
 
             # final_result = list(unique_everseen(final_result))
 
+            # Remove duplicate results
             final_result = [i for n, i in enumerate(final_result) if i not in final_result[:n]]
 
             return final_result if raw else to_rest_guidelines(final_result)
