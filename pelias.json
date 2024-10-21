@@ -1,6 +1,6 @@
 {
     "logger": {
-"level": "warning",
+"level": "info",
 "timestamp": false
 },
 "esclient": {
@@ -28,9 +28,6 @@
 "targets": {
   "test": ["test"]
 }
-},
-"logger": {
-"level": "debug"
 },
 "imports": {
       "adminLookup": {

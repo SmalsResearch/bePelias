@@ -208,11 +208,8 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 
 - Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
-- Uniformize prepare_csv and prepare_xml (using bepelias/dataprep for both)
 - autocomplete in place of unstructured
 - We have sometimes "building" result, but with "no_hn" transformer. 
 - add a "reverse" endpoint
 - add a "search" endpoint, for locality search based on zipcode or municipality/part of municipality/postal names
-- in Best addendum: "streetname_fr":"...", "streetname_nl":"..." --> "streetname": {"fr": "...", "nl":"..."}
-- add a health endpoint
-- clean error answer if pelias is down
+- clean variable names in prepare_best_file

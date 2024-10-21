@@ -4,6 +4,7 @@
 import logging
 import re
 
+import copy
 
 from flask import request
 
@@ -114,7 +115,7 @@ def to_camel_case(data):
     return data
 
 
-def to_rest_guidelines(pelias_res):
+def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     """Convert a pelias result into a REST Guideline compliant object
 
     Args:
@@ -124,8 +125,39 @@ def to_rest_guidelines(pelias_res):
         dict: REST Guideline compliant version of input
     """
     log("Converting to to_rest_guidelines")
-    return to_camel_case(pelias_res)
+    if not isinstance(pelias_res, dict):
+        return pelias_res
+    items = []
+    log("pelias_res:")
+    log(pelias_res)
+    for feat in pelias_res["features"]:
+        # log(feat)
+        if "addendum" in feat["properties"] and "best" in feat["properties"]["addendum"]:
+            item = feat["properties"]["addendum"]["best"]
+            
+            item |= feat["bepelias"]
 
+            item["coordinates"] = feat["geometry"]["coordinates"]
+            items.append(item)
+    rest_res = {"items": items}
+    rest_res |= pelias_res["bepelias"]
+
+    rest_res = to_camel_case(rest_res)
+
+    if with_pelias_raw:
+        pelias_res_raw = copy.deepcopy(pelias_res)
+        for fld in ["bepelias", "score"]:
+            if fld in pelias_res_raw:
+                del pelias_res_raw[fld]
+        for feat in pelias_res_raw["features"]:
+            log(feat)
+            if "addendum" in feat["properties"]:
+                del feat["properties"]["addendum"]
+            if "bepelias" in feat:
+                del feat["bepelias"]
+        rest_res["peliasRaw"] = pelias_res_raw
+
+    return rest_res
 
 # Check result functions
 
@@ -813,7 +845,6 @@ def get_precision(feature):
     try:
         # if len(pelias_res["features"]) == 0:
         #     return "no_feat"
-        
         feat_prop = feature["properties"]
         if feat_prop["layer"] == "address":
             if feature["geometry"]["coordinates"] == [0, 0]:
@@ -983,7 +1014,13 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
             return "No result", 204
 
         final_res["bepelias"]["pelias_call_count"] = call_cnt
-        final_res["bepelias"]["precision"] = get_precision(final_res["features"][0])
+
+        for feat in final_res["features"]:
+            if "bepelias" not in feat:
+                feat["bepelias"] = {}
+            feat["bepelias"]["precision"] = get_precision(feat)
+
+        # final_res["bepelias"]["precision"] = get_precision(final_res["features"][0])
 
         return final_res if final_res else to_rest_guidelines(final_res)
     return "No result", 204

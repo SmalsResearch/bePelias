@@ -108,19 +108,7 @@ if [[ $ACTION == "cleanup" ]]; then
     "
 fi
 
-if [[ $ACTION == "reset_data" ]]; then
-# To use to reset data and reload new CSV files
-    set -x
-    cd $DIR
-    $PELIAS elastic stop
-    rm -rf data/elasticsearch/ 
-    $PELIAS elastic start
-    $PELIAS elastic wait
-    $PELIAS elastic create
-    $PELIAS prepare interpolation
-    cd -
-    set +x
-fi
+
 
 if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" || $ACTION ==  "reset_data" ]]; then
     echo "Prepare CSV (from xml)"
@@ -135,6 +123,19 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" || $ACTION ==  "reset_dat
     set +x
 fi
 
+if [[ $ACTION == "reset_data" ]]; then
+# To use to reset data and reload new CSV files
+    set -x
+    cd $DIR
+    $PELIAS elastic stop
+    rm -rf data/elasticsearch/ 
+    $PELIAS elastic start
+    $PELIAS elastic wait
+    $PELIAS elastic create
+    $PELIAS prepare interpolation
+    cd -
+    set +x
+fi
 
 if [[ $ACTION == "update" ||  $ACTION == "reset_data" ]] ; then
     echo "Update"
