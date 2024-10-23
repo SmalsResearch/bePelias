@@ -37,10 +37,10 @@ if [[ $ACTION == "build_pelias" ]]; then
     cp pelias.json $DIR
     cp  docker/projects/belgium/elasticsearch.yml  $DIR
 
-    # Change config to allow interpolation to be publc
+    # Change config to allow interpolation to be public
     sed 's/127.0.0.1:4300:4300/0.0.0.0:4300:4300/' docker/projects/belgium/docker-compose.yml >$DIR/docker-compose.yml
     
-    # Change config to allow elasticsearch to be publc
+    # Change config to allow elasticsearch to be public
     sed -i 's/127.0.0.1:9200:9200/0.0.0.0:9200:9200/' $DIR/docker-compose.yml
     
 

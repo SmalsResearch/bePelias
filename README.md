@@ -5,7 +5,8 @@ See more info in webinar "Geocoding" (in French, 28/09/2023): https://www.smalsr
 The current version of Pelias for BeSt Address (https://github.com/pelias/docker/tree/master/projects/belgium ; authentic source for addresses in Belgium) has two main problems:
 - Data (trought openaddresses.io) are not updated anymore since mid-2021, as: 
     - Current format for BeSt Address csv file is not recognized by openaddresses, since Feb 2021 (column "EPSG:4326_lat" and similar contain mixed case)
-    - OpenAddresses changed its dataflow from "https://results.openaddresses.io/" to "https://batch.openaddresses.io/", and since mid 2021, "results" is no longer updated. But Pelias still uses this dataflow
+    - OpenAddresses changed its dataflow from "https://results.openaddresses.io/" to "https://batch.openaddresses.io/", and since mid 2021, 
+      "results" is no longer updated. But Pelias still uses this dataflow
 - Geocoder is not very robust, but some simple changes allow matching to work.
 
 The current projet aims at:
@@ -22,7 +23,8 @@ This project is realized by Vandy Berten (Smals Research, https://www.smalsresea
 # Build
 
 This project is composed of two parts: 
-- Pelias, based on custom files. It is built upon an adaptation of https://github.com/pelias/docker/tree/master/projects/belgium, but based on CSV files we prepare. This component is composed of +/- 6 docker containers (named pelias_xxxx)
+- Pelias, based on custom files. It is built upon an adaptation of https://github.com/pelias/docker/tree/master/projects/belgium, but based on CSV files we prepare. 
+   This component is composed of +/- 6 docker containers (named pelias_xxxx)
 - bePelias: REST API improving robustness of Pelias ("wrapper") + file preparator
 
 Note: in order to avoid to make 3 components, we put in the same docker image the REST API (used once the service is online) and the file preparator (used to build/update the service). It might be cleaner to split them appart.
@@ -41,9 +43,9 @@ To update data:
 
 ## Data from OpenAddress CSV
 
-The above procedure builds Pelias data from BOSA XML (https://opendata.bosa.be/download/best/best-full-latest.zip), using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id. 
+The above procedure builds Pelias data from BOSA XML (https://opendata.bosa.be/download/best/best-full-latest.zip), 
+using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id. 
 
-An alternative procedure builds data from openaddress CSV files (https://opendata.bosa.be/download/best/openaddress-be[REG].zip, with [REG] in "bru", "vlg" and "wal"). This is quicker, but "BeSt Ids" will only contains "object identifier" (no namespace, no version). In order to use this procedure, replace "prepare_csv" by "prepare_csv2"
 
 # Usage
 
@@ -82,11 +84,17 @@ check_postcode(features, postcode): keep only a feature from features if:
 
 Let now consider the build bloc "struct_or_unstruct(street_name, house_number, post_code, post_name)". 
 
-This will first call the structured version of Pelias. We receive then a "features list". We first apply "check_postcode" to remove any result with a "wrong" postal code. Then, if any feature in the remaining features list is "is_building", we return the (filtered) features list.
+This will first call the structured version of Pelias. We receive then a "features list". 
+We first apply "check_postcode" to remove any result with a "wrong" postal code. 
+Then, if any feature in the remaining features list is "is_building", we return the (filtered) features list.
 
-Otherwise, we call the unstructured version of Pelias with the text "street_name, house_number, post_code post_name". We apply the same logic as for the structured version: we filter the features list, and if a feature "is_building", we return the (filtered) features list. Furthermore, we observed that the reliability of results for unstructured version is rather low. We often get completly wrong result. To reduce them, we check, using various string distance metrics, that the street in input is not too far away from the street in result.
+Otherwise, we call the unstructured version of Pelias with the text "street_name, house_number, post_code post_name". 
+We apply the same logic as for the structured version: we filter the features list, and if a feature "is_building", 
+we return the (filtered) features list. Furthermore, we observed that the reliability of results for unstructured version is rather low. 
+We often get completly wrong result. To reduce them, we check, using various string distance metrics, that the street in input is not too far away from the street in result.
 
-If at this point we did not return anything, it means that neither the structured version nor the unstructured provides a valid building result. At this point, we will select the best (filtered) features list amongst the structured or unstructured version.
+If at this point we did not return anything, it means that neither the structured version nor the unstructured provides a valid building result. 
+At this point, we will select the best (filtered) features list amongst the structured or unstructured version.
 
 - If the "confidence" of the structured version is (strictly) higher than the confidence of the unstructured version, we return the (filtered) structured features list.
 - Otherwise, if the first result of the structured version contains a "street", we return it.
@@ -118,7 +126,8 @@ We consider a set of "transformers" aiming at modifying the input (structured ad
 
 ## Main logic
 
-The main idea is to send an address to Pelias (using struct_or_unstruct). If it gives a building level result, we return it. Otherwise, we try a sequence of transformers, until a building level result is found.
+The main idea is to send an address to Pelias (using struct_or_unstruct). If it gives a building level result, we return it. 
+Otherwise, we try a sequence of transformers, until a building level result is found.
 
 ### Transformer sequence
 
@@ -156,10 +165,16 @@ Review this scoring??
 
 When a house number is not found in BeSt Address data, we may return a street level result, with a BeST street id, a street name, and several higher level data.
 
-The coordinates appearing in the result is computed the following way. For each street in a given municipality, we split records into two according to the parity of the housenumber (considering only the numerical part).
-For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. The center of the street is the point between the odd and the even centers. If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
+The coordinates appearing in the result is computed the following way. 
+For each street in a given municipality, we split records into two according to the parity of the housenumber (considering only the numerical part).
 
-Note that there is no guarantie that this point lays on the street. There are rare cases where center is slightly offside, mainly with roads with high sinuosily and one side with addresses only on a small parts. But this gives much better results as if we'd consider simply the average of all points on a street (which is off the road for mostly all curvated streets).
+For both parities, we draw a line going through all numbers in ascending order, and take the middle of this line. 
+The center of the street is the point between the odd and the even centers. 
+If one of them is empty (because a street does not have any odd or even numbers), we just take the other one.
+
+Note that there is no guarantie that this point lays on the street. There are rare cases where center is slightly offside, 
+mainly with roads with high sinuosily and one side with addresses only on a small parts. 
+But this gives much better results as if we'd consider simply the average of all points on a street (which is off the road for mostly all curvated streets).
 
 ## Interpolation
 
@@ -213,3 +228,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - add a "reverse" endpoint
 - add a "search" endpoint, for locality search based on zipcode or municipality/part of municipality/postal names
 - clean variable names in prepare_best_file
+- rename bepelias_cnt container into bepelias_api
+- name bepelias_dataprep
+- Remove "-v $(pwd)/data:/data" from run_api ?
