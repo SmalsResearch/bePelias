@@ -23,6 +23,16 @@ NB_WORKERS=${4:-1}
 
 CNT_NAME=bepelias_cnt
 
+# Choose docker compose or docker-compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "No version of Docker Compose is installed."
+    exit 1
+fi
+
 
 # Pelias
 
@@ -75,7 +85,7 @@ if [[ $ACTION == "build_pelias" ]]; then
     $PELIAS import csv
     $PELIAS compose up
 
-    docker-compose up -d  api # error with api in pelias compose up... why???
+    $DOCKER_COMPOSE up -d  api # error with api in pelias compose up... why???
 
     set +x
 
