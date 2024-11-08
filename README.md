@@ -226,8 +226,7 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - autocomplete in place of unstructured
 - We have sometimes "building" result, but with "no_hn" transformer. 
 - add a "reverse" endpoint
-- add a "search" endpoint, for locality search based on zipcode or municipality/part of municipality/postal names
 - clean variable names in prepare_best_file
-- rename bepelias_cnt container into bepelias_api
-- name bepelias_dataprep
-- Remove "-v $(pwd)/data:/data" from run_api ?
+- remote initial data update  -> first make everthing working without BeSt data, then update
+- move "compose up" into run_api
+- add region option to update

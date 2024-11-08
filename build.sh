@@ -21,7 +21,7 @@ LOG_LEVEL=${3:-"LOW"}
 
 NB_WORKERS=${4:-1}
 
-CNT_NAME=bepelias_cnt
+CNT_NAME=bepelias_api
 
 # Pelias
 
@@ -92,7 +92,6 @@ if [[ $ACTION == "cleanup" ]]; then
     $PELIAS compose down
 
     $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
-    $DOCKER rmi bepelias
     $DOCKER rmi $(docker images -q 'pelias/*' |uniq)
 
 
@@ -104,10 +103,8 @@ if [[ $ACTION == "cleanup" ]]; then
     echo "Advice: try also to run :
      - docker system prune -a -f
      - docker volume prune
-
     "
 fi
-
 
 
 if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" || $ACTION ==  "reset_data" ]]; then
@@ -117,7 +114,7 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION == "update" || $ACTION ==  "reset_dat
     rm -f data/bestaddresses_*.csv
     
     mkdir -p data
-    $DOCKER run --rm -v $(pwd)/data:/data bepelias/dataprep /run.sh prepare_from_xml
+    $DOCKER run --rm --name bepelias_dataprep -v $(pwd)/data:/data bepelias/dataprep  /run.sh prepare_from_xml
 
     # rm -f data/in/*.csv
     set +x
@@ -175,7 +172,7 @@ if [[ $ACTION == "run_api" ]]; then
         $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
     fi
     set -x    
-    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME -v $(pwd)/data:/data bepelias/api
+    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME bepelias/api
     set +x
     echo "run 'docker logs -f $CNT_NAME' "
 fi
