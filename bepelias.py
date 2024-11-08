@@ -62,17 +62,6 @@ else:
     pelias_host = "10.0.2.15:4000"
     logging.info("Use default osm host: %s", pelias_host)
 
-# with_timing = os.getenv('TIMING', "NO").upper().strip()
-# if with_timing == "NO":
-#     with_timing_info = False
-# elif with_timing == "YES":
-#     with_timing_info = True
-# else:
-#     print(f"Unkown TIMING '{with_timing}'. Should be YES/NO")
-#     with_timing_info = False
-# log(f"TIMING: {with_timing_info} ({with_timing})")
-
-
 pelias = Pelias(domain=pelias_host)
 
 log("test Pelias: ")
@@ -189,10 +178,12 @@ id_parser.add_argument('bestid',
                        location='query'
                        )
 
-
 geocode_output_model = namespace.model("GeocodeOutput", {
-    "geocoding": fields.Raw(default="", example="example"),
-    # "features": fields.List([fields.Raw(default="", example="example")])
+    "items":  fields.List([fields.Raw(default="", example="example")]),
+    "peliasRaw": fields.Raw(default="", example="example"),
+    "callType": fields.String(default="struct", example="struct or unstruct"),
+    "inAddr": fields.Raw(default="", example="example"),
+    "transformers": fields.String(default="", example="clean;no_city"),
     }
                                        )
 
@@ -205,9 +196,9 @@ class Geocode(Resource):
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
-    # @namespace.marshal_with(geocode_output_model,
-    #                         description='Found one or several matches for this address',
-    #                         skip_none=True)
+    @namespace.marshal_with(geocode_output_model,
+                            description='Found one or several matches for this address',
+                            skip_none=True)
     def get(self):
         """
 Geocode (postal address cleansing and conversion into geographical coordinates) a single address.
