@@ -159,10 +159,10 @@ single_parser.add_argument('postName',
                            help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                            )
 
-single_parser.add_argument('raw',
+single_parser.add_argument('withPeliasResult',
                            type=bool,
                            default=False,
-                           help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
+                           help="If True, return Pelias result as such in 'peliasRaw'.",
                            )
 
 
@@ -179,11 +179,7 @@ city_search_parser.add_argument('postName',
                                 default='Saint-Gilles',
                                 help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                                 )
-city_search_parser.add_argument('raw',
-                                type=bool,
-                                default=False,
-                                help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
-                                )
+
 
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
@@ -192,15 +188,11 @@ id_parser.add_argument('bestid',
                        help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
                        location='query'
                        )
-id_parser.add_argument('raw',
-                       type=bool,
-                       default=False,
-                       help="If True, return Pelias result as such. If False, convert result to a REST Guidelines compliant format",
-                       )
+
 
 geocode_output_model = namespace.model("GeocodeOutput", {
     "geocoding": fields.Raw(default="", example="example"),
-   # "features": fields.List([fields.Raw(default="", example="example")])
+    # "features": fields.List([fields.Raw(default="", example="example")])
     }
                                        )
 
@@ -233,13 +225,13 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         post_code = get_arg("postCode", None)
         post_name = get_arg("postName", None)
 
-        raw = get_arg("raw", "False")
-        if raw.lower() == "false":
-            raw = False
-        elif raw.lower() == "true":
-            raw = True
+        withPeliasResult = get_arg("withPeliasResult", "False")
+        if withPeliasResult.lower() == "false":
+            withPeliasResult = False
+        elif withPeliasResult.lower() == "true":
+            withPeliasResult = True
         else:
-            namespace.abort(400, f"Invalid raw value ({mode}). Should be 'true' or 'false'")
+            namespace.abort(400, f"Invalid withPeliasResult value ({mode}). Should be 'true' or 'false'")
 
         if street_name:
             street_name = street_name.strip()
@@ -261,29 +253,29 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                                              "postalcode": post_code,
                                              "locality": post_name})
 
-                return pelias_res if raw else to_rest_guidelines(pelias_res)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "pelias_struct_noloc":
                 pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
                                             "postalcode": post_code})
 
-                return pelias_res if raw else to_rest_guidelines(pelias_res)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "pelias_unstruct":
                 addr = build_address(street_name, house_number) + ", " + build_city(post_code, post_name)
                 pelias_res = pelias.geocode(addr)
 
-                return pelias_res if raw else to_rest_guidelines(pelias_res)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "simple":
                 pelias_res = struct_or_unstruct(street_name, house_number, post_code, post_name, pelias)
-                return pelias_res if raw else to_rest_guidelines(pelias_res)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "advanced":
                 vlog("advanced...")
 
                 pelias_res = advanced_mode(street_name, house_number, post_code, post_name, pelias)
-                return pelias_res if raw else to_rest_guidelines(pelias_res)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
 
         except PeliasException as exc:
             log("Exception during process: ")
@@ -312,14 +304,6 @@ Search a city based on a postal code or a name (could be municipality name, part
         post_code = get_arg("postCode", None)
         post_name = get_arg("postName", None)
 
-        raw = get_arg("raw", False)
-        if raw.lower() == "false":
-            raw = False
-        elif raw.lower() == "true":
-            raw = True
-        else:
-            namespace.abort(400, f"Invalid raw value ({raw}). Should be 'true' or 'false'")
-
         must = [{"term": {"layer": "locality"}}]
         if post_code:
             must.append({"term": {"address_parts.zip": post_code}})
@@ -343,9 +327,9 @@ Search a city based on a postal code or a name (could be municipality name, part
             final_result = []
             for resp_item in resp:
                 if "addendum" in resp_item["_source"] and "best" in resp_item["_source"]["addendum"]:
-                    it = {"best": json.loads(resp_item["_source"]["addendum"]["best"])}
+                    it = {"properties": {"addendum": {"best": json.loads(resp_item["_source"]["addendum"]["best"])}}}
                     if "center_point" in resp_item["_source"]:
-                        it["center_point"] = resp_item["_source"]["center_point"]
+                        it["geometry"] = {"coordinates": resp_item["_source"]["center_point"]}
                     it["name"] = resp_item["_source"]["name"]
 
                     final_result.append(it)
@@ -358,9 +342,9 @@ Search a city based on a postal code or a name (could be municipality name, part
             # final_result = list(unique_everseen(final_result))
 
             # Remove duplicate results
-            final_result = [i for n, i in enumerate(final_result) if i not in final_result[:n]]
+            final_result = {"features": [i for n, i in enumerate(final_result) if i not in final_result[:n]]}
 
-            return final_result if raw else to_rest_guidelines(final_result)
+            return to_rest_guidelines(final_result, False)
         except NotFoundError:
             pass
         except ConnectionError as exc:

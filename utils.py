@@ -134,7 +134,8 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
         # log(feat)
         if "addendum" in feat["properties"] and "best" in feat["properties"]["addendum"]:
             item = feat["properties"]["addendum"]["best"]
-            item |= feat["bepelias"]
+            if "bepelias" in feat:
+                item |= feat["bepelias"]
 
             item["coordinates"] = feat["geometry"]["coordinates"]
             # item["name"] = feat["properties"]["name"]
@@ -147,7 +148,9 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     items = [i for n, i in enumerate(items) if i not in items[:n]]
 
     rest_res = {"items": items}
-    rest_res |= pelias_res["bepelias"]
+
+    if "bepelias" in pelias_res:
+        rest_res |= pelias_res["bepelias"]
 
     rest_res = to_camel_case(rest_res)
 

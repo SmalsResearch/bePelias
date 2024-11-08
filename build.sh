@@ -21,10 +21,8 @@ LOG_LEVEL=${3:-"LOW"}
 
 NB_WORKERS=${4:-1}
 
-<<<<<<< HEAD
 CNT_NAME=bepelias_api
-=======
-CNT_NAME=bepelias_cnt
+
 
 # Choose docker compose or docker-compose command
 if command -v docker-compose &> /dev/null; then
@@ -35,8 +33,6 @@ else
     echo "No version of Docker Compose is installed."
     exit 1
 fi
-
->>>>>>> origin/main
 
 # Pelias
 
