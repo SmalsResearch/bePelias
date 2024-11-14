@@ -230,3 +230,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - remote initial data update  -> first make everthing working without BeSt data, then update
 - move "compose up" into run_api
 - add region option to update
+- uniformize coordinates in geocode and searchcity
+- format output search by id
+- model: split "name" in name street, name municipality... ?

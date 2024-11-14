@@ -169,7 +169,6 @@ city_search_parser.add_argument('postName',
                                 help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                                 )
 
-
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
                        type=str,
@@ -178,14 +177,137 @@ id_parser.add_argument('bestid',
                        location='query'
                        )
 
+name_model = namespace.model("ItemNameModel", {
+    "fr":  fields.String(example="Avenue Fonsny",
+                         description="Entity (street, municipality...) name in French",
+                         skip_none=True),
+    "nl":  fields.String(example="Fonsnylaan",
+                         description="Entity (street, municipality...) name in Nederlands",
+                         skip_none=True),
+    "de":  fields.String(example="Avenue Fonsny",
+                         description="Entity (street, municipality...) name in German",
+                         skip_none=True)})
+
+street_model = namespace.model("StreetNameModel", {
+    "name": fields.Nested(name_model,
+                          description="Street name in fr/nl/de (when applicable)",
+                          skip_none=True),
+    "id": fields.String(example="https://databrussels.be/id/streetname/4921/2",
+                        description="Street BeSt id",
+                        skip_none=True)
+}, skip_none=True)
+
+municipality_model = namespace.model("MunicipalityModel", {
+    "name": fields.Nested(name_model,
+                          description="Municipality name in fr/nl/de (when applicable)",
+                          skip_none=True),
+    "code": fields.String(example="21013",
+                          description="Municipality code or code NIS"),
+    "id": fields.String(example="https://databrussels.be/id/municipality/21013/14",
+                        description="Municipality BeSt id", skip_none=True)
+})
+
+part_of_municipality_model = namespace.model("PartOfMunicipalityModel", {
+    "name": fields.Nested(name_model,
+                          description="Part of Municipality name in fr/nl/de (when applicable)",
+                          skip_none=True),
+    "id": fields.String(example="geodata.wallonie.be/id/PartOfMunicipality/1415/1",
+                        description="Part of Municipality BeSt id (only in Wallonia)", skip_none=True)
+    },
+    skip_none=True)
+
+
+postalinfo_model = namespace.model("PostalInfoModel", {
+    "name": fields.Nested(name_model,
+                          description="PostalInfo in fr/nl/de (when applicable ; only in Brussels and Flanders)",
+                          skip_none=True),
+    "postalCode": fields.String(example="1060",
+                                description="Postal code", skip_none=True),
+})
+
+coordinates_model = namespace.model("CoordinatesModel", {
+    "lat": fields.Float(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
+                        example=50.8358677,
+                        skip_none=True
+                        ),
+    "lon": fields.Float(description="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
+                                    "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
+                        example=4.3385087,
+                        skip_none=True)
+}, skip_none=True)
+
+boxinfo_model = namespace.model("BoxinfoModel",
+                                {
+                                    "lat": fields.Float(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
+                                                        example=50.8358677),
+                                    "lon": fields.Float(description="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
+                                                                    "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
+                                                        example=4.3385087),
+                                    "boxNumber": fields.String(example="b001, A, ...",
+                                                               description="Box number"),
+                                    "addressId": fields.String(example="https://databrussels.be/id/address/219307/4",
+                                                               description="Address BeSt id"),
+                                    "status": fields.String(example="current/retired/proposed",
+                                                            description="BeSt Address status"),
+                                }, skip_none=True)
+
+item_model = namespace.model("ItemModel", {
+    "bestId": fields.String(example="https://databrussels.be/id/address/219307/4",
+                            description="Address BeSt id (could be street or municipality?)"),
+    "street": fields.Nested(street_model, description="Street info", skip_none=True),
+    "municipality": fields.Nested(municipality_model, description="Municipality info", skip_none=True),
+    "partOfMunicipality": fields.Nested(part_of_municipality_model, description="Part of Municipality info (only in Wallonia)", skip_none=True),
+    "postalInfo": fields.Nested(postalinfo_model, description="Postal info", skip_none=True),
+    "housenumber": fields.String(example="20, 20A, 20-22, ...",
+                                 description="House number",
+                                 skip_none=True),
+    "status": fields.String(example="current/retired/proposed",
+                            description="BeSt Address status",
+                            skip_none=True),
+    "precision": fields.String(example="address",
+                               description="Level of precision. See README.md#precision"),
+    "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)", skip_none=True),
+    "boxInfo":  fields.List(fields.Nested(boxinfo_model), skip_none=True),
+    "name": fields.String(example="Bruxelles",
+                          description="If we can't find any result from BeSt Address but get some approximate results from other sources",
+                          skip_none=True),
+}, skip_none=True)
+
+
+city_item_model = namespace.model("CityItemModel", {
+    "municipality": fields.Nested(municipality_model, description="Municipality info"),
+    "partOfMunicipality": fields.Nested(part_of_municipality_model, description="Part of Municipality info", skip_none=True),
+    "postalInfo": fields.Nested(postalinfo_model, description="Postal info", skip_none=True),
+    "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)"),
+}, skip_none=True)
+
+
 geocode_output_model = namespace.model("GeocodeOutput", {
-    "items":  fields.List([fields.Raw(default="", example="example")]),
-    "peliasRaw": fields.Raw(default="", example="example"),
+    "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
+    "peliasRaw": fields.Raw(default=None,
+                            description="Result provided by underlying Pelias. Only with 'witPeliasResult:true",
+                            skip_none=True),
     "callType": fields.String(default="struct", example="struct or unstruct"),
-    "inAddr": fields.Raw(default="", example="example"),
-    "transformers": fields.String(default="", example="clean;no_city"),
-    }
-                                       )
+    "inAddr": fields.Raw(example={
+                            "address": "Avenue Fonsny, 20",
+                            "locality": "",
+                            "postalcode": "1060"
+                         },
+                         description="Address sent to Pelias. Could be a dict (if callType='struct') or a string (if callType='unstruct')"),
+    "peliasCallCount": fields.Integer(example=1,
+                                      description="How many calls to Pelias were required to get this result"),
+    "transformers": fields.String(example="clean;no_city",
+                                  description="Which transformation methods were used before sending the address to Pelias"),
+    }, skip_none=True)
+
+
+search_city_output_model = namespace.model("SearchCityOutput", {
+    "items":  fields.List(fields.Nested(city_item_model, skip_none=True), skip_none=True),
+    }, skip_none=True)
+
+get_by_id_output_model = namespace.model("GetByIdOutput", {
+    "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
+    }, skip_none=True)
 
 
 @namespace.route('/geocode')
@@ -284,12 +406,14 @@ class SearchCity(Resource):
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
+    @namespace.marshal_with(search_city_output_model,
+                            description='Found one or several matches for city/postal code',
+                            skip_none=True)
     def get(self):
         """
 Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
 
         """
-
         log("search city")
 
         post_code = get_arg("postCode", None)
@@ -364,7 +488,9 @@ class GetById(Resource):
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
-    #  def get(self, bestid, a1=None, a2=None, a3=None, a4=None, a5=None):
+    @namespace.marshal_with(get_by_id_output_model,
+                            description='Found one or several matches for this id',
+                            skip_none=True)
     def get(self, bestid):
         """Search for a Best item by its id in Elastic database
 
@@ -374,7 +500,7 @@ class GetById(Resource):
         Returns:
             list: json list of corresponding best objects
         """
-        raw = get_arg("raw", False)
+        # raw = get_arg("raw", False)
 
         if "%2F" in bestid:
             bestid = unquote_plus(bestid)
@@ -419,10 +545,22 @@ class GetById(Resource):
 
             resp = resp["hits"]["hits"]
 
-            for i, _ in enumerate(resp):
-                resp[i]["_source"]["addendum"]["best"] = json.loads(resp[i]["_source"]["addendum"]["best"])
+            if len(resp) == 0:
+                return "Object not found", 204
 
-            return resp if raw else to_rest_guidelines(resp)
+            final_result = []
+            for resp_item in resp:
+                if "addendum" in resp_item["_source"] and "best" in resp_item["_source"]["addendum"]:
+                    it = {"properties": {"addendum": {"best": json.loads(resp_item["_source"]["addendum"]["best"])}}}
+                    if "center_point" in resp_item["_source"]:
+                        it["geometry"] = {"coordinates": resp_item["_source"]["center_point"]}
+                    it["name"] = resp_item["_source"]["name"]
+
+                    final_result.append(it)
+
+            final_result = {"features": final_result}
+
+            return to_rest_guidelines(final_result, with_pelias_raw=False)
         except NotFoundError:
             pass
         except ConnectionRefusedError as exc:

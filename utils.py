@@ -115,6 +115,28 @@ def to_camel_case(data):
     return data
 
 
+def convert_coordinates(coordinates):
+    """ Convert coordinates to format "{'lat':yy, 'lon':xx}"
+
+    Parameters
+    ----------
+    coordinates: list or dict
+
+    Returns
+    -------
+    {'lat':yy, 'lon':xx}
+    """
+    if isinstance(coordinates, list) and len(coordinates)==2:
+        return {"lat": coordinates[1],
+                "lon": coordinates[0]}
+    if isinstance(coordinates, dict) and "lat" in coordinates and "lon" in coordinates:
+        return coordinates
+
+    log("Cannot convert coordinates!!")
+    log(coordinates)
+    return coordinates
+
+
 def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     """Convert a pelias result into a REST Guideline compliant object
 
@@ -136,12 +158,11 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
             item = feat["properties"]["addendum"]["best"]
             if "bepelias" in feat:
                 item |= feat["bepelias"]
-
-            item["coordinates"] = feat["geometry"]["coordinates"]
+            item["coordinates"] = convert_coordinates(feat["geometry"]["coordinates"])
             # item["name"] = feat["properties"]["name"]
             items.append(item)
         else:
-            item = {"coordinates": feat["geometry"]["coordinates"],
+            item = {"coordinates": convert_coordinates(feat["geometry"]["coordinates"]),
                     "name": feat["properties"]["name"]}
             items.append(item)
     # Remove duplicate results
