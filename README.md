@@ -27,19 +27,38 @@ This project is composed of two parts:
    This component is composed of +/- 6 docker containers (named pelias_xxxx)
 - bePelias: REST API improving robustness of Pelias ("wrapper") + file preparator
 
-Note: in order to avoid to make 3 components, we put in the same docker image the REST API (used once the service is online) and the file preparator (used to build/update the service). It might be cleaner to split them appart.
-
-Steps: 
+Steps (short version): 
 
 ```
-./build.sh build_api                    # Build bepelias/api container (~5 minutes)
-./build.sh prepare_csv                  # Prepare files for Pelias, within bepelias/dataprep container (~20 min)
-./build.sh build_pelias                 # Build & run Pelias (~1h10)
-./build.sh run_api  xx.xx.xx.xx:4000    # Start bePelias API, giving the Pelias IP/port 
+./scripts/build.sh                 # Build pelias & bepelias docker images
+./scripts/feed.sh                  # Prepare files from Bosa and load them
+./scripts/run.sh                   # Run Pelias and bePelias API (with default parameters)
 ```
 
-To update data: 
-`./build.sh update`
+## More detailled steps
+
+### Build
+
+- `./scripts/build.sh api` : Build bepelias docker images (bepelias/api and bepelias/dataprep)
+- `./scripts/build.sh pelias` : Build bepelias docker images
+- `./scripts/build.sh cleanup` : Shut down everything, remove all docker images and all data
+
+
+### Feed
+
+
+- `./scripts/feed.sh prepare_csv` : Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
+- `./scripts/feed.sh update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
+- `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data (vlg: Flanders ; wal: Wallonia)
+- `./scripts/feed.sh update bru`: Update only Brussels data
+
+### Run
+
+- `./scripts/run.sh api 172.27.0.64:4000 HIGH 1`: start bePelias API with the following option: 
+   - `172.27.0.64:4000`: IP+port of Pelias server
+   - `HIGH`: level of logs: `HIGH`, `MEDIUM` or `LOW`
+   - `1`: number of workers
+-  `./scripts/run.sh pelias`: start Pelias server 
 
 ## Data from OpenAddress CSV
 
@@ -233,3 +252,4 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - uniformize coordinates in geocode and searchcity
 - format output search by id
 - model: split "name" in name street, name municipality... ?
+- remove retired addresses from interpolation 

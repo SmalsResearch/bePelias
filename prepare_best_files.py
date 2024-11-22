@@ -848,7 +848,8 @@ for opt, argm in opts:
         log(f"Data dir in: {DATA_DIR_IN}")
 
     if opt in ("-r"):
-        regions = [argm]
+        if argm != "all":
+            regions = [argm]
     if opt in ("-f"):  # within notebook
         DATA_DIR_IN = "./data/in/"
         DATA_DIR_OUT = "./data/"

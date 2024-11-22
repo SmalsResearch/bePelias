@@ -279,6 +279,7 @@ city_item_model = namespace.model("CityItemModel", {
     "partOfMunicipality": fields.Nested(part_of_municipality_model, description="Part of Municipality info", skip_none=True),
     "postalInfo": fields.Nested(postalinfo_model, description="Postal info", skip_none=True),
     "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)"),
+    "error": fields.String(description="Error message", skip_none=True),
 }, skip_none=True)
 
 
@@ -287,7 +288,7 @@ geocode_output_model = namespace.model("GeocodeOutput", {
     "peliasRaw": fields.Raw(default=None,
                             description="Result provided by underlying Pelias. Only with 'witPeliasResult:true",
                             skip_none=True),
-    "callType": fields.String(default="struct", example="struct or unstruct"),
+    "callType": fields.String(example="struct or unstruct", skip_none=True),
     "inAddr": fields.Raw(example={
                             "address": "Avenue Fonsny, 20",
                             "locality": "",
@@ -298,6 +299,8 @@ geocode_output_model = namespace.model("GeocodeOutput", {
                                       description="How many calls to Pelias were required to get this result"),
     "transformers": fields.String(example="clean;no_city",
                                   description="Which transformation methods were used before sending the address to Pelias"),
+    "error": fields.String(description="Error message",
+                           skip_none=True),
     }, skip_none=True)
 
 
@@ -393,7 +396,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         except PeliasException as exc:
             log("Exception during process: ")
             log(exc)
-            return str(exc), 500
+            return {"error": str(exc)}, 500
 
         return "Wrong mode!"  # Should neve occur...
 
@@ -466,7 +469,7 @@ Search a city based on a postal code or a name (could be municipality name, part
             log("ES ConnectionError")
             log(exc)
 
-            return f"Cannot connect to Elastic: {exc}", 500
+            return {"error": f"Cannot connect to Elastic: {exc}"}, 500
 
         return "Object not found", 204
 

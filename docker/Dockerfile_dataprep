@@ -10,4 +10,4 @@ ENV JAVA_HOME="/usr/lib/jvm/jre-17/"
 
 RUN mvn clean install -DskipTests
 
-COPY run.sh prepare_best_files.py convert_xml2csv.sh /
+COPY prepare_best_files.py ./scripts/convert_xml2csv.sh ./scripts/prepare_csv.sh /

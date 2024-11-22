@@ -126,7 +126,7 @@ def convert_coordinates(coordinates):
     -------
     {'lat':yy, 'lon':xx}
     """
-    if isinstance(coordinates, list) and len(coordinates)==2:
+    if isinstance(coordinates, list) and len(coordinates) == 2:
         return {"lat": coordinates[1],
                 "lon": coordinates[0]}
     if isinstance(coordinates, dict) and "lat" in coordinates and "lon" in coordinates:

@@ -70,12 +70,13 @@
         "bestaddresses_streets_bebru.csv",
         
         "bestaddresses_localities_bewal.csv", 
-        "bestaddresses_localities_bevlg.csv", 
-        "bestaddresses_localities_bebru.csv"
+        "bestaddresses_localities_bevlg.csv",
+        "bestaddresses_localities_bebru.csv",
+        "nodata.csv"
+        
     ]
            
 }
 
-},
-    "otherfiles": []
+}
 }

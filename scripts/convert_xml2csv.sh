@@ -1,5 +1,9 @@
 set -x
 
+
+REGION=${1:-"all"}
+
+
 mkdir -p /data/in
 
 cd /data/in
@@ -8,16 +12,19 @@ wget --progress=dot:giga https://opendata.bosa.be/download/best/best-full-latest
 
 unzip best-full-latest.zip
 rm -f best-full-latest.zip *.docx
-# Solution 1 : unzip all, convert all, remove temp files. Problem: uses a lot of disk space !!
-# for f in *.zip ;  do echo $f ; unzip $f ; rm -f $f ; done
 
-# $JAVA_HOME/bin/java -jar /best-tools/java/converter/target/converter-1.4.0.jar -i . -F -B -W
 
-# rm -f *.xml *.docx openaddress-be*.csv 
+if [[ $REGION == "all" ]]; then
+    REGIONS=("Flanders" "Wallonia" "Brussels")
+elif [[ $REGION == "bru" ]]; then
+    REGIONS=("Brussels")
+elif [[ $REGION == "wal" ]]; then
+    REGIONS=("Wallonia")
+elif [[ $REGION == "vlg" ]]; then
+    REGIONS=("Flanders")
+fi
 
-# Solution 2: for each region, unzip files for this region, convert them, remove temp files
-
-for r in "Flanders" "Wallonia" "Brussels" ; 
+for r in ${REGIONS[@]} ; 
 do 
     echo $r
     unzip $r'*.zip'
