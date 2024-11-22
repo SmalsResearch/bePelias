@@ -30,8 +30,8 @@ This project is composed of two parts:
 Steps (short version): 
 
 ```
-./scripts/build.sh                 # Build pelias & bepelias docker images
-./scripts/feed.sh                  # Prepare files from Bosa and load them
+./scripts/build.sh                 # Build pelias & bepelias docker images (~30 minutes)
+./scripts/feed.sh                  # Prepare files from Bosa and load them. Can also be run to update data
 ./scripts/run.sh                   # Run Pelias and bePelias API (with default parameters)
 ```
 
@@ -39,32 +39,54 @@ Steps (short version):
 
 ### Build
 
-- `./scripts/build.sh api` : Build bepelias docker images (bepelias/api and bepelias/dataprep)
-- `./scripts/build.sh pelias` : Build bepelias docker images
+- `./scripts/build.sh api` : Build bepelias docker images (bepelias/api and bepelias/dataprep : ~5 min)
+- `./scripts/build.sh pelias` : Build bepelias docker images (~25 min)
 - `./scripts/build.sh cleanup` : Shut down everything, remove all docker images and all data
 
 
 ### Feed
 
-
-- `./scripts/feed.sh prepare_csv` : Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
+- `./scripts/feed.sh prepare_csv` : Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder (16:36)
 - `./scripts/feed.sh update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
 - `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data (vlg: Flanders ; wal: Wallonia)
 - `./scripts/feed.sh update bru`: Update only Brussels data
 
 ### Run
 
-- `./scripts/run.sh api 172.27.0.64:4000 HIGH 1`: start bePelias API with the following option: 
+- `./scripts/run.sh api 172.27.0.64:4000 HIGH 1`: start bePelias API with the following options: 
    - `172.27.0.64:4000`: IP+port of Pelias server
    - `HIGH`: level of logs: `HIGH`, `MEDIUM` or `LOW`
-   - `1`: number of workers
+   - `1`: number of (gunicorn) workers
 -  `./scripts/run.sh pelias`: start Pelias server 
+
+
+### Two machines build [TO BE DEVELOPPED]
+
+It is possible to split tasks onto two servers: 
+- A "back" server: build images, prepare CSV. This server needs an Internet connection
+- A "front" server (serving APIs): run images, load CSV. An Internet connection is not required.
+
+- On both back and front servers: git clone or copy the whole bePelias repo
+- On the back server: 
+   - `./scripts/build.sh`
+   - `./scripts/feed.sh prepare_csv`
+   - Save "pelias/*" and "bepelias/api" images and copy into the front server :
+      - `docker save -o docker-images-bepelias-api.tar bepelias/api`
+      - `docker save -o docker-images-pelias.tar $(docker-compose  -f pelias/projects/belgium_bepelias/docker-compose.yml config | awk '{if ($1 == "image:") print $2;}' ORS=" ")`
+      - Move both tar files on the front server
+      - `docker load img.tar`
+   - Copy "data/bestaddress*.csv" files into "bepelias/data" folder on the front server
+   - Copy the whole "bepelias/pelias" folder on the front server (same place) 
+
+- On the front server: 
+   - Load "pelias/*" and "bepelias/api" images
+   - `./scripts/feed.sh update`
+   - `./scripts/run.sh`
 
 ## Data from OpenAddress CSV
 
 The above procedure builds Pelias data from BOSA XML (https://opendata.bosa.be/download/best/best-full-latest.zip), 
 using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id. 
-
 
 # Usage
 

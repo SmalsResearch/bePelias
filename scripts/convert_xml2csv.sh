@@ -1,8 +1,8 @@
+# This scripts run within the bepelias/dataprep container, called by prepare_csv.sh
+
 set -x
 
-
 REGION=${1:-"all"}
-
 
 mkdir -p /data/in
 

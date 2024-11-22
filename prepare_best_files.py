@@ -249,8 +249,8 @@ def get_base_data_xml(region):
                                                              dropna=False)
     box_info = box_info[["lat", "lon", "box_number", "address_id", "status"]].apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
 
-    log("box_info:")
-    log(box_info)
+    # log("box_info:")
+    # log(box_info)
     base_address = data.sort_values("box_number", na_position="first")
     base_address = base_address.drop_duplicates(subset=["municipality_id", "street_id",
                                                         "postcode", "house_number"])
@@ -358,7 +358,7 @@ def get_empty_data_xml(region):
         All empty streets for the given region.
 
     """
-    log(f"[empty_street-{region}] - Downloading")
+    log(f"[empty_street-{region}] - Reading")
 
     best_fn = f"{DATA_DIR_IN}/{name_mapping[region]}_empty_street.csv"
 

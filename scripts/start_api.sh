@@ -3,7 +3,7 @@
 # This scripts run within the bepelias/api containers
 # It starts the API
 
-echo "Starting run.sh..."
+echo "Starting start_api.sh..."
 
 NB_WORKERS=${NB_WORKERS:-1}
 
