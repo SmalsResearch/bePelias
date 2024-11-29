@@ -7,9 +7,6 @@ echo "Starting build.sh..."
 echo "ACTION: $ACTION"
 date
 
-PORT_IN=4001
-PORT_OUT=4001
-
 DIR=pelias/projects/belgium_bepelias
 
 PELIAS="$(pwd)/pelias/pelias"
@@ -39,9 +36,13 @@ if [[ $ACTION == "api" ||  $ACTION == "all" ]]; then
     $DOCKER build -f docker/Dockerfile_base . -t bepelias/base
     $DOCKER build -f docker/Dockerfile_api  . -t bepelias/api
 
+    # $DOCKER_COMPOSE build base
+    # $DOCKER_COMPOSE build api
     echo "Build dataprep"
     $DOCKER build -f docker/Dockerfile_dataprep . -t bepelias/dataprep
-    
+    # $DOCKER_COMPOSE build dataprep
+    echo "Build bePelias done!"
+    date
 fi
 
 
@@ -98,6 +99,9 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
 
     # $DOCKER_COMPOSE up -d  api # error with api in pelias compose up... why???
 
+    echo "Build Pelias done!"
+    date
+    
     set +x
 
 fi

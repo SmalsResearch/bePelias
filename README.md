@@ -31,7 +31,7 @@ Steps (short version):
 
 ```
 ./scripts/build.sh                 # Build pelias & bepelias docker images (~30 minutes)
-./scripts/feed.sh                  # Prepare files from Bosa and load them. Can also be run to update data
+./scripts/feed.sh                  # Prepare files from Bosa and load them. Should also be run to update data
 ./scripts/run.sh                   # Run Pelias and bePelias API (with default parameters)
 ```
 
@@ -46,42 +46,54 @@ Steps (short version):
 
 ### Feed
 
-- `./scripts/feed.sh prepare_csv` : Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder (16:36)
+- `./scripts/feed.sh prepare_csv`: Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
 - `./scripts/feed.sh update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
 - `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data (vlg: Flanders ; wal: Wallonia)
 - `./scripts/feed.sh update bru`: Update only Brussels data
 
 ### Run
 
-- `./scripts/run.sh api 172.27.0.64:4000 HIGH 1`: start bePelias API with the following options: 
+- `./scripts/run.sh api 172.27.0.64:4000 LOW 8`: start bePelias API with the following options: 
    - `172.27.0.64:4000`: IP+port of Pelias server
-   - `HIGH`: level of logs: `HIGH`, `MEDIUM` or `LOW`
-   - `1`: number of (gunicorn) workers
+   - `LOW`: level of logs: `HIGH`, `MEDIUM` or `LOW`
+   - `8`: number of (gunicorn) workers
 -  `./scripts/run.sh pelias`: start Pelias server 
 
 
-### Two machines build [TO BE DEVELOPPED]
+### Two machines build
 
 It is possible to split tasks onto two servers: 
 - A "back" server: build images, prepare CSV. This server needs an Internet connection
 - A "front" server (serving APIs): run images, load CSV. An Internet connection is not required.
 
+
 - On both back and front servers: git clone or copy the whole bePelias repo
 - On the back server: 
    - `./scripts/build.sh`
-   - `./scripts/feed.sh prepare_csv`
-   - Save "pelias/*" and "bepelias/api" images and copy into the front server :
-      - `docker save -o docker-images-bepelias-api.tar bepelias/api`
-      - `docker save -o docker-images-pelias.tar $(docker-compose  -f pelias/projects/belgium_bepelias/docker-compose.yml config | awk '{if ($1 == "image:") print $2;}' ORS=" ")`
-      - Move both tar files on the front server
-      - `docker load img.tar`
-   - Copy "data/bestaddress*.csv" files into "bepelias/data" folder on the front server
-   - Copy the whole "bepelias/pelias" folder on the front server (same place) 
-
+   - `./scripts/feed.sh prepare_csv` (or, for a shortest test; `./scripts/feed.sh prepare_csv bru`)
+   - Save "pelias/*" and "bepelias/api" images:
+      - `docker save bepelias/api | gzip > docker-images-bepelias-api.tar.gz`
+      - `docker save  $(docker-compose  -f pelias/projects/belgium_bepelias/docker-compose.yml config | awk '{if ($1 == "image:") print $2;}' ORS=" ") | gzip > docker-images-pelias.tar.gz`
+   - Archive "data/bestaddress*.csv" files:  `tar czf data.tar.gz data`
+   - Archive "pelias" folder: `tar czf pelias.tar.gz pelias`
+- Copy files (`docker-images-bepelias-api.tar.gz, docker-images-pelias.tar.gz, data.tar.gz,  bepelias.tar.gz`) into "bepelias" folder on front server
 - On the front server: 
-   - Load "pelias/*" and "bepelias/api" images
-   - `./scripts/feed.sh update`
-   - `./scripts/run.sh`
+   - Load "pelias/*" and "bepelias/api" images: 
+       - `gunzip -c docker-images-bepelias-api.tar.gz | docker load`
+       - `gunzip -c docker-images-pelias.tar.gz | docker load `
+   - Unarchive data & pelias files:
+       - `tar xzf data.tar.gz`
+       - `tar xzf pelias.tar.gz`
+   - `./scripts/run.sh pelias`
+   - `./scripts/feed.sh update` (or  `./scripts/feed.sh update bru`)
+   - `./scripts/run.sh api 172.27.0.64:4000 LOW 8` 
+
+
+To update: 
+- On the back server: `./scripts/feed.sh prepare_csv`
+- Archive "data/bestaddress*.csv" files: `tar czf data.tar.gz data`
+- Copy `data.tar.gz` into "bepelias" folder on front server, and unarchive (`tar xzf data.tar.gz`)
+- `./scripts/feed.sh update`
 
 ## Data from OpenAddress CSV
 
@@ -93,12 +105,13 @@ using a conversion tools on https://github.com/Fedict/best-tools.git. This is a 
 - Swagger GUI on http://[IP]:4001/doc 
 - Example of URL : http://[IP]:4001/REST/bepelias/v1/geocode?streetName=Avenue%20Fonsny&houseNumber=20&postCode=1060&postName=Saint-Gilles
 
-Port can be changed in build.sh updating "PORT_OUT=4001"
+Port can be changed in scripts/run.sh updating "PORT_OUT=4001"
 
 # Requirements
 
 Disk usage: 
 - Pelias containers: around 4 GB
+- Pelias data: around 6 GB
 - bePelias container: 850 MB
 - About 8 GB of CSV files are created for importation. They are removed after build.
 
@@ -268,10 +281,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - We have sometimes "building" result, but with "no_hn" transformer. 
 - add a "reverse" endpoint
 - clean variable names in prepare_best_file
-- remote initial data update  -> first make everthing working without BeSt data, then update
-- move "compose up" into run_api
-- add region option to update
 - uniformize coordinates in geocode and searchcity
-- format output search by id
 - model: split "name" in name street, name municipality... ?
 - remove retired addresses from interpolation 

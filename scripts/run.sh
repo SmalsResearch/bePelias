@@ -1,5 +1,5 @@
 #!/bin/bash
-ACTION=$1
+ACTION=${1:-"all"}
 
 # This script runs on the host machine. It builds Pelias and bePelias and run them
 echo "Starting run.sh..."
@@ -34,7 +34,7 @@ NB_WORKERS=${4:-1}
 
 CNT_NAME=bepelias_api
 
-if [[ $ACTION == "pelias" ]]; then
+if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
     echo "Will start Pelias"
 
     cd $DIR
@@ -47,7 +47,8 @@ if [[ $ACTION == "pelias" ]]; then
 
 fi
 
-if [[ $ACTION == "api" ]]; then
+if [[ $ACTION == "api" ||  $ACTION ==  "all" ]]; then
+    echo "Will start bePelias API"
     if [[ $($DOCKER ps | grep bepelias) ]] ; then
         $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
     fi
