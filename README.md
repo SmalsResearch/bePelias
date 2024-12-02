@@ -53,11 +53,14 @@ Steps (short version):
 
 ### Run
 
-- `./scripts/run.sh api 172.27.0.64:4000 LOW 8`: start bePelias API with the following options: 
-   - `172.27.0.64:4000`: IP+port of Pelias server
-   - `LOW`: level of logs: `HIGH`, `MEDIUM` or `LOW`
-   - `8`: number of (gunicorn) workers
--  `./scripts/run.sh pelias`: start Pelias server 
+Several parameters can be changed in docker-compose.yml, in "services>api>environment"
+- `PELIAS_HOST=172.27.0.64:4000`: IP+port of Pelias server
+- `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
+- `NB_WORKERS=8`: number of (gunicorn) workers
+
+- `./scripts/run.sh api`: start bePelias API (with the options described above)
+- In order to overide options without updating docker-compose.yml: `docker-compose run -d -e LOG_LEVEL=HIGH api`
+- `./scripts/run.sh pelias`: start Pelias server 
 
 
 ### Two machines build
@@ -281,6 +284,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - We have sometimes "building" result, but with "no_hn" transformer. 
 - add a "reverse" endpoint
 - clean variable names in prepare_best_file
-- uniformize coordinates in geocode and searchcity
 - model: split "name" in name street, name municipality... ?
 - remove retired addresses from interpolation 
+- feed: file cleanup on region 

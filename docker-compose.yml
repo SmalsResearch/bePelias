@@ -1,0 +1,30 @@
+version: "3"
+services:
+    base:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile_base
+        image: bepelias/base
+    api:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile_api
+        ports:
+            - "4001:4001"
+        environment:
+            - PELIAS_HOST=172.27.0.64:4000
+            - LOG_LEVEL=LOW
+            - NB_WORKERS=8
+        image: bepelias/api
+        container_name: bepelias_api
+
+    dataprep:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile_dataprep
+        volumes:
+            - ./data:/data
+        image: bepelias/dataprep
+        container_name: bepelias_dataprep
+
+        

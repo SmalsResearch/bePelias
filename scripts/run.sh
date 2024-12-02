@@ -6,14 +6,9 @@ echo "Starting run.sh..."
 
 echo "ACTION: $ACTION"
 
-PORT_IN=4001
-PORT_OUT=4001
-
 DIR=pelias/projects/belgium_bepelias
 
 PELIAS="$(pwd)/pelias/pelias"
-
-DOCKER=docker # or podman?
 
 # Choose docker compose or docker-compose command
 if command -v docker-compose &> /dev/null; then
@@ -26,12 +21,6 @@ else
 fi
 
 
-PELIAS_HOST=${2:-"172.27.0.64:4000"}
-
-LOG_LEVEL=${3:-"LOW"}
-
-NB_WORKERS=${4:-1}
-
 CNT_NAME=bepelias_api
 
 if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
@@ -40,20 +29,20 @@ if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
     cd $DIR
 
     $PELIAS compose up
-
     $DOCKER_COMPOSE up -d  api # error with api in pelias compose up... why???
 
+    cd -
     set +x
 
 fi
 
 if [[ $ACTION == "api" ||  $ACTION ==  "all" ]]; then
     echo "Will start bePelias API"
-    if [[ $($DOCKER ps | grep bepelias) ]] ; then
-        $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
-    fi
+    
     set -x    
-    $DOCKER run -d -p $PORT_OUT:$PORT_IN -e PELIAS_HOST=$PELIAS_HOST -e LOG_LEVEL=$LOG_LEVEL -e NB_WORKERS=$NB_WORKERS --name $CNT_NAME bepelias/api
+
+    $DOCKER_COMPOSE up -d api
+
     set +x
-    echo "run 'docker logs -f $CNT_NAME' "
+    echo "run 'docker logs -f bepelias_api' "
 fi

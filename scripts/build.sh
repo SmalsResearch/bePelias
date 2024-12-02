@@ -11,11 +11,6 @@ DIR=pelias/projects/belgium_bepelias
 
 PELIAS="$(pwd)/pelias/pelias"
 
-DOCKER=docker # or podman?
-
-CNT_NAME=bepelias_api
-
-
 # Choose docker compose or docker-compose command
 if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE="docker-compose"
@@ -30,17 +25,11 @@ fi
 # bePelias API
 
 if [[ $ACTION == "api" ||  $ACTION == "all" ]]; then
-    echo "Build API"
+    echo "Build API/dataprep"
     date
-    chmod a+x scripts/start_api.sh
-    $DOCKER build -f docker/Dockerfile_base . -t bepelias/base
-    $DOCKER build -f docker/Dockerfile_api  . -t bepelias/api
+    chmod a+x scripts/*.sh
 
-    # $DOCKER_COMPOSE build base
-    # $DOCKER_COMPOSE build api
-    echo "Build dataprep"
-    $DOCKER build -f docker/Dockerfile_dataprep . -t bepelias/dataprep
-    # $DOCKER_COMPOSE build dataprep
+    $DOCKER_COMPOSE build 
     echo "Build bePelias done!"
     date
 fi
@@ -91,13 +80,7 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
 
     $PELIAS prepare interpolation
 
-    # docker run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh
-
     $PELIAS import wof
-    # $PELIAS import csv
-    # $PELIAS compose up
-
-    # $DOCKER_COMPOSE up -d  api # error with api in pelias compose up... why???
 
     echo "Build Pelias done!"
     date
@@ -109,12 +92,17 @@ fi
 if [[ $ACTION == "cleanup" ]]; then
     set -x
     cd $DIR
-    $PELIAS compose down
+    
+    # Shut down Pelias and remove images
+    echo "Cleaning Pelias..."
+    $PELIAS compose down --rmi all
 
-    $DOCKER stop $CNT_NAME && $DOCKER rm $CNT_NAME
-    $DOCKER rmi $(docker images -q 'pelias/*' |uniq)
+    # Shut down bePelias and remove images
+    echo "Cleaning bePelias..."
+    $DOCKER_COMPOSE down --rmi all
 
-
+    # Remove data folders
+    echo "Removing data folders..."
     cd -
     rm -rf pelias
     rm -rf data

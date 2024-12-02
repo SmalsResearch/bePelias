@@ -33,7 +33,6 @@ from pelias import Pelias, PeliasException
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
-
 # WARNING : no logs
 # INFO : a few logs
 # DEBUG : lots of logs
@@ -172,7 +171,7 @@ city_search_parser.add_argument('postName',
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
                        type=str,
-                       default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                       default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7',
                        help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
                        location='query'
                        )

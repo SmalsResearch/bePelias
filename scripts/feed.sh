@@ -12,6 +12,7 @@ echo "Starting build.sh..."
 
 echo "ACTION: $ACTION"
 
+date
 
 DIR=pelias/projects/belgium_bepelias
 
@@ -19,17 +20,31 @@ PELIAS="$(pwd)/pelias/pelias"
 
 DOCKER=docker # or podman?
 
+# Choose docker compose or docker-compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "No version of Docker Compose is installed."
+    exit 1
+fi
+
+
 
 if [[ $ACTION == "prepare_csv" ||  $ACTION ==  "all" ]]; then
     echo "Prepare CSV (from xml)"
+    date
     set -x
     
     rm -f data/bestaddresses_*.csv
     
     mkdir -p data
-    $DOCKER run --rm --name bepelias_dataprep -v $(pwd)/data:/data bepelias/dataprep  /prepare_csv.sh  $REGION
-
-    # rm -f data/in/*.csv
+    
+    $DOCKER_COMPOSE run --rm dataprep  /prepare_csv.sh  $REGION
+    
+    echo "CSV ready"
+    date
     set +x
 fi
 
@@ -69,10 +84,13 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     $PELIAS import csv
 
     echo "Import interpolation data"
-    docker run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
+    $DOCKER run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
 
     cd -
 
     rm -f $DIR/data/bestaddresses_*.csv
+
+    echo "Import done"
+    echo 
     set +x
 fi
