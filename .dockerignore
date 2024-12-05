@@ -1,4 +1,5 @@
 data/
 .git/
 pelias/
+logs/
 *.gz

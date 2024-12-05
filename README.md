@@ -277,12 +277,8 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 
 # Todo
 
-- Describe output format in swagger
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - autocomplete in place of unstructured
-- We have sometimes "building" result, but with "no_hn" transformer. 
 - add a "reverse" endpoint
 - clean variable names in prepare_best_file
 - model: split "name" in name street, name municipality... ?
-- remove retired addresses from interpolation 
-- feed: file cleanup on region 

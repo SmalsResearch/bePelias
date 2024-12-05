@@ -758,7 +758,7 @@ def create_interpolation_data(addresses, region):
     addresses = addresses[addresses.lat > 0.0]
 
     log(f"[interpol-{region}] remove 0,0: {addresses.shape[0]}")
-    
+
     addresses = addresses[addresses.status == "current"]
 
     log(f"[interpol-{region}] only current: {addresses.shape[0]}")
@@ -775,9 +775,6 @@ def create_interpolation_data(addresses, region):
 
     log(f"[interpol-{region}] remove non digits: {addresses.shape[0]}")
 
-    # log(addresses)
-    # log(addresses.columns)
-    # test no language split
     if not SPLIT_RECORDS:
         addresses = pd.concat([
             addresses[addresses.STREETNAME_FR.notnull()][["ID", "STREETNAME_FR", "NUMBER",
@@ -791,9 +788,6 @@ def create_interpolation_data(addresses, region):
     else:
         addresses = addresses[["ID", "STREETNAME", "NUMBER",
                                "POSTALCODE", "LAT", "LON"]].rename(columns={"STREETNAME": "STREET"})
-    ##
-    # log(addresses)
-    # log(addresses.columns)
 
     addresses = addresses[["ID", "STREET", "NUMBER",
                            "POSTALCODE", "LAT", "LON"]]
