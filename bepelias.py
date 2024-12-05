@@ -30,6 +30,10 @@ from utils import (log, vlog, get_arg,
 
 from pelias import Pelias, PeliasException
 
+import warnings
+from elasticsearch.exceptions import ElasticsearchWarning
+warnings.simplefilter('ignore', ElasticsearchWarning)
+
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 

@@ -150,21 +150,20 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     if not isinstance(pelias_res, dict):
         return pelias_res
     items = []
-    log("pelias_res:")
-    log(pelias_res)
+    # log("pelias_res:")
+    # log(pelias_res)
     for feat in pelias_res["features"]:
+        # log("-----")
         # log(feat)
         if "addendum" in feat["properties"] and "best" in feat["properties"]["addendum"]:
             item = feat["properties"]["addendum"]["best"]
-            if "bepelias" in feat:
-                item |= feat["bepelias"]
             item["coordinates"] = convert_coordinates(feat["geometry"]["coordinates"])
-            # item["name"] = feat["properties"]["name"]
-            items.append(item)
         else:
             item = {"coordinates": convert_coordinates(feat["geometry"]["coordinates"]),
                     "name": feat["properties"]["name"]}
-            items.append(item)
+        if "bepelias" in feat:
+            item |= feat["bepelias"]
+        items.append(item)
     # Remove duplicate results
     items = [i for n, i in enumerate(items) if i not in items[:n]]
 
@@ -872,7 +871,7 @@ def get_precision(feature):
                 city_00, city, country
     """
 
-    # log("get_precision")
+    log("get_precision")
     try:
         # if len(pelias_res["features"]) == 0:
         #     return "no_feat"

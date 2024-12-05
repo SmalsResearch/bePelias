@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This scripts run within the bepelias/dataprep containers
+# This scripts run within the bepelias/dataprep container
 
 echo "Starting prepare_csv.sh..."
 

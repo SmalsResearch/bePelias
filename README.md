@@ -53,11 +53,10 @@ Steps (short version):
 
 ### Run
 
-Several parameters can be changed in docker-compose.yml, in "services>api>environment"
-- `PELIAS_HOST=172.27.0.64:4000`: IP+port of Pelias server
-- `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
-- `NB_WORKERS=8`: number of (gunicorn) workers
-
+- Several parameters can be changed in docker-compose.yml, in "services>api>environment"
+   - `PELIAS_HOST=172.27.0.64:4000`: IP+port of Pelias server
+   - `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
+   - `NB_WORKERS=8`: number of (gunicorn) workers
 - `./scripts/run.sh api`: start bePelias API (with the options described above)
 - In order to overide options without updating docker-compose.yml: `docker-compose run -d -e LOG_LEVEL=HIGH api`
 - `./scripts/run.sh pelias`: start Pelias server 

@@ -237,8 +237,6 @@ def get_base_data_xml(region):
 
     log(f"[base-{region}] - Combining boxes ...")
 
-    # log(data.iloc[0])
-
     # Combine all addresses at the same number in one record with "box_info" field
     with_box = data[data.box_number.notnull()]
 
@@ -249,8 +247,6 @@ def get_base_data_xml(region):
                                                              dropna=False)
     box_info = box_info[["lat", "lon", "box_number", "address_id", "status"]].apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
 
-    # log("box_info:")
-    # log(box_info)
     base_address = data.sort_values("box_number", na_position="first")
     base_address = base_address.drop_duplicates(subset=["municipality_id", "street_id",
                                                         "postcode", "house_number"])
@@ -289,6 +285,7 @@ def get_base_data_xml(region):
                     data_all.append(data_item)
         del data
         data = pd.concat(data_all).reset_index()
+
         del data_all
 
         #  add a stable suffix to best id to avoid duplicates
@@ -339,6 +336,7 @@ def get_base_data_xml(region):
     log(data[data.lat.isnull()])
 
     log(f"[base-{region}] Done!")
+
     return data
 
 
@@ -760,8 +758,8 @@ def create_interpolation_data(addresses, region):
     addresses = addresses[addresses.lat > 0.0]
 
     log(f"[interpol-{region}] remove 0,0: {addresses.shape[0]}")
-
-    # addresses = addresses[addresses.addendum_json_best.str.contains('"status": "current"')]
+    
+    addresses = addresses[addresses.status == "current"]
 
     log(f"[interpol-{region}] only current: {addresses.shape[0]}")
 

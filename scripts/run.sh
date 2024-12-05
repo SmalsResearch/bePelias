@@ -20,9 +20,6 @@ else
     exit 1
 fi
 
-
-CNT_NAME=bepelias_api
-
 if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
     echo "Will start Pelias"
 
