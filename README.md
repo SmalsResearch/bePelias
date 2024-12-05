@@ -282,3 +282,6 @@ Each record contains, in "bepelias" part, a "precision" field, giving informatio
 - add a "reverse" endpoint
 - clean variable names in prepare_best_file
 - model: split "name" in name street, name municipality... ?
+- delete "retired" ? low priority ?
+- get by id for postalname, part of mun
+

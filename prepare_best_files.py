@@ -238,14 +238,15 @@ def get_base_data_xml(region):
     log(f"[base-{region}] - Combining boxes ...")
 
     # Combine all addresses at the same number in one record with "box_info" field
-    with_box = data[data.box_number.notnull()]
+    with_box = data[data.box_number.notnull()].copy()
 
-    box_info = with_box.fillna({"lat": 0, "lon": 0}).groupby(["house_number",
-                                                              "municipality_id", "municipality_name_de", "municipality_name_fr", "municipality_name_nl",
-                                                              "postcode", "postname_fr", "postname_nl", "postname_de",
-                                                              "street_id", "streetname_de", "streetname_fr", "streetname_nl"],
-                                                             dropna=False)
-    box_info = box_info[["lat", "lon", "box_number", "address_id", "status"]].apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
+    with_box["coordinates"] = with_box.fillna({"lat": 0, "lon": 0}).apply(lambda row: {"lat": row.lat, "lon": row.lon}, axis=1)
+
+    box_info = with_box.groupby(["house_number", "municipality_id", "municipality_name_de", "municipality_name_fr", "municipality_name_nl",
+                                 "postcode", "postname_fr", "postname_nl", "postname_de",
+                                 "street_id", "streetname_de", "streetname_fr", "streetname_nl"],
+                                dropna=False)
+    box_info = box_info[["coordinates", "box_number", "address_id", "status"]].apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
 
     base_address = data.sort_values("box_number", na_position="first")
     base_address = base_address.drop_duplicates(subset=["municipality_id", "street_id",
@@ -253,7 +254,7 @@ def get_base_data_xml(region):
     base_address = base_address.drop("box_number", axis=1)
 
     cnt_before_mg = data.shape[0]
-    del data
+    del data, with_box
 
     data = base_address.merge(box_info, how="outer")
 

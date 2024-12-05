@@ -239,20 +239,15 @@ coordinates_model = namespace.model("CoordinatesModel", {
                         skip_none=True)
 }, skip_none=True)
 
-boxinfo_model = namespace.model("BoxinfoModel",
-                                {
-                                    "lat": fields.Float(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
-                                                        example=50.8358677),
-                                    "lon": fields.Float(description="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
-                                                                    "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
-                                                        example=4.3385087),
-                                    "boxNumber": fields.String(example="b001, A, ...",
-                                                               description="Box number"),
-                                    "addressId": fields.String(example="https://databrussels.be/id/address/219307/4",
-                                                               description="Address BeSt id"),
-                                    "status": fields.String(example="current/retired/proposed",
-                                                            description="BeSt Address status"),
-                                }, skip_none=True)
+boxinfo_model = namespace.model("BoxinfoModel", {
+    "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)", skip_none=True),
+    "boxNumber": fields.String(example="b001, A, ...",
+                               description="Box number"),
+    "addressId": fields.String(example="https://databrussels.be/id/address/219307/4",
+                               description="Address BeSt id"),
+    "status": fields.String(example="current/retired/proposed",
+                            description="BeSt Address status"),
+}, skip_none=True)
 
 item_model = namespace.model("ItemModel", {
     "bestId": fields.String(example="https://databrussels.be/id/address/219307/4",

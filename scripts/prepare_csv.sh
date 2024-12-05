@@ -21,9 +21,12 @@ mkdir -p /data/in
 cd /data/in
 
 # Download  XML file 
+rm -f *.zip *.xml
 wget --progress=dot:giga https://opendata.bosa.be/download/best/best-full-latest.zip
 
 # Convert zipped XML files to CSV (using a Bosa tool) 
+echo "Convert XML to CSV"
+
 for r in ${REGIONS[@]} ; 
 do 
     echo $r
@@ -39,6 +42,6 @@ rm -f best-full-latest.zip
 cd -
 
 # Convert BOSA CSV into Pelias CSV
-
+echo "Prepare CSV"
 python3 /prepare_best_files.py -i /data/in -o /data/ -r $REGION
     
