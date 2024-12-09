@@ -441,7 +441,6 @@ def create_address_data(data, region):
 
     chunk_size = 100000
 
-
     chunks = [data.iloc[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
 
     addendum_chunks = []

@@ -649,10 +649,10 @@ def search_for_coordinates(feat, pelias):
     except KeyError:
         boxes = []
 
-    if len(boxes) > 0 and boxes[0]["lat"] != 0:
+    if len(boxes) > 0 and boxes[0]["coordinates"]["lat"] != 0:
         vlog("Found coordinates in first box number")
         feat["geometry"]["coordinates_orig"] = [0, 0]
-        feat["geometry"]["coordinates"] = boxes[0]["lon"], boxes[0]["lat"]
+        feat["geometry"]["coordinates"] = boxes[0]["coordinates"]["lon"], boxes[0]["coordinates"]["lat"]
         feat["bepelias"] = {"interpolated": "from_boxnumber"}
     else:
         log("Coordinates==0,0, try to interpolate...")
