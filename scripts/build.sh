@@ -108,10 +108,8 @@ if [[ $ACTION == "cleanup" ]]; then
     rm -rf data
     set +x
 
-    echo "Advice: try also to run :
+    echo "Advice: try also to run:
      - docker system prune -a -f
      - docker volume prune
     "
 fi
-
-

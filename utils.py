@@ -3,14 +3,12 @@
 """
 import logging
 import re
-
 import copy
 
 from flask import request
 
 import textdistance
 from unidecode import unidecode
-
 import pandas as pd
 
 transformer_sequence = [
@@ -77,12 +75,10 @@ def get_arg(argname, def_val):
     -------
     str
         Argument value from request.
-
     """
 
     if argname in request.form:  # in payload
         return request.form[argname]
-
     return request.args.get(argname, def_val)  # in args
 
 
@@ -103,7 +99,6 @@ def to_camel_case(data):
     Object of the same structure as data, but where :
     - dictionary keys have been camelized if data is a dict
     - input string has been camelized if data is a string
-
     """
 
     if isinstance(data, str):
@@ -146,15 +141,12 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     Returns:
         dict: REST Guideline compliant version of input
     """
+
     log("Converting to to_rest_guidelines")
     if not isinstance(pelias_res, dict):
         return pelias_res
     items = []
-    # log("pelias_res:")
-    # log(pelias_res)
     for feat in pelias_res["features"]:
-        # log("-----")
-        # log(feat)
         if "addendum" in feat["properties"] and "best" in feat["properties"]["addendum"]:
             item = feat["properties"]["addendum"]["best"]
             item["coordinates"] = convert_coordinates(feat["geometry"]["coordinates"])
@@ -210,6 +202,7 @@ def pelias_check_postcode(pelias_res, postcode, match_length=3):
     list
         Same as 'pelias_res', but excluding mismatching results.
     """
+
     if "features" not in pelias_res:  # Should not occur!
         log("Missing features in pelias_res:")
         log(pelias_res)
@@ -293,7 +286,6 @@ def is_partial_substring(s1, s2):
 
     s2 : str
 
-
     Returns
     -------
     int
@@ -349,7 +341,6 @@ def apply_sim_functions(str1, str2, threshold):
                      ]
     for sim_fct in sim_functions:
         sim = sim_fct(str1, str2)
-        # vlog(f"'{str1}' vs '{str2}': {sim}")
         if sim >= threshold:
             return sim
     return None
@@ -496,7 +487,6 @@ def check_best_streetname(pelias_res, street_name, threshold=0.8):
     -------
     dict
         A Pelias result with only features matching street_name.
-
     """
 
     nb_res = len(pelias_res["features"])
@@ -507,8 +497,7 @@ def check_best_streetname(pelias_res, street_name, threshold=0.8):
     pelias_res["features"] = filtered_feat
 
     vlog(f"Check street : {nb_res} --> {len(filtered_feat)}")
-    return pelias_res  # return None #res_list[0]
-
+    return pelias_res
 
 # Main logig functions
 
@@ -526,8 +515,8 @@ def is_building(feature):
     -------
     bool
         True if the feature corresponds to a building.
-
     """
+
     return (feature["properties"]["match_type"] in ("exact", "interpolated") or feature["properties"]["accuracy"] == "point") and "housenumber" in feature["properties"]
 
 
@@ -544,7 +533,6 @@ def interpolate(feature, pelias):
     -------
     interp_res : dict
         Object containing interpolated geometry.
-
     """
 
     # get street center
@@ -605,7 +593,6 @@ def build_address(street_name, house_number):
     -------
     str
         "street_name, house_number", unless one of them is empty
-
     """
     if pd.isnull(street_name) or len(street_name.strip()) == 0:
         return ""
@@ -626,6 +613,7 @@ def build_city(post_code, post_name):
     Returns:
         str: something like "1000 Bruxelles", "or "Bruxelles"
     """
+
     if pd.isnull(post_code) or len(post_code) == 0:
         return post_name or ""
 
@@ -640,8 +628,8 @@ def search_for_coordinates(feat, pelias):
     If a feature has (0,0) as coordinates, try to find better location:
     - If address contains boxes and the first box has non null coordinates, use them
     - Otherwise, try the interpolation engine
-
     """
+
     log("Coordinates==0,0, check if any box number contains coordinates...")
 
     try:
@@ -686,10 +674,9 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
     -------
     dict
         Pelias result.
-
     """
-    vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}', {check_postcode})")
 
+    vlog(f"struct_or_unstruct('{street_name}', '{house_number}', '{post_code}', '{post_name}', {check_postcode})")
     # Try structured
     addr = {"address": build_address(street_name, house_number),
             "locality": post_name}
@@ -718,13 +705,10 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
         vlog("No postcode in input")
 
     if len(pelias_struct["features"]) > 0:
-
         for feat in pelias_struct["features"]:
             vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
             if is_building(feat):
-
                 if feat["geometry"]["coordinates"] == [0, 0]:
-
                     search_for_coordinates(feat, pelias)
 
                 vlog("Found a building in res1")
@@ -736,7 +720,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
                 return pelias_struct
 
     # Try unstructured
-
     addr = build_address(street_name, house_number) + ", " + build_city(post_code, post_name)
     addr = re.sub("^,", "", addr.strip()).strip()
     addr = re.sub(",$", "", addr).strip()
@@ -769,12 +752,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
             if is_building(feat):
                 if feat["geometry"]["coordinates"] == [0, 0]:
                     search_for_coordinates(feat, pelias)
-                    # vlog("Coordinates==0,0, try to interpolate...")
-                    # interp = interpolate(feat)
-                    # if "geometry" in interp:
-                    #     feat["geometry"]["coordinates_orig"] = [0,0]
-                    #     feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
-                    #     pelias_unstruct["bepelias"]["interpolated"] = True
                 return pelias_unstruct
 
     # No result has a building precision -> get the best one, according the first feature
@@ -784,12 +761,10 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
         if (pelias_unstruct["features"]) and len(pelias_unstruct["features"]) > 0 \
            and pelias_struct["features"][0]["properties"]["confidence"] > pelias_unstruct["features"][0]["properties"]["confidence"] \
            or "street" in pelias_struct["features"][0]["properties"]:
-
             return pelias_struct
 
     # Otherwise, if 'street' in unstruct --> choose unstruct
     if len(pelias_unstruct["features"]) > 0 and "street" in pelias_unstruct["features"][0]["properties"]:
-
         return pelias_unstruct
 
     # Otherwise, if there are struct result --> choose struct
@@ -828,9 +803,8 @@ def transform(addr_data, transformer):
     Returns
     -------
     addr_data : dict
-
-
     """
+
     addr_data = addr_data.copy()
 
     if transformer == "no_city":
@@ -854,7 +828,7 @@ def transform(addr_data, transformer):
     elif transformer == "clean":
         for pat, rep in remove_patterns:
             addr_data["street_name"] = re.sub(pat, rep, addr_data["street_name"]) if not pd.isnull(addr_data["street_name"]) else None
-            addr_data["post_name"]   = re.sub(pat, rep, addr_data["post_name"])   if not pd.isnull(addr_data["post_name"]) else None
+            addr_data["post_name"] = re.sub(pat, rep, addr_data["post_name"]) if not pd.isnull(addr_data["post_name"]) else None
 
     return addr_data
 
@@ -873,8 +847,6 @@ def get_precision(feature):
 
     log("get_precision")
     try:
-        # if len(pelias_res["features"]) == 0:
-        #     return "no_feat"
         feat_prop = feature["properties"]
         if feat_prop["layer"] == "address":
             if feature["geometry"]["coordinates"] == [0, 0]:
@@ -887,17 +859,14 @@ def get_precision(feature):
                 if "/streetname/" in feat_prop["id"].lower() or "/straatnaam/" in feat_prop["id"].lower():
                     return "street_interpol"
                 return "address_interpol2"  # Should not occur?
-
             if feat_prop["match_type"] == "exact" or feat_prop["accuracy"] == "point":
                 return "address"
 
         if feat_prop["layer"] == "street":
             if feature["geometry"]["coordinates"] == [0, 0]:
                 return "street_00"
-            # if  feat_prop["match_type"] == "interpolated" :
-            #    return "street_interpol"
-
             return "street"
+
         if feat_prop["layer"] in ("city", "locality", "postalcode", "localadmin", "neighbourhood"):
             if feature["geometry"]["coordinates"] == [0, 0]:
                 return "city_00"
@@ -928,6 +897,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
     Returns:
         dict: json result
     """
+
     addr_data = {"street_name": street_name,
                  "house_number": house_number,
                  "post_name": post_name,
@@ -943,14 +913,11 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                 transf_addr_data = transform(transf_addr_data, t)
 
             log(f"transformed address: ({ ';'.join(transf)})")
-            # if addr_data == transf_addr_data and len(transf)>0:
             if transf_addr_data in previous_attempts:
                 vlog("Transformed address already tried, skip Pelias call")
-
             elif len(list(filter(lambda v: v and len(v) > 0, transf_addr_data.values()))) == 0:
                 vlog("No value to send, skip Pelias call")
             else:
-
                 previous_attempts.append(transf_addr_data)
 
                 pelias_res = struct_or_unstruct(transf_addr_data["street_name"],
@@ -968,43 +935,33 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                         if "bepelias" not in feat:
                             feat["bepelias"] = {}
                         feat["bepelias"]["precision"] = get_precision(feat)
-                    # log(feat)
                     return pelias_res if pelias_res else to_rest_guidelines(pelias_res)
                 all_res.append(pelias_res)
-        if sum([len(r["features"]) for r in all_res]) > 0:
+        if sum(len(r["features"]) for r in all_res) > 0:
             # If some result were found (even street-level), we stop here and select the best one.
             # Otherwise, we start again, accepting any postcode in the result
             log("Some result found with check_postcode=True")
-            # log(all_res)
             break
 
     log("No building result, keep the best match")
-
     # Get a score for each result
     fields = ["housenumber", "street", "locality", "postalcode"]
-
     scores = []
     for res in all_res:
         score = {}
         res["score"] = 0
         if len(res["features"]) > 0:
             prop = res["features"][0]["properties"]
-            # log(prop)
             if "postalcode" in prop and prop["postalcode"] == post_code:
-                # res["score"] += 1.5
                 score["postalcode"] = 1.5
 
             locality_sim = check_locality(res["features"][0], post_name, threshold=0.8)
             if locality_sim:
-                # vlog(f"Sim locality: {locality_sim}")
-                # res["score"] += 1+locality_sim
                 score["locality"] = 1.0+locality_sim
 
             if "street" in prop:
                 score["street"] = 1.0
-
                 street_sim = check_streetname(res["features"][0], street_name, threshold=0.8)
-                # vlog(f"Sim '{res['features'][0]['properties']['name']}' vs '{street_name}': {street_sim}")
                 if street_sim:
                     score["street"] += street_sim
 
@@ -1021,7 +978,6 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                 score["coordinates"] = 1.5
 
             res["score"] = sum(score.values())
-            # log(score)
 
             score_line = {f: prop[f] if f in prop else '[NA]' for f in fields}
             score_line["coordinates"] = str(res["features"][0]["geometry"]["coordinates"])
@@ -1036,10 +992,8 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
         log("\n"+str(pd.DataFrame(scores)))
 
     all_res = sorted(all_res, key=lambda x: -x["score"])
-
     if len(all_res) > 0:
         final_res = all_res[0]
-
         if len(final_res["features"]) == 0:
             return "No result", 204
 
@@ -1049,8 +1003,6 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
             if "bepelias" not in feat:
                 feat["bepelias"] = {}
             feat["bepelias"]["precision"] = get_precision(feat)
-
-        # final_res["bepelias"]["precision"] = get_precision(final_res["features"][0])
 
         return final_res if final_res else to_rest_guidelines(final_res)
     return "No result", 204

@@ -16,6 +16,7 @@ import logging
 import sys
 import json
 import re
+import warnings
 
 from urllib.parse import unquote_plus
 
@@ -23,6 +24,7 @@ from flask import Flask, url_for
 from flask_restx import Api, Resource, reqparse, fields
 
 from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch.exceptions import ElasticsearchWarning
 
 from utils import (log, vlog, get_arg,
                    build_address, to_rest_guidelines,
@@ -30,10 +32,7 @@ from utils import (log, vlog, get_arg,
 
 from pelias import Pelias, PeliasException
 
-import warnings
-from elasticsearch.exceptions import ElasticsearchWarning
 warnings.simplefilter('ignore', ElasticsearchWarning)
-
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 

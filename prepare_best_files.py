@@ -432,13 +432,12 @@ def create_address_data(data, region):
     addresses_all: pd.DataFrame
         Content of all addresses CSV
 
-
-
     """
     log(f"[addr-{region}] - Building address data")
 
     log(f"[addr-{region}] -   Adding addendum")
 
+    # Chunking data to reduce memory usage
     chunk_size = 100000
 
     chunks = [data.iloc[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
