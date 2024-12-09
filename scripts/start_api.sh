@@ -7,8 +7,7 @@ echo "Starting start_api.sh..."
 
 NB_WORKERS=${NB_WORKERS:-1}
 
-PORT=4001
-
+PORT=${IN_PORT:-4001}
     
 echo "Starting service... ($NB_WORKERS workers)" 
 

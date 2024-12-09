@@ -13,8 +13,6 @@ The current projet aims at:
 - Building a new dataflow, generating CSV compatible with Pelias, based on BestAddress CSV files
 - Adding a "wrapper" above Pelias, trying different versions of an address as long as the address is not recognized.
 
-
-
 # Disclaimer
 
 This project is realized by Vandy Berten (Smals Research, https://www.smalsresearch.be/) for a PoC in collaboration with NGI (https://www.ngi.be), CNNC (https://centredecrise.be/fr) and Bosa (https://opendata.bosa.be/). This has not been (so far) approved by any of those partners. We do not offer any support for this project.
@@ -31,7 +29,7 @@ Steps (short version):
 
 ```
 ./scripts/build.sh                 # Build pelias & bepelias docker images (~30 minutes)
-./scripts/feed.sh                  # Prepare files from Bosa and load them. Should also be run to update data
+./scripts/feed.sh                  # Prepare files from Bosa and load them. Should also be run to update data (~1h30)
 ./scripts/run.sh                   # Run Pelias and bePelias API (with default parameters)
 ```
 
@@ -39,8 +37,8 @@ Steps (short version):
 
 ### Build
 
-- `./scripts/build.sh api` : Build bepelias docker images (bepelias/api and bepelias/dataprep : ~5 min)
-- `./scripts/build.sh pelias` : Build bepelias docker images (~25 min)
+- `./scripts/build.sh api` : Build bePelias docker images (bepelias/api and bepelias/dataprep : ~5 min)
+- `./scripts/build.sh pelias` : Build bePelias docker images (~25 min)
 - `./scripts/build.sh cleanup` : Shut down everything, remove all docker images and all data
 
 
@@ -58,7 +56,7 @@ Steps (short version):
    - `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
    - `NB_WORKERS=8`: number of (gunicorn) workers
 - `./scripts/run.sh api`: start bePelias API (with the options described above)
-- In order to overide options without updating docker-compose.yml: `docker-compose run -d -e LOG_LEVEL=HIGH api`
+- In order to overide options without updating docker-compose.yml: `docker-compose run --rm -d -e LOG_LEVEL=HIGH api`
 - `./scripts/run.sh pelias`: start Pelias server 
 
 
@@ -73,7 +71,7 @@ It is possible to split tasks onto two servers:
 - On the back server: 
    - `./scripts/build.sh`
    - `./scripts/feed.sh prepare_csv` (or, for a shortest test; `./scripts/feed.sh prepare_csv bru`)
-   - Save "pelias/*" and "bepelias/api" images:
+   - Save "pelias/*" and "bepelias/api" docker images:
       - `docker save bepelias/api | gzip > docker-images-bepelias-api.tar.gz`
       - `docker save  $(docker-compose  -f pelias/projects/belgium_bepelias/docker-compose.yml config | awk '{if ($1 == "image:") print $2;}' ORS=" ") | gzip > docker-images-pelias.tar.gz`
    - Archive "data/bestaddress*.csv" files:  `tar czf data.tar.gz data`
@@ -100,14 +98,14 @@ To update:
 ## Data from OpenAddress CSV
 
 The above procedure builds Pelias data from BOSA XML (https://opendata.bosa.be/download/best/best-full-latest.zip), 
-using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id. 
+using a conversion tools on https://github.com/Fedict/best-tools.git. This is a quite heavy process, but at the end, bePelias will be able to provide BeSt Id (not included into the CSV availble on Bosa website). 
 
 # Usage
 
 - Swagger GUI on http://[IP]:4001/doc 
 - Example of URL : http://[IP]:4001/REST/bepelias/v1/geocode?streetName=Avenue%20Fonsny&houseNumber=20&postCode=1060&postName=Saint-Gilles
 
-Port can be changed in scripts/run.sh updating "PORT_OUT=4001"
+Port can be changed in docker-compose.yml updating the first value of  "sevices>api>ports"
 
 # Requirements
 
@@ -129,7 +127,7 @@ This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, us
 A pelias result is a list of "features". Before detailing our logic, let first define two checks:
 
 is_building(feature) is True if (and only if):
-- "match_type" (in "properties") is "exact" or "interpolated", or "accuracy" is  "point"
+- "match_type" (in "properties") is "exact" or "interpolated", or "accuracy" is "point"
 - AND "housenumber" exists in "properties"
 
 check_postcode(features, postcode): keep only a feature from features if: 
@@ -245,11 +243,12 @@ There are two situations where coordinates of an address are computed by interpo
 
 ## Result metadata
 
-Beside results coming straight from Pelias, bePelias adds some metadata in "bepelias" field:
+Beside results coming straight from Pelias, bePelias adds some metadata field:
 - call_type: 'struct' or 'unstruct': did we call structured of unstructured Pelias
 - in_addr: what was the address sent to Pelias
 - transformers: which sequence of transformers were applied to the input address to give the above "in_addr"
 - interpolated: did we compute coordinates by interpolation (only when BeSt Address records has a (0,0) location, see above)
+- peliasCallCount: how many calls to Pelias were required to get this result
 
 ## Box numbers
 
@@ -261,7 +260,7 @@ In some rare situations, there are no coordinates at the main address level, but
 
 ## Precision
 
-Each record contains, in "bepelias" part, a "precision" field, giving information about the first features. We could observe the following values (see also above section "Interpolation"):
+Each record contains a "precision" field, giving information about the first features. We could observe the following values (see also above section "Interpolation"):
 
 - address*: we match the input address to a BeSt Address, with a BeSt id...
     - address: ...  and coordinates

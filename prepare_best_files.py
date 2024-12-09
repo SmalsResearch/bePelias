@@ -14,7 +14,7 @@ import urllib.request
 import logging
 
 import getopt
-import glob
+# import glob
 
 # from dask.threaded import get
 
@@ -96,7 +96,7 @@ def get_language_prefered_order(region):
         else ("fr", "de", "nl")
 
 
-def build_addendum(data_dict, no_quotes):
+def build_addendum(data_dict, no_quotes, index):
     """
     Build the addendum_json_best column
 
@@ -124,12 +124,12 @@ def build_addendum(data_dict, no_quotes):
                             "",
                             f'"{key}": ' + col)
         else:
-            recursive_addendum = build_addendum(data, no_quotes)
+            recursive_addendum = build_addendum(data, no_quotes, index)
             res += np.where(recursive_addendum.str.len() <= 2,
                             "",
                             f'"{key}": ' + recursive_addendum+', ')
 
-    return '{'+pd.Series(res).str[0:-2]+'}'  # remove the last ", "
+    return '{'+pd.Series(res, index=index).str[0:-2]+'}'  # remove the last ", "
 
 
 def build_locality(data, lang):
@@ -437,40 +437,50 @@ def create_address_data(data, region):
     """
     log(f"[addr-{region}] - Building address data")
 
-    # addresses_all = data.copy()
-
-    addresses_all = data[[f for f in ["id", "lat", "lon", "housenumber",
-                                      "postalcode", "source", "layer",
-                                      "locality", "streetname",  # "streetname_fr", "streetname_nl","streetname_de",
-                                      "name", "name_fr", "name_nl", "name_de",
-                                      "country"] if f in data]].fillna({"lat": 0, "lon": 0}).assign(layer="address").rename(columns={"streetname": "street"})
-    # log(data[data.lat.isnull()])
-
     log(f"[addr-{region}] -   Adding addendum")
 
-    addresses_all["addendum_json_best"] = build_addendum({
-        "best_id": data.address_id,
-        "street": {
-            "name": {"fr": data.streetname_fr, "nl": data.streetname_nl, "de": data.streetname_de},
-            "id": data.street_id
-        },
-        "municipality": {
-            "name": {"fr": data.municipality_name_fr, "nl": data.municipality_name_nl, "de": data.municipality_name_de},
-            "code": data.municipality_id.str.extract(r"/([0-9]{5})/")[0],
-            "id":  data.municipality_id
-        },
-        "part_of_municipality": {
-            "name": {"fr": data.part_of_municipality_name_fr, "nl": data.part_of_municipality_name_nl, "de": data.part_of_municipality_name_de},
-            "id": data.part_of_municipality_id
-        },
-        "postal_info": {
-            "name": {"fr": data.postname_fr, "nl": data.postname_nl, "de": data.postname_de},
-            "postal_code": data.postalcode
-        },
-        "housenumber": data.housenumber,
-        "status": data.status,
-        "box_info": data.box_info
-        }, ['box_info'])
+    chunk_size = 100000
+
+
+    chunks = [data.iloc[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
+
+    addendum_chunks = []
+    for i, chunk in enumerate(chunks):
+        log(f"[addr-{region}] chunk {i} out of {len(chunks)}")
+
+        addendum_chunk = build_addendum({
+            "best_id": chunk.address_id,
+            "street": {
+                "name": {"fr": chunk.streetname_fr, "nl": chunk.streetname_nl, "de": chunk.streetname_de},
+                "id": chunk.street_id
+            },
+            "municipality": {
+                "name": {"fr": chunk.municipality_name_fr, "nl": chunk.municipality_name_nl, "de": chunk.municipality_name_de},
+                "code": chunk.municipality_id.str.extract(r"/([0-9]{5})/")[0],
+                "id":  chunk.municipality_id
+            },
+            "part_of_municipality": {
+                "name": {"fr": chunk.part_of_municipality_name_fr, "nl": chunk.part_of_municipality_name_nl, "de": chunk.part_of_municipality_name_de},
+                "id": chunk.part_of_municipality_id
+            },
+            "postal_info": {
+                "name": {"fr": chunk.postname_fr, "nl": chunk.postname_nl, "de": chunk.postname_de},
+                "postal_code": chunk.postalcode
+            },
+            "housenumber": chunk.housenumber,
+            "status": chunk.status,
+            "box_info": chunk.box_info
+            }, ['box_info'], chunk.index)
+        addendum_chunks.append(addendum_chunk)
+
+    addendum_chunks = pd.concat(addendum_chunks)
+
+    addresses_all = data[[f for f in ["id", "lat", "lon", "housenumber",
+                                      "postalcode", "source",
+                                      "locality", "streetname",
+                                      "name", "name_fr", "name_nl", "name_de",
+                                      "country", "addendum_json_best"] if f in data]].fillna({"lat": 0, "lon": 0}).assign(layer="address").rename(columns={"streetname": "street"})
+    addresses_all["addendum_json_best"] = addendum_chunks
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_be{region}.csv"
     log(f"[addr-{region}] -->{fname}")
@@ -636,7 +646,7 @@ def create_street_data(data, empty_street, region):
             "name": {"fr": all_streets.postname_fr, "nl": all_streets.postname_nl, "de": all_streets.postname_de},
             "postal_code": all_streets.postalcode
         }
-        }, [])
+        }, [], all_streets.index)
 
     all_streets = all_streets.rename(columns={"streetname": "street"})
     all_streets = all_streets[[f for f in ["id",  "locality", "street", "postalcode", "source",
@@ -699,7 +709,7 @@ def create_locality_data(data, region):
             "name": {"fr": data_localities_all.postname_fr, "nl": data_localities_all.postname_nl, "de": data_localities_all.postname_de},
             "postal_code": data_localities_all.postalcode
         }
-        }, [])
+        }, [], data_localities_all.index)
 
     # add a stable suffix to best id to avoid duplicates
     epoch = data_localities_all.groupby("municipality_id").cumcount()+1
@@ -802,34 +812,14 @@ def create_interpolation_data(addresses, region):
     log(f"[interpol-{region}] Done!")
 
 
-def clean_up(region=None):
-    """
-    Delete all csv files in the "in" directory
-
-    Returns
-    -------
-    None.
-
-    """
-
-    if region and region in name_mapping:
-        file_pattern = f"{DATA_DIR_IN}/{name_mapping[region]}*.csv*"
-    else:
-        file_pattern = f"{DATA_DIR_IN}/*.csv*"
-    for file in glob.glob(file_pattern):
-        log(f"[clean] Cleaning file {file})")
-
-        os.remove(file)
-
-
 DATA_DIR_IN = "/data/in/"
 DATA_DIR_OUT = "/data/"
 
 regions = ["bru", "wal", "vlg"]
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "hfo:i:r:", ["output=", "region="])
+    opts, args = getopt.getopt(sys.argv[1:], "ho:i:r:", [])
 except getopt.GetoptError:
-    print('prepare_best_files.py -o <outputdir> -r <region>')
+    print('prepare_best_files.py -o <outputdir> -i <intputdir> -r <region>')
     sys.exit(2)
 
 for opt, argm in opts:
@@ -843,9 +833,6 @@ for opt, argm in opts:
     if opt in ("-r"):
         if argm != "all":
             regions = [argm]
-    if opt in ("-f"):  # within notebook
-        DATA_DIR_IN = "./data/in/"
-        DATA_DIR_OUT = "./data/"
 
 
 os.makedirs(f"{DATA_DIR_OUT}", exist_ok=True)
@@ -860,8 +847,6 @@ for reg in regions:
     create_street_data(base, empty, reg)
     create_locality_data(base, reg)
     create_interpolation_data(base, reg)
-
-    clean_up(reg)
 
 # dsk = {}
 
