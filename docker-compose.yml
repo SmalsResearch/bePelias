@@ -13,8 +13,8 @@ services:
             - "4001:4001"   # [HOST_PORT]:[CONTAINER_PORT] ; HOST_PORT: port used to connect to API. CONTAINER_PORT: same value as "IN_PORT" below
         environment:
             - PELIAS_HOST=172.27.0.64:4000
-            - LOG_LEVEL=LOW # LOW, MEDIUM or HIGH
-            - NB_WORKERS=8  # Number of gunicorn workers
+            - LOG_LEVEL=HIGH # LOW, MEDIUM or HIGH
+            - NB_WORKERS=1  # Number of gunicorn workers
             - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"  
         image: bepelias/api
         container_name: bepelias_api

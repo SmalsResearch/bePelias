@@ -1,3 +1,5 @@
 .ipynb_checkpoints/
 pelias/
-
+__pycache__
+data
+logs

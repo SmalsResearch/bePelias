@@ -86,7 +86,7 @@ It is possible to split tasks onto two servers:
        - `tar xzf pelias.tar.gz`
    - `./scripts/run.sh pelias`
    - `./scripts/feed.sh update` (or  `./scripts/feed.sh update bru`)
-   - `./scripts/run.sh api 172.27.0.64:4000 LOW 8` 
+   - `./scripts/run.sh api` 
 
 
 To update: 

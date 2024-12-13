@@ -23,6 +23,7 @@ from urllib.parse import unquote_plus
 from flask import Flask, url_for
 from flask_restx import Api, Resource, reqparse, fields
 
+
 from elasticsearch import Elasticsearch, NotFoundError
 from elasticsearch.exceptions import ElasticsearchWarning
 
@@ -242,14 +243,14 @@ boxinfo_model = namespace.model("BoxinfoModel", {
     "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)", skip_none=True),
     "boxNumber": fields.String(example="b001, A, ...",
                                description="Box number"),
-    "addressId": fields.String(example="https://databrussels.be/id/address/219307/4",
+    "addressId": fields.String(example="https://databrussels.be/id/address/219307/7",
                                description="Address BeSt id"),
     "status": fields.String(example="current/retired/proposed",
                             description="BeSt Address status"),
 }, skip_none=True)
 
 item_model = namespace.model("ItemModel", {
-    "bestId": fields.String(example="https://databrussels.be/id/address/219307/4",
+    "bestId": fields.String(example="https://databrussels.be/id/address/219307/7",
                             description="Address BeSt id (could be street or municipality?)"),
     "street": fields.Nested(street_model, description="Street info", skip_none=True),
     "municipality": fields.Nested(municipality_model, description="Municipality info", skip_none=True),
@@ -281,7 +282,12 @@ city_item_model = namespace.model("CityItemModel", {
 
 
 geocode_output_model = namespace.model("GeocodeOutput", {
+    "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
+                            example="http://<hostname>/REST/bepelias/v1/geocode?mode=advanced&streetName=Avenue%20Fonsny&houseNumber=20&postCode=1060&postName=Saint-Gilles",
+                            ),
     "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
+    "total":  fields.Integer(description="Total number of items",
+                             example=1),
     "peliasRaw": fields.Raw(default=None,
                             description="Result provided by underlying Pelias. Only with 'witPeliasResult:true",
                             skip_none=True),
@@ -302,10 +308,16 @@ geocode_output_model = namespace.model("GeocodeOutput", {
 
 
 search_city_output_model = namespace.model("SearchCityOutput", {
+    "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
+                            example="http://<hostname>REST/bepelias/v1/searchCity?postCode=1060&postName=Saint-Gilles"),
     "items":  fields.List(fields.Nested(city_item_model, skip_none=True), skip_none=True),
+    "total":  fields.Integer(description="Total number of items",
+                             example=1),
     }, skip_none=True)
 
 get_by_id_output_model = namespace.model("GetByIdOutput", {
+    "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
+                            example="http://<hostname>/REST/bepelias/v1/id/https:%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7"),
     "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
     }, skip_none=True)
 
@@ -472,11 +484,9 @@ Search a city based on a postal code or a name (could be municipality name, part
 
 
 @namespace.route('/id/<string:bestid>')
-# @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/')
-# @namespace.route('/id/<string:bestid>/<string:a1>/<string:a2>/<string:a3>/<string:a4>/<string:a5>/')
 @namespace.param('bestid',
                  type=str,
-                 default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F4',
+                 default='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7',
                  help="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')")
 class GetById(Resource):
     """ Get ressource by best id. This does not replace a call to Bosa BeSt Address API !!

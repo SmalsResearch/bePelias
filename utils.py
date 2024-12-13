@@ -159,7 +159,9 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     # Remove duplicate results
     items = [i for n, i in enumerate(items) if i not in items[:n]]
 
-    rest_res = {"items": items}
+    rest_res = {"self": request.url,
+                "items": items,
+                "total": len(items)}
 
     if "bepelias" in pelias_res:
         rest_res |= pelias_res["bepelias"]
@@ -179,6 +181,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
                 del feat["bepelias"]
         rest_res["peliasRaw"] = pelias_res_raw
 
+    log(rest_res)
     return rest_res
 
 # Check result functions
