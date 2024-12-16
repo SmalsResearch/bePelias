@@ -317,6 +317,9 @@ get_by_id_output_model = namespace.model("GetByIdOutput", {
     "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
                             example="http://<hostname>/REST/bepelias/v1/id/https:%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7"),
     "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
+    "total":  fields.Integer(description="Total number of items",
+                             example=1),
+
     }, skip_none=True)
 
 health_output_model = namespace.model("HealthOutput", {
@@ -334,7 +337,6 @@ class Geocode(Resource):
     @namespace.expect(single_parser)
     @namespace.response(400, 'Error in arguments')  # , mimetype="application/problem+json" , namespace.model("ProblemModel", {"Content-Type": "application/problem+json"}))
     @namespace.response(500, 'Internal Server error')
-    @namespace.response(204, 'No address found')
     @namespace.marshal_with(geocode_output_model,
                             description='Found one or several matches for this address',
                             skip_none=True)
@@ -422,7 +424,6 @@ class SearchCity(Resource):
     @namespace.expect(city_search_parser)
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
-    @namespace.response(204, 'No address found')
     @namespace.marshal_with(search_city_output_model,
                             description='Found one or several matches for city/postal code',
                             skip_none=True)
@@ -466,22 +467,17 @@ Search a city based on a postal code or a name (could be municipality name, part
 
                     final_result.append(it)
 
-            if len(final_result) == 0:
-                return "Object not found", 204
-
             # Remove duplicate results
             final_result = {"features": [i for n, i in enumerate(final_result) if i not in final_result[:n]]}
 
             return to_rest_guidelines(final_result, False)
         except NotFoundError:
-            pass
+            return {"features": []}
         except ConnectionError as exc:
             log("ES ConnectionError")
             log(exc)
 
             return {"error": f"Cannot connect to Elastic: {exc}"}, 500
-
-        return "Object not found", 204
 
 
 @namespace.route('/id/<string:bestid>')
@@ -493,12 +489,8 @@ class GetById(Resource):
     """ Get ressource by best id. This does not replace a call to Bosa BeSt Address API !!
     Only works for addresses, streets and municipalities (not for postalinfos, part of municipalities)
     """
-
-    # @namespace.expect(id_parser)
-
     @namespace.response(400, 'Error in arguments')
     @namespace.response(500, 'Internal Server error')
-    @namespace.response(204, 'No address found')
     @namespace.marshal_with(get_by_id_output_model,
                             description='Found one or several matches for this id',
                             skip_none=True)
@@ -556,9 +548,6 @@ class GetById(Resource):
 
             resp = resp["hits"]["hits"]
 
-            if len(resp) == 0:
-                return "Object not found", 204
-
             final_result = []
             for resp_item in resp:
                 if "addendum" in resp_item["_source"] and "best" in resp_item["_source"]["addendum"]:
@@ -573,7 +562,7 @@ class GetById(Resource):
 
             return to_rest_guidelines(final_result, with_pelias_raw=False)
         except NotFoundError:
-            pass
+            return to_rest_guidelines({"features": []}, with_pelias_raw=False)
         except ConnectionRefusedError as exc:
             log("ES ConnectionRefusedError")
             log(exc)
@@ -585,16 +574,13 @@ class GetById(Resource):
             log(exc)
 
             return f"Cannot connect to Elastic: {exc}", 500
-        # log("Not found !")
-        return "Object not found", 204
 
 
 @namespace.route('/health', methods=['GET'])
 class Health(Resource):
     """ Check service status """
-    @namespace.response(500, 'Internal Server error')
-    @namespace.response(503, 'Service is "DOWN"')
-    # @namespace.response(200, 'Service is "UP" or "DEGRADED"')
+    @namespace.response(500, 'Internal Server error', health_output_model, default="blah")
+    @namespace.response(503, 'Service is "DOWN"', health_output_model)
     @namespace.marshal_with(health_output_model,
                             description='ServiceStatus',
                             skip_none=True)

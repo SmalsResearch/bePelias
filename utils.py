@@ -938,7 +938,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                         if "bepelias" not in feat:
                             feat["bepelias"] = {}
                         feat["bepelias"]["precision"] = get_precision(feat)
-                    return pelias_res if pelias_res else to_rest_guidelines(pelias_res)
+                    return pelias_res
                 all_res.append(pelias_res)
         if sum(len(r["features"]) for r in all_res) > 0:
             # If some result were found (even street-level), we stop here and select the best one.
@@ -998,7 +998,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
     if len(all_res) > 0:
         final_res = all_res[0]
         if len(final_res["features"]) == 0:
-            return "No result", 204
+            return {"features": [], "bepelias": {"pelias_call_count": call_cnt}}
 
         final_res["bepelias"]["pelias_call_count"] = call_cnt
 
@@ -1007,5 +1007,6 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                 feat["bepelias"] = {}
             feat["bepelias"]["precision"] = get_precision(feat)
 
-        return final_res if final_res else to_rest_guidelines(final_res)
-    return "No result", 204
+        return final_res
+    
+    return {"features": [], "bepelias": {"pelias_call_count": call_cnt}}
