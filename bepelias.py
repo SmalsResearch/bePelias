@@ -95,6 +95,7 @@ api = Api(app,
           contact_email='vandy.berten@smals.be'
           )
 
+app.config["RESTX_MASK_SWAGGER"] = False
 namespace = api.namespace(
     '',
     'Main namespace')
@@ -123,13 +124,12 @@ How Pelias is used:
 
 - basic: Just call the structured version of Pelias
 - simple: Call the structured version of Pelias. If it does not get any result, call the unstructured version
-- advanced: try several variants until it gives a result""")
+- advanced: Try several variants until it gives a result""")
 
 single_parser.add_argument('streetName',
                            type=str,
                            default='Avenue Fonsny',
                            help="The name of a passage or way through from one location to another (cf. Fedvoc). Example: 'Avenue Fonsny'",
-                           # example= "Avenue Fonsny"
                            )
 
 single_parser.add_argument('houseNumber',
@@ -142,7 +142,6 @@ single_parser.add_argument('postCode',
                            type=str,
                            default='1060',
                            help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
-                           # example= "Avenue Fonsny"
                            )
 
 single_parser.add_argument('postName',
@@ -157,13 +156,11 @@ single_parser.add_argument('withPeliasResult',
                            help="If True, return Pelias result as such in 'peliasRaw'.",
                            )
 
-
 city_search_parser = reqparse.RequestParser()
 city_search_parser.add_argument('postCode',
                                 type=str,
                                 default='1060',
                                 help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
-                                # example= "Avenue Fonsny"
                                 )
 
 city_search_parser.add_argument('postName',
@@ -187,7 +184,7 @@ name_model = namespace.model("ItemNameModel", {
     "nl":  fields.String(example="Fonsnylaan",
                          description="Entity (street, municipality...) name in Nederlands",
                          skip_none=True),
-    "de":  fields.String(example="Avenue Fonsny",
+    "de":  fields.String(example="Fonsnystraße",
                          description="Entity (street, municipality...) name in German",
                          skip_none=True)})
 
@@ -198,17 +195,18 @@ street_model = namespace.model("StreetNameModel", {
     "id": fields.String(example="https://databrussels.be/id/streetname/4921/2",
                         description="Street BeSt id",
                         skip_none=True)
-}, skip_none=True)
+    }, skip_none=True)
 
 municipality_model = namespace.model("MunicipalityModel", {
     "name": fields.Nested(name_model,
                           description="Municipality name in fr/nl/de (when applicable)",
                           skip_none=True),
     "code": fields.String(example="21013",
-                          description="Municipality code or code NIS"),
+                          description="Municipality code or code NIS",
+                          pattern=r'^\d{5}$'),
     "id": fields.String(example="https://databrussels.be/id/municipality/21013/14",
                         description="Municipality BeSt id", skip_none=True)
-})
+    }, skip_none=True)
 
 part_of_municipality_model = namespace.model("PartOfMunicipalityModel", {
     "name": fields.Nested(name_model,
@@ -216,17 +214,17 @@ part_of_municipality_model = namespace.model("PartOfMunicipalityModel", {
                           skip_none=True),
     "id": fields.String(example="geodata.wallonie.be/id/PartOfMunicipality/1415/1",
                         description="Part of Municipality BeSt id (only in Wallonia)", skip_none=True)
-    },
-    skip_none=True)
-
+    }, skip_none=True)
 
 postalinfo_model = namespace.model("PostalInfoModel", {
     "name": fields.Nested(name_model,
                           description="PostalInfo in fr/nl/de (when applicable ; only in Brussels and Flanders)",
                           skip_none=True),
     "postalCode": fields.String(example="1060",
-                                description="Postal code", skip_none=True),
-})
+                                description="Postal code (a.k.a post code, zip code etc.) of a location in Belgium",
+                                pattern=r'^\d{4}$',
+                                skip_none=True)
+    }, skip_none=True)
 
 coordinates_model = namespace.model("CoordinatesModel", {
     "lat": fields.Float(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
@@ -237,7 +235,7 @@ coordinates_model = namespace.model("CoordinatesModel", {
                                     "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
                         example=4.3385087,
                         skip_none=True)
-}, skip_none=True)
+    }, skip_none=True)
 
 boxinfo_model = namespace.model("BoxinfoModel", {
     "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)", skip_none=True),
@@ -247,7 +245,7 @@ boxinfo_model = namespace.model("BoxinfoModel", {
                                description="Address BeSt id"),
     "status": fields.String(example="current/retired/proposed",
                             description="BeSt Address status"),
-}, skip_none=True)
+    }, skip_none=True)
 
 item_model = namespace.model("ItemModel", {
     "bestId": fields.String(example="https://databrussels.be/id/address/219307/7",
@@ -269,7 +267,7 @@ item_model = namespace.model("ItemModel", {
     "name": fields.String(example="Bruxelles",
                           description="If we can't find any result from BeSt Address but get some approximate results from other sources",
                           skip_none=True),
-}, skip_none=True)
+    }, skip_none=True)
 
 
 city_item_model = namespace.model("CityItemModel", {
@@ -278,7 +276,7 @@ city_item_model = namespace.model("CityItemModel", {
     "postalInfo": fields.Nested(postalinfo_model, description="Postal info", skip_none=True),
     "coordinates": fields.Nested(coordinates_model, description="Geographic coordinates (in EPSG:4326)"),
     "error": fields.String(description="Error message", skip_none=True),
-}, skip_none=True)
+    }, skip_none=True)
 
 
 geocode_output_model = namespace.model("GeocodeOutput", {
@@ -321,13 +319,20 @@ get_by_id_output_model = namespace.model("GetByIdOutput", {
     "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
     }, skip_none=True)
 
+health_output_model = namespace.model("HealthOutput", {
+    "status":   fields.String(description="Service status",
+                              example="UP, DOWN, or DEGRADED"),
+    "details":  fields.String(description="More details about status",
+                              example="", skip_none=True),
+    }, skip_none=True)
+
 
 @namespace.route('/geocode')
 class Geocode(Resource):
     """ Single address geocoding"""
 
     @namespace.expect(single_parser)
-    @namespace.response(400, 'Error in arguments')
+    @namespace.response(400, 'Error in arguments')  # , mimetype="application/problem+json" , namespace.model("ProblemModel", {"Content-Type": "application/problem+json"}))
     @namespace.response(500, 'Internal Server error')
     @namespace.response(204, 'No address found')
     @namespace.marshal_with(geocode_output_model,
@@ -460,13 +465,9 @@ Search a city based on a postal code or a name (could be municipality name, part
                     it["name"] = resp_item["_source"]["name"]
 
                     final_result.append(it)
-            # for i in range(len(resp)):
-                # resp[i]["_source"]["addendum"]["best"] =json.loads(resp[i]["_source"]["addendum"]["best"])
 
             if len(final_result) == 0:
                 return "Object not found", 204
-
-            # final_result = list(unique_everseen(final_result))
 
             # Remove duplicate results
             final_result = {"features": [i for n, i in enumerate(final_result) if i not in final_result[:n]]}
@@ -593,7 +594,10 @@ class Health(Resource):
     """ Check service status """
     @namespace.response(500, 'Internal Server error')
     @namespace.response(503, 'Service is "DOWN"')
-    @namespace.response(200, 'Service is "UP" or "DEGRADED"')
+    # @namespace.response(200, 'Service is "UP" or "DEGRADED"')
+    @namespace.marshal_with(health_output_model,
+                            description='ServiceStatus',
+                            skip_none=True)
     def get(self):
         """Health status
 

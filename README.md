@@ -283,4 +283,5 @@ Each record contains a "precision" field, giving information about the first fea
 - model: split "name" in name street, name municipality... ?
 - delete "retired" ? low priority ?
 - get by id for postalname, part of mun
+- postalcode --> code (in postalInfo ?)
 
