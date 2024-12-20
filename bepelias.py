@@ -329,14 +329,18 @@ health_output_model = namespace.model("HealthOutput", {
                               example="", skip_none=True),
     }, skip_none=True)
 
+# error_400_model = namespace.model("Error400Output", {}, skip_none=True, example="test", default="test")
+
 
 @namespace.route('/geocode')
 class Geocode(Resource):
     """ Single address geocoding"""
 
     @namespace.expect(single_parser)
-    @namespace.response(400, 'Error in arguments')  # , mimetype="application/problem+json" , namespace.model("ProblemModel", {"Content-Type": "application/problem+json"}))
+    # @namespace.response(400, 'Error in arguments', model=error_400_model)  # , mimetype="application/problem+json" , namespace.model("ProblemModel", {"Content-Type": "application/problem+json"}))
     @namespace.response(500, 'Internal Server error')
+    @namespace.response(400, 'Error in arguments')
+    # @namespace.marshal_with(error_400_model, code=400, description='Error in arguments...')
     @namespace.marshal_with(geocode_output_model,
                             description='Found one or several matches for this address',
                             skip_none=True)

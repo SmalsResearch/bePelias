@@ -429,7 +429,7 @@ def create_address_data(data, region):
 
     Returns
     -------
-    addresses_all: pd.DataFrame
+    data_addresses: pd.DataFrame
         Content of all addresses CSV
 
     """
@@ -473,28 +473,28 @@ def create_address_data(data, region):
 
     addendum_chunks = pd.concat(addendum_chunks)
 
-    addresses_all = data[[f for f in ["id", "lat", "lon", "housenumber",
-                                      "postalcode", "source",
-                                      "locality", "streetname",
-                                      "name", "name_fr", "name_nl", "name_de",
-                                      "country", "addendum_json_best"] if f in data]].fillna({"lat": 0, "lon": 0}).assign(layer="address").rename(columns={"streetname": "street"})
-    addresses_all["addendum_json_best"] = addendum_chunks
+    data_addresses = data[[f for f in ["id", "lat", "lon", "housenumber",
+                                       "postalcode", "source",
+                                       "locality", "streetname",
+                                       "name", "name_fr", "name_nl", "name_de",
+                                       "country", "addendum_json_best"] if f in data]].fillna({"lat": 0, "lon": 0}).assign(layer="address").rename(columns={"streetname": "street"})
+    data_addresses["addendum_json_best"] = addendum_chunks
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_be{region}.csv"
     log(f"[addr-{region}] -->{fname}")
-    # addresses_all = addresses_all.rename(columns={"streetname": "street"})
+    # data_addresses = data_addresses.rename(columns={"streetname": "street"})
 
-    addresses_all.to_csv(fname, index=False)
+    data_addresses.to_csv(fname, index=False)
 
     log(f"[addr-{region}] Done!")
 
-    return addresses_all
+    return data_addresses
 
 
 def middle_points(pt1, pt2):
     """
     Compute a (shapely) point in the middle of two (shapely) points pt1, pt2.
-    If one of the is empty, take the other one.
+    If one of the two is empty, take the other one.
 
     Parameters
     ----------
@@ -594,72 +594,72 @@ def create_street_data(data, empty_street, region):
                           "streetname", "streetname_fr", "streetname_nl", "streetname_de", "street_id",
                           "locality", "locality_fr", "locality_nl", "locality_de",
                           "postalcode", "source", "country"] if f in data]
-    all_streets = data[fields].drop_duplicates().merge(streets_centers_duo[["lat", "lon"]],
-                                                       left_on=["municipality_id", "street_id"],
-                                                       right_index=True,
-                                                       how="left").fillna({"lat": 0, "lon": 0})
+    data_streets = data[fields].drop_duplicates().merge(streets_centers_duo[["lat", "lon"]],
+                                                        left_on=["municipality_id", "street_id"],
+                                                        right_index=True,
+                                                        how="left").fillna({"lat": 0, "lon": 0})
 
     del streets_centers_duo
 
     log(f"[street-{region}] - Combining data and empty streets")
 
-    all_streets = pd.concat([all_streets, empty_street])
+    data_streets = pd.concat([data_streets, empty_street])
 
-    all_streets["id"] = all_streets.street_id
+    data_streets["id"] = data_streets.street_id
 
     if SPLIT_RECORDS:
-        all_streets["name"] = all_streets["streetname"] + ", " + all_streets["postalcode"].astype(str) + " " + all_streets["locality"]
+        data_streets["name"] = data_streets["streetname"] + ", " + data_streets["postalcode"].astype(str) + " " + data_streets["locality"]
 
         # add a stable suffix to best id to avoid duplicates
-        epoch = all_streets.groupby("street_id").cumcount()+1
-        all_streets["id"] = all_streets.street_id + "_" + epoch.astype(str)
+        epoch = data_streets.groupby("street_id").cumcount()+1
+        data_streets["id"] = data_streets.street_id + "_" + epoch.astype(str)
 
     else:
         for lang in ["fr", "nl", "de"]:
-            all_streets[f"name_{lang}"] = all_streets[f"streetname_{lang}"] + ", " + all_streets["postalcode"].astype(str) + " " + all_streets[f"locality_{lang}"]
+            data_streets[f"name_{lang}"] = data_streets[f"streetname_{lang}"] + ", " + data_streets["postalcode"].astype(str) + " " + data_streets[f"locality_{lang}"]
 
         (lg1, lg2, lg3) = get_language_prefered_order(region)
 
         for f in ["name"]:  # , "street", "locality":
-            data_cols = all_streets[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
-            all_streets[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst) > 0 else pd.NA)
+            data_cols = data_streets[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
+            data_streets[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst) > 0 else pd.NA)
 
-    all_streets = all_streets.reset_index(drop=True)
-    all_streets["addendum_json_best"] = build_addendum({
-        # "best_id": all_streets.address_id,
+    data_streets = data_streets.reset_index(drop=True)
+    data_streets["addendum_json_best"] = build_addendum({
+        # "best_id": data_streets.address_id,
         "street": {
-            "name": {"fr": all_streets.streetname_fr, "nl": all_streets.streetname_nl, "de": all_streets.streetname_de},
-            "id": all_streets.street_id
+            "name": {"fr": data_streets.streetname_fr, "nl": data_streets.streetname_nl, "de": data_streets.streetname_de},
+            "id": data_streets.street_id
         },
         "municipality": {
-            "name": {"fr": all_streets.municipality_name_fr, "nl": all_streets.municipality_name_nl, "de": all_streets.municipality_name_de},
-            "code": all_streets.municipality_id.str.extract(r"/([0-9]{5})/")[0],
-            "id":  all_streets.municipality_id
+            "name": {"fr": data_streets.municipality_name_fr, "nl": data_streets.municipality_name_nl, "de": data_streets.municipality_name_de},
+            "code": data_streets.municipality_id.str.extract(r"/([0-9]{5})/")[0],
+            "id":  data_streets.municipality_id
         },
         "part_of_municipality": {
-            "name": {"fr": all_streets.part_of_municipality_name_fr, "nl": all_streets.part_of_municipality_name_nl, "de": all_streets.part_of_municipality_name_de},
-            "id": all_streets.part_of_municipality_id
+            "name": {"fr": data_streets.part_of_municipality_name_fr, "nl": data_streets.part_of_municipality_name_nl, "de": data_streets.part_of_municipality_name_de},
+            "id": data_streets.part_of_municipality_id
         },
         "postal_info": {
-            "name": {"fr": all_streets.postname_fr, "nl": all_streets.postname_nl, "de": all_streets.postname_de},
-            "postal_code": all_streets.postalcode
+            "name": {"fr": data_streets.postname_fr, "nl": data_streets.postname_nl, "de": data_streets.postname_de},
+            "postal_code": data_streets.postalcode
         }
-        }, [], all_streets.index)
+        }, [], data_streets.index)
 
-    all_streets = all_streets.rename(columns={"streetname": "street"})
-    all_streets = all_streets[[f for f in ["id",  "locality", "street", "postalcode", "source",
-                                           "country", "lat", "lon",
-                                           "name_fr", "name_nl", "name_de", "name", "addendum_json_best"] if f in all_streets]]
+    data_streets = data_streets.rename(columns={"streetname": "street"})
+    data_streets = data_streets[[f for f in ["id",  "locality", "street", "postalcode", "source",
+                                             "country", "lat", "lon",
+                                             "name_fr", "name_nl", "name_de", "name", "addendum_json_best"] if f in data_streets]]
 
-    all_streets = all_streets.fillna({"lat": 0, "lon": 0})
+    data_streets = data_streets.fillna({"lat": 0, "lon": 0})
 
-    log(all_streets)
+    log(data_streets)
 
-    all_streets["layer"] = "street"
+    data_streets["layer"] = "street"
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_streets_be{region}.csv"
     log(f"[street-{region}] -->{fname}")
-    all_streets.to_csv(fname, index=False)
+    data_streets.to_csv(fname, index=False)
 
     log(f"[street-{region}] Done!")
 
@@ -682,64 +682,64 @@ def create_locality_data(data, region):
     """
     log(f"[loc-{region}] - Building localities data")
 
-    data_localities_all = data.groupby([f for f in ["municipality_id", "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
-                                                    "part_of_municipality_id", "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
-                                                    "postname_fr", "postname_nl", "postname_de",
-                                                    "locality", "locality_fr", "locality_nl", "locality_de",
-                                                    "postalcode", "source", "country"] if f in data],
-                                       dropna=False)[["lat", "lon"]].mean().reset_index()
+    data_localities = data.groupby([f for f in ["municipality_id", "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
+                                                "part_of_municipality_id", "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
+                                                "postname_fr", "postname_nl", "postname_de",
+                                                "locality", "locality_fr", "locality_nl", "locality_de",
+                                                "postalcode", "source", "country"] if f in data],
+                                   dropna=False)[["lat", "lon"]].mean().reset_index()
 
-    # data_localities_all = []
+    # data_localities = []
 
-    data_localities_all["layer"] = "locality"
+    data_localities["layer"] = "locality"
 
-    data_localities_all["addendum_json_best"] = build_addendum({
+    data_localities["addendum_json_best"] = build_addendum({
         "municipality": {
-            "name": {"fr": data_localities_all.municipality_name_fr, "nl": data_localities_all.municipality_name_nl, "de": data_localities_all.municipality_name_de},
-            "code": data_localities_all.municipality_id.str.extract(r"/([0-9]{5})/")[0],
-            "id":  data_localities_all.municipality_id
+            "name": {"fr": data_localities.municipality_name_fr, "nl": data_localities.municipality_name_nl, "de": data_localities.municipality_name_de},
+            "code": data_localities.municipality_id.str.extract(r"/([0-9]{5})/")[0],
+            "id":  data_localities.municipality_id
         },
         "part_of_municipality": {
-            "name": {"fr": data_localities_all.part_of_municipality_name_fr, "nl": data_localities_all.part_of_municipality_name_nl, "de": data_localities_all.part_of_municipality_name_de},
-            "id":   data_localities_all.part_of_municipality_id
+            "name": {"fr": data_localities.part_of_municipality_name_fr, "nl": data_localities.part_of_municipality_name_nl, "de": data_localities.part_of_municipality_name_de},
+            "id":   data_localities.part_of_municipality_id
         },
         "postal_info": {
-            "name": {"fr": data_localities_all.postname_fr, "nl": data_localities_all.postname_nl, "de": data_localities_all.postname_de},
-            "postal_code": data_localities_all.postalcode
+            "name": {"fr": data_localities.postname_fr, "nl": data_localities.postname_nl, "de": data_localities.postname_de},
+            "postal_code": data_localities.postalcode
         }
-        }, [], data_localities_all.index)
+        }, [], data_localities.index)
 
     # add a stable suffix to best id to avoid duplicates
-    epoch = data_localities_all.groupby("municipality_id").cumcount()+1
-    data_localities_all["id"] = data_localities_all.municipality_id + "_" + epoch.astype(str)
+    epoch = data_localities.groupby("municipality_id").cumcount()+1
+    data_localities["id"] = data_localities.municipality_id + "_" + epoch.astype(str)
 
-    #  data_localities_all["id"] = data_localities_all.municipality_id+"_"+data_localities_all.index.astype(str)
+    #  data_localities["id"] = data_localities.municipality_id+"_"+data_localities.index.astype(str)
 
     if SPLIT_RECORDS:
-        data_localities_all["name"] = data_localities_all["postalcode"].astype(str) + " " + data_localities_all["locality"]
+        data_localities["name"] = data_localities["postalcode"].astype(str) + " " + data_localities["locality"]
     else:
         (lg1, lg2, lg3) = get_language_prefered_order(region)
 
         for lang in ["fr", "nl", "de"]:
 
-            data_localities_all[f"name_{lang}"] = data_localities_all["postalcode"].astype(str) + " " + data_localities_all[f"locality_{lang}"]
+            data_localities[f"name_{lang}"] = data_localities["postalcode"].astype(str) + " " + data_localities[f"locality_{lang}"]
 
         for f in ["name"]:
-            data_cols = data_localities_all[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
-            data_localities_all[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst) > 0 else pd.NA)
+            data_cols = data_localities[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]
+            data_localities[f] = data_cols.apply(lambda lst: [x for x in lst if not pd.isnull(x)], axis=1).apply(lambda lst: " / ".join(lst) if len(lst) > 0 else pd.NA)
 
-    data_localities_all = data_localities_all[[f for f in ["locality", "postalcode", "source",
-                                                           "country", "lat", "lon", "id",
-                                                           "layer", "name", "name_fr", "name_nl", "name_de", "addendum_json_best"] if f in data_localities_all]]
+    data_localities = data_localities[[f for f in ["locality", "postalcode", "source",
+                                                   "country", "lat", "lon", "id",
+                                                   "layer", "name", "name_fr", "name_nl", "name_de", "addendum_json_best"] if f in data_localities]]
 
-    data_localities_all = data_localities_all.fillna({"lat": 0, "lon": 0})
+    data_localities = data_localities.fillna({"lat": 0, "lon": 0})
 
-    log(data_localities_all)
+    log(data_localities)
     fname = f"{DATA_DIR_OUT}/bestaddresses_localities_be{region}.csv"
 
     log(f"[loc-{region}] -->{fname}")
 
-    data_localities_all.to_csv(fname, index=False)
+    data_localities.to_csv(fname, index=False)
     log(f"[loc-{region}] Done!")
 
 

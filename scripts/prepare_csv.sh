@@ -16,6 +16,7 @@ elif [[ $REGION == "vlg" ]]; then
     REGIONS=("Flanders")
 fi
 
+set -x
 mkdir -p /data/in
 
 cd /data/in
@@ -51,3 +52,6 @@ for r in ${REGIONS[@]} ;
 do 
     rm -f /data/in/$r*.csv
 done
+
+
+set +x

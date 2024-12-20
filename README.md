@@ -284,4 +284,7 @@ Each record contains a "precision" field, giving information about the first fea
 - delete "retired" ? low priority ?
 - get by id for postalname, part of mun
 - postalcode --> code (in postalInfo ?)
+- /geocode --> /addresses ?
+- /searchCity --> /cities ?
+- Migrate from Flask to FastAPI?
 
