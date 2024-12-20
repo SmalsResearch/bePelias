@@ -86,6 +86,11 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     echo "Import interpolation data"
     $DOCKER run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
 
+    echo "Restart pelias"
+    # Seems to be required after the first import, otherwise layers are not recognized...
+    $PELIAS compose down
+    $PELIAS compose up
+
     cd -
 
     rm -f $DIR/data/bestaddresses_*.csv
