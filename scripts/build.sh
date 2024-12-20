@@ -47,14 +47,14 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
 
     mkdir -p $DIR
     cp pelias.json $DIR
-    cp  pelias/projects/belgium/elasticsearch.yml  $DIR
+    cp pelias/projects/belgium/elasticsearch.yml  $DIR
 
     # Change config to allow interpolation to be public
-    cp  pelias/projects/belgium/elasticsearch.yml  $DIR
-    sed 's/127.0.0.1:4300:4300/0.0.0.0:4300:4300/' pelias/projects/belgium/docker-compose.yml >$DIR/docker-compose.yml
+    # cp  pelias/projects/belgium/elasticsearch.yml  $DIR
+    #sed 's/127.0.0.1:4300:4300/0.0.0.0:4300:4300/' pelias/projects/belgium/docker-compose.yml >$DIR/docker-compose.yml
     
     # Change config to allow elasticsearch to be public
-    sed -i 's/127.0.0.1:9200:9200/0.0.0.0:9200:9200/' $DIR/docker-compose.yml
+    #sed -i 's/127.0.0.1:9200:9200/0.0.0.0:9200:9200/' $DIR/docker-compose.yml
     
 
     mkdir $DIR/data
@@ -110,6 +110,6 @@ if [[ $ACTION == "cleanup" ]]; then
 
     echo "Advice: try also to run:
      - docker system prune -a -f
-     - docker volume prune
+     - docker volume prune -f
     "
 fi
