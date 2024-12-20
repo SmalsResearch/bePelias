@@ -6,20 +6,28 @@ services:
             dockerfile: docker/Dockerfile_base
         image: bepelias/base
     api:
+        depends_on:
+            - base
         build:
             context: .
             dockerfile: docker/Dockerfile_api
         ports:
             - "4001:4001"   # [HOST_PORT]:[CONTAINER_PORT] ; HOST_PORT: port used to connect to API. CONTAINER_PORT: same value as "IN_PORT" below
         environment:
-            - PELIAS_HOST=172.27.0.64:4000
-            - LOG_LEVEL=HIGH # LOW, MEDIUM or HIGH
-            - NB_WORKERS=1  # Number of gunicorn workers
-            - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"  
+            - PELIAS_HOST=pelias_api:4000
+            - PELIAS_ES_HOST=pelias_elasticsearch:9200
+            - PELIAS_INTERPOL_HOST=pelias_interpolation:9200
+            - LOG_LEVEL=LOW # LOW, MEDIUM or HIGH
+            - NB_WORKERS=8  # Number of gunicorn workers
+            - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"
+        networks:
+            - network_bepelias  
         image: bepelias/api
         container_name: bepelias_api
 
     dataprep:
+        depends_on:
+            - base
         build:
             context: .
             dockerfile: docker/Dockerfile_dataprep
@@ -27,5 +35,8 @@ services:
             - ./data:/data
         image: bepelias/dataprep
         container_name: bepelias_dataprep
+networks:
+    network_bepelias:
+        external: true
 
         

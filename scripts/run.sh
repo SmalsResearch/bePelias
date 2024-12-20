@@ -26,7 +26,21 @@ if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
     cd $DIR
 
     $PELIAS compose up
-    $DOCKER_COMPOSE up -d  api # error with api in pelias compose up... why???
+
+    # Check if the network network_bepelias exists and create it if it does not
+    NETWORK_BEPELIAS="network_bepelias"
+    if [ $(docker network ls -f name=^${NETWORK_BEPELIAS}$ -q | wc -l) -eq 0 ]; then
+        docker network create ${NETWORK_BEPELIAS}
+        echo "Network '${NETWORK_BEPELIAS}' created."
+    else
+        echo "Network '${NETWORK_BEPELIAS}' already exists."
+    fi
+
+    # Connect pelias_api to network_bepelias
+    docker network connect ${NETWORK_BEPELIAS} pelias_api             2>&1 | grep -v "already exists"
+    docker network connect ${NETWORK_BEPELIAS} pelias_elasticsearch   2>&1 | grep -v "already exists"
+    docker network connect ${NETWORK_BEPELIAS} pelias_interpolation   2>&1 | grep -v "already exists"
+
 
     cd -
     set +x

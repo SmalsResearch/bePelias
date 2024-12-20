@@ -287,4 +287,5 @@ Each record contains a "precision" field, giving information about the first fea
 - /geocode --> /addresses ?
 - /searchCity --> /cities ?
 - Migrate from Flask to FastAPI?
+- Is sed/.../ in docker-compose still needed (build pelias)?
 

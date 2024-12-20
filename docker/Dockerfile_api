@@ -7,4 +7,4 @@ COPY scripts/start_api.sh bepelias.py pelias.py utils.py ./
 
 CMD "./start_api.sh"
 
-EXPOSE 4001
+# EXPOSE 4001

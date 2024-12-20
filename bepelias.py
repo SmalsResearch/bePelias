@@ -62,10 +62,29 @@ if env_pelias_host:
     logging.info("get PELIAS_HOST from env: %s", env_pelias_host)
     pelias_host = env_pelias_host
 else:
-    pelias_host = "10.0.2.15:4000"
-    logging.info("Use default osm host: %s", pelias_host)
+    logging.error("Missing PELIAS_HOST in docker-compose.yml or environment variable")
+    sys.exit(1)
 
-pelias = Pelias(domain=pelias_host)
+env_pelias_elastic = os.getenv('PELIAS_ES_HOST')
+if env_pelias_elastic:
+    logging.info("get PELIAS_ES_HOST from env: %s", env_pelias_elastic)
+    pelias_es_host = env_pelias_elastic
+else:
+    logging.error("Missing PELIAS_ES_HOST in docker-compose.yml or environment variable")
+    sys.exit(1)
+
+env_pelias_interpol = os.getenv('PELIAS_INTERPOL_HOST')
+if env_pelias_interpol:
+    logging.info("get PELIAS_INTERPOL_HOST from env: %s", env_pelias_interpol)
+    pelias_interpol_host = env_pelias_interpol
+else:
+    logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
+    sys.exit(1)
+
+
+pelias = Pelias(domain_api=pelias_host,
+                domain_elastic=pelias_es_host,
+                domain_interpol=pelias_interpol_host)
 
 log("test Pelias: ")
 try:

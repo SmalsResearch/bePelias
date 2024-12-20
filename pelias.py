@@ -25,7 +25,9 @@ class Pelias:
     """
     def __init__(
             self,
-            domain,
+            domain_api,
+            domain_elastic,
+            domain_interpol,
             scheme="http",
     ):
 
@@ -36,22 +38,24 @@ class Pelias:
 
         self.verbose = False
         self.scheme = scheme
-        self.domain = domain.strip('/')
+        self.domain_api = domain_api.strip('/')
+        self.domain_elastic = domain_elastic.strip('/')
+        self.domain_interpol = domain_interpol.strip('/')
 
         self.geocode_api = (
-            f'{self.scheme}://{self.domain}{self.geocode_path}'
+            f'{self.scheme}://{self.domain_api}{self.geocode_path}'
         )
 
         self.geocode_struct_api = (
-            f'{self.scheme}://{self.domain}{self.geocode_struct_path}'
+            f'{self.scheme}://{self.domain_api}{self.geocode_struct_path}'
         )
 
         self.interpolate_api = (
-            f'{self.scheme}://{self.domain.replace("4000", "4300")}{self.interpolate_path}'
+            f'{self.scheme}://{self.domain_interpol}{self.interpolate_path}'
         )
 
         self.elastic_api = (
-            f'{self.scheme}://{self.domain.replace("4000", "9200")}'
+            f'{self.scheme}://{self.domain_elastic}'
         )
 
     def call_service(self, url, nb_attempts=6):
