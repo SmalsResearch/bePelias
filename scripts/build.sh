@@ -48,6 +48,7 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
     mkdir -p $DIR
     cp pelias.json $DIR
     cp pelias/projects/belgium/elasticsearch.yml  $DIR
+    cp pelias/projects/belgium/docker-compose.yml  $DIR
 
     # Change config to allow interpolation to be public
     # cp  pelias/projects/belgium/elasticsearch.yml  $DIR
