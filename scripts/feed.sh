@@ -20,6 +20,14 @@ PELIAS="$(pwd)/pelias/pelias"
 
 DOCKER=docker # or podman?
 
+
+if [[ $REGION == "all" ]] ; then
+    R="*"
+else
+    R=$REGION
+fi
+
+
 # Choose docker compose or docker-compose command
 if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE="docker-compose"
@@ -37,7 +45,7 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION ==  "all" ]]; then
     date
     set -x
     
-    rm -f data/bestaddresses_*.csv
+    rm -f data/bestaddresses_*be$R.csv
     
     mkdir -p data
     
@@ -76,7 +84,7 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
         cp pelias.json $DIR
     fi
 
-    mv -f data/bestaddresses_*.csv $DIR/data
+    mv -f data/bestaddresses_*be$R.csv $DIR/data
     echo "" > $DIR/data/nodata.csv
 
     echo "Import addresses"
@@ -93,9 +101,20 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     cd -
 
-    rm -f $DIR/data/bestaddresses_*.csv
-
     echo "Import done"
+    echo 
+    set +x
+fi
+
+
+if [[ $ACTION == "clean" || $ACTION ==  "all" ]] ; then
+    echo "Clean"
+    
+    set -x
+
+    rm -f $DIR/data/bestaddresses_*be$R.csv
+
+    echo "Clean done"
     echo 
     set +x
 fi

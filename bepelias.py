@@ -552,7 +552,7 @@ class GetById(Resource):
             obj_type = "address"
         elif mtch[2].lower() in ["streetname", "straatnaam"]:
             obj_type = "street"
-        elif mtch[2].lower() in ["municipality", "gemeente"]:
+        elif mtch[2].lower() in ["municipality", "gemeente", "partofmunicipality"]:
             obj_type = "locality"
         else:
             namespace.abort(400, f"Object type '{mtch[2]}' not supported so far in '{bestid}'")

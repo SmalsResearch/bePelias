@@ -44,10 +44,23 @@ Steps (short version):
 
 ### Feed
 
-- `./scripts/feed.sh prepare_csv`: Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
-- `./scripts/feed.sh update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
-- `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data (vlg: Flanders ; wal: Wallonia)
-- `./scripts/feed.sh update bru`: Update only Brussels data
+- `./scripts/feed.sh <operation> <region>`, where:
+    - `<operation>` in:
+        - `prepare_csv`: Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
+        - `update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
+        - `clean`: delete CSV files (useless after load) 
+        - `all` (default): `prepare_csv + update + clean`
+    - `<region>` in:
+        - `bru`: Brussels
+        - `wal`: Wallonia
+        - `vlg`: Flanders
+        - `all` (default): Belgium
+- Examples:
+    - `./scripts/feed.sh prepare_csv`: Prepare CSV (for all regions)
+    - `./scripts/feed.sh update`: Load files (prepared par `prepare_csv`)
+    - `./scripts/feed.sh all bru`: Prepare and update only Brussels data 
+    - `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data 
+    - `./scripts/feed.sh update bru`: Update only Brussels data
 
 ### Run
 
@@ -274,6 +287,259 @@ Each record contains a "precision" field, giving information about the first fea
 - city: Only city/postcode were matched. Most of the time, we do not get any BeSt result, by only OpenStreetMap or Whosonfirst values 
 - country: Only element larger that a city are matched (region, province...)
 
+# Architecture
+
+To be developed...
+
+```mermaid
+
+flowchart TB
+    subgraph network:belgium_bepelias_default 
+        subgraph pelias
+            api1[api:4000]
+            interp[interpolation:4300]
+            es[elasticsearch:9200]
+            import[csv-importer]
+
+        end
+        subgraph bepelias
+            api2[api]-- /v1/search-->api1
+            api2[api]-- /v1/search/structured-->api1
+            api2-- /search/geojson-->interp
+            api2-- /search -->es
+            dataprep
+        end
+    end
+
+```
+# Logical Data model
+
+To be developed...
+
+## Flat Data model
+
+### Address precision
+
+```mermaid 
+---
+  config:
+    class:
+      hideEmptyMembersBox: true
+---
+classDiagram
+class Item {
+    bestId
+    coordinates.lat/lon
+    housenumber
+    status
+    precison:address**
+}
+class BoxInfo {
+    addressId
+    coordinates.lat/lon
+    boxNumber
+    status
+}
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+class PartOfMunicipality{
+    id
+    name.fr/nl/de
+}
+Item "1" -- "0..*" BoxInfo
+Item "0..*" -- "1" Street
+Item "1..*" -- "1" Municipality
+Item "1..*" -- "0..1" PartOfMunicipality
+Item "1..*" -- "1" PostalInfo
+```
+### Street precision
+
+
+```mermaid 
+classDiagram
+class Item {
+    coordinates.lat/lon
+    precison:street**
+}
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+class PartOfMunicipality{
+    id
+    name.fr/nl/de
+}
+Item "1" -- "1" Street
+Item "1..*" -- "1" Municipality
+Item "1..*" -- "0..1" PartOfMunicipality
+Item "1..*" -- "1" PostalInfo
+```
+
+
+### City precision
+
+
+```mermaid 
+classDiagram
+class Item {
+    coordinates.lat/lon
+    precison:city
+    name
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+class PartOfMunicipality{
+    id
+    name.fr/nl/de
+}
+
+Item "1..*" -- "0..1" Municipality
+Item "1..*" -- "0..1" PartOfMunicipality
+Item "1..*" -- "0..1" PostalInfo
+```
+
+## Street to municipality model 
+
+```mermaid 
+classDiagram
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+class PartOfMunicipality{
+    id
+    name.fr/nl/de
+}
+
+Street "1..*" --  "1" Municipality
+Street "1..*" --  "1..*" PostalInfo
+Street "1..*" --  "1..*" PartOfMunicipality
+
+PostalInfo "1..*" --  "1..*" Municipality
+PartOfMunicipality "1..*" --  "1" Municipality
+PartOfMunicipality "1..*" --  "1" PostalInfo
+```
+
+### BRU
+
+
+```mermaid 
+classDiagram
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+
+Street "1..*" --  "1" Municipality
+Street "1..*" --  "1..*" PostalInfo
+
+PostalInfo "1..*" --  "1..*" Municipality
+```
+
+### WAL
+
+
+```mermaid 
+classDiagram
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+}
+class PartOfMunicipality{
+    id
+    name.fr/nl/de
+}
+
+
+Street "1..*" --  "1..*" PartOfMunicipality
+PartOfMunicipality "1..*" --  "1" PostalInfo
+PostalInfo "1..*" --  "1" Municipality
+
+Street "1..*" --  "1" Municipality
+
+```
+
+### VLG
+
+
+
+```mermaid 
+classDiagram
+class Street{
+    id
+    name.fr/nl/de
+}
+class Municipality {
+    id
+    code
+    name.fr/nl/de
+}
+class PostalInfo {
+    postalCode
+    name.fr/nl/de
+}
+
+Street "1..*" --  "1..*" PostalInfo
+PostalInfo "1..*" --  "1" Municipality
+
+Street "1..*" --  "1" Municipality
+```
+
+
+
 # Todo
 
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
@@ -287,5 +553,4 @@ Each record contains a "precision" field, giving information about the first fea
 - /geocode --> /addresses ?
 - /searchCity --> /cities ?
 - Migrate from Flask to FastAPI?
-- Is sed/.../ in docker-compose still needed (build pelias)?
 

@@ -93,14 +93,15 @@ fi
 if [[ $ACTION == "cleanup" ]]; then
     set -x
     cd $DIR
-    
-    # Shut down Pelias and remove images
-    echo "Cleaning Pelias..."
-    $PELIAS compose down --rmi all
 
     # Shut down bePelias and remove images
     echo "Cleaning bePelias..."
     $DOCKER_COMPOSE down --rmi all
+
+
+    # Shut down Pelias and remove images
+    echo "Cleaning Pelias..."
+    $PELIAS compose down --rmi all
 
     # Remove data folders
     echo "Removing data folders..."
