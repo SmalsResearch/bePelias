@@ -887,6 +887,17 @@ def get_precision(feature):
     return "[todo]"
 
 
+def add_precision(pelias_res):
+    # log("add precision")
+    for feat in pelias_res["features"]:
+        if "bepelias" not in feat:
+            feat["bepelias"] = {}
+        feat["bepelias"]["precision"] = get_precision(feat)
+
+    # log(pelias_res)
+    # log("--------")
+    
+
 def advanced_mode(street_name, house_number, post_code, post_name, pelias):
     """The full logic of bePelias
 
@@ -934,10 +945,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
                 if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
                     pelias_res["bepelias"]["pelias_call_count"] = call_cnt
-                    for feat in pelias_res["features"]:
-                        if "bepelias" not in feat:
-                            feat["bepelias"] = {}
-                        feat["bepelias"]["precision"] = get_precision(feat)
+                    add_precision(pelias_res)
                     return pelias_res
                 all_res.append(pelias_res)
         if sum(len(r["features"]) for r in all_res) > 0:
@@ -1002,10 +1010,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
         final_res["bepelias"]["pelias_call_count"] = call_cnt
 
-        for feat in final_res["features"]:
-            if "bepelias" not in feat:
-                feat["bepelias"] = {}
-            feat["bepelias"]["precision"] = get_precision(feat)
+        add_precision(final_res)
 
         return final_res
     

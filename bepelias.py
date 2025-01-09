@@ -29,7 +29,8 @@ from elasticsearch.exceptions import ElasticsearchWarning
 
 from utils import (log, vlog, get_arg,
                    build_address, to_rest_guidelines,
-                   build_city, struct_or_unstruct, advanced_mode)
+                   struct_or_unstruct, advanced_mode,
+                   add_precision)
 
 from pelias import Pelias, PeliasException
 
@@ -403,27 +404,18 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
         try:
 
-            if mode in ("basic", "pelias_struct"):
+            if mode in ("basic"):
                 pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
                                              "postalcode": post_code,
                                              "locality": post_name})
-
-                return to_rest_guidelines(pelias_res, withPeliasResult)
-
-            if mode == "pelias_struct_noloc":
-                pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
-                                            "postalcode": post_code})
-
-                return to_rest_guidelines(pelias_res, withPeliasResult)
-
-            if mode == "pelias_unstruct":
-                addr = build_address(street_name, house_number) + ", " + build_city(post_code, post_name)
-                pelias_res = pelias.geocode(addr)
+                add_precision(pelias_res)
 
                 return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "simple":
                 pelias_res = struct_or_unstruct(street_name, house_number, post_code, post_name, pelias)
+                add_precision(pelias_res)
+
                 return to_rest_guidelines(pelias_res, withPeliasResult)
 
             if mode == "advanced":
