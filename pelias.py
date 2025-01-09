@@ -33,7 +33,7 @@ class Pelias:
 
         self.geocode_path = '/v1/search'
         self.geocode_struct_path = '/v1/search/structured'
-
+        self.reverse_path = '/v1/reverse'
         self.interpolate_path = '/search/geojson'
 
         self.verbose = False
@@ -44,6 +44,10 @@ class Pelias:
 
         self.geocode_api = (
             f'{self.scheme}://{self.domain_api}{self.geocode_path}'
+        )
+
+        self.reverse_api = (
+            f'{self.scheme}://{self.domain_api}{self.reverse_path}'
         )
 
         self.geocode_struct_api = (
@@ -144,6 +148,45 @@ class Pelias:
             params["layers"] = layers
 
         url = self.geocode_struct_api if struct else self.geocode_api
+
+        params = urllib.parse.urlencode(params)
+
+        url = f"{url}?{params}"
+        vlog(f"Call to Pelias: {url}")
+
+        return self.call_service(url)
+
+    def reverse(self, lat, lon, radius, size):
+        """
+        Call Pelias reverse geocoder
+
+        Parameters
+        ----------
+            - lat: latitude (float)
+            - lon: longitude (float)
+            - radius: distance in kilometers from (lat, lon) to search for results
+            - size: maximal number of results
+
+        Raises
+        ------
+        PeliasException
+            If anything went wrong while calling Pelias.
+
+        Returns
+        -------
+        res : str
+            Pelias result.
+        """
+
+        params = {
+            "point.lat": lat,
+            "point.lon": lon,
+            "boundary.circle.radius": radius,
+            "size": size,
+            "layers": "address"
+        }
+
+        url = self.reverse_api
 
         params = urllib.parse.urlencode(params)
 

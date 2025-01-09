@@ -197,6 +197,36 @@ id_parser.add_argument('bestid',
                        location='query'
                        )
 
+
+reverse_parser = reqparse.RequestParser()
+reverse_parser.add_argument('lat',
+                            type=float,
+                            help="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
+                            default=50.83582,
+                            )
+reverse_parser.add_argument('lon',
+                            type=float,
+                            help="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
+                                 "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
+                            default=4.33844
+                            )
+reverse_parser.add_argument('radius',
+                            type=float,
+                            help="Distance (in kilometers)",
+                            default=1,
+                            )
+reverse_parser.add_argument('size',
+                            type=int,
+                            help="Maximal number of results (default: 10; maximum: 20)",
+                            default=10
+                            )
+
+reverse_parser.add_argument('withPeliasResult',
+                            type=bool,
+                            default=False,
+                            help="If True, return Pelias result as such in 'peliasRaw'.",
+                            )
+
 name_model = namespace.model("ItemNameModel", {
     "fr":  fields.String(example="Avenue Fonsny",
                          description="Entity (street, municipality...) name in French",
@@ -357,10 +387,8 @@ class Geocode(Resource):
     """ Single address geocoding"""
 
     @namespace.expect(single_parser)
-    # @namespace.response(400, 'Error in arguments', model=error_400_model)  # , mimetype="application/problem+json" , namespace.model("ProblemModel", {"Content-Type": "application/problem+json"}))
     @namespace.response(500, 'Internal Server error')
     @namespace.response(400, 'Error in arguments')
-    # @namespace.marshal_with(error_400_model, code=400, description='Error in arguments...')
     @namespace.marshal_with(geocode_output_model,
                             description='Found one or several matches for this address',
                             skip_none=True)
@@ -387,7 +415,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         elif withPeliasResult.lower() == "true":
             withPeliasResult = True
         else:
-            namespace.abort(400, f"Invalid withPeliasResult value ({mode}). Should be 'true' or 'false'")
+            namespace.abort(400, f"Invalid withPeliasResult value ({withPeliasResult}). Should be 'true' or 'false'")
 
         if street_name:
             street_name = street_name.strip()
@@ -430,6 +458,85 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             return {"error": str(exc)}, 500
 
         return "Wrong mode!"  # Should neve occur...
+
+
+@namespace.route('/reverse')
+class Reverse(Resource):
+    """ Reverse geocoding"""
+
+    @namespace.expect(reverse_parser)
+    @namespace.response(500, 'Internal Server error')
+    @namespace.response(400, 'Error in arguments')
+    @namespace.marshal_with(geocode_output_model,
+                            description='Found one or several matches within the given radius (in km) of point (lat, lon)',
+                            skip_none=True)
+    def get(self):
+        """
+Reverse geocoding
+
+        """
+
+        log("reverse")
+
+        lat = get_arg("lat", None)
+        lon = get_arg("lon", None)
+
+        radius = get_arg("radius", 1)
+        size = get_arg("size", 10)
+
+        withPeliasResult = get_arg("withPeliasResult", "False")
+        if withPeliasResult.lower() == "false":
+            withPeliasResult = False
+        elif withPeliasResult.lower() == "true":
+            withPeliasResult = True
+        else:
+            namespace.abort(400, f"Invalid withPeliasResult value ({withPeliasResult}). Should be 'true' or 'false'")
+
+        if lat:
+            try:
+                lat = float(lat)
+            except ValueError:
+                namespace.abort(400, "Argument 'lat' should be a float number")
+        else:
+            namespace.abort(400, "Argument 'lat' mandatory")
+
+        if lon:
+            try:
+                lon = float(lon)
+            except ValueError:
+                namespace.abort(400, "Argument 'lon' should be a float number")
+        else:
+            namespace.abort(400, "Argument 'lon' mandatory")
+
+        try:
+            radius = float(radius)
+        except ValueError:
+            namespace.abort(400, "Argument 'radius' should be a float number")
+
+        try:
+            size = int(size)
+        except ValueError:
+            namespace.abort(400, "Argument 'size' should be a integer")
+
+        log(f"Request: ({lat}, {lon}) / radius: {radius} / size:{size} ")
+
+        try:
+            # Note: max size for Pelias = 40. But as most records are duplicated in Pelias (one record in each languages for bilingual regions,
+            # we first take twice too many results)
+            pelias_res = pelias.reverse(lat=lat,
+                                        lon=lon,
+                                        radius=radius,
+                                        size=size*2)
+
+            res = to_rest_guidelines(pelias_res, withPeliasResult)
+
+            res["items"] = res["items"][0:size]
+            res["total"] = len(res["items"])
+            return res
+        except PeliasException as exc:
+            log("Exception during process: ")
+            log(exc)
+            return {"error": str(exc)}, 500
 
 
 @namespace.route('/searchCity')

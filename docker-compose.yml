@@ -1,4 +1,3 @@
-version: "3"
 services:
     base:
         build:
@@ -24,6 +23,7 @@ services:
             - belgium_bepelias_default  
         image: bepelias/api
         container_name: bepelias_api
+        restart: always
 
     dataprep:
         depends_on:

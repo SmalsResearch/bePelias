@@ -547,10 +547,10 @@ Street "1..*" --  "1" Municipality
 - add a "reverse" endpoint
 - clean variable names in prepare_best_file
 - model: split "name" in name street, name municipality... ?
-- delete "retired" ? low priority ?
+- delete "retired"? low priority ?
 - get by id for postalname, part of mun
 - postalcode --> code (in postalInfo ?)
-- /geocode --> /addresses ?
-- /searchCity --> /cities ?
+- /geocode --> /addresses?
+- /searchCity --> /cities?
 - Migrate from Flask to FastAPI?
 
