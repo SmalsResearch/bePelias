@@ -300,16 +300,28 @@ flowchart TB
             interp[interpolation:4300]
             es[elasticsearch:9200]
             import[csv-importer]
+            interpolation
 
         end
         subgraph bepelias
-            api2[api]-- /v1/search-->api1
-            api2[api]-- /v1/search/structured-->api1
+            api2[api:4001]
+            api2-- /v1/search
+            /v1/search/structured-->api1
             api2-- /search/geojson-->interp
             api2-- /search -->es
             dataprep
         end
     end
+    client --/geocode
+     /geocode/unstructured
+     /health
+     /id/{bestid}
+     /reverse
+     /searchCity
+      --> api2
+      feed -. [1 run] .-> dataprep
+      feed -. [2 run] .-> import
+      feed -. [2 run] .-> interpolation
 
 ```
 # Logical Data model
@@ -389,7 +401,7 @@ class PartOfMunicipality{
     id
     name.fr/nl/de
 }
-Item "1" -- "1" Street
+Item "1..*" -- "1" Street
 Item "1..*" -- "1" Municipality
 Item "1..*" -- "0..1" PartOfMunicipality
 Item "1..*" -- "1" PostalInfo
@@ -551,4 +563,5 @@ Street "1..*" --  "1" Municipality
 - implementing "size" parameter for search call
 - unstructured:
     - interp if coords = 0,0
-    - improve "transformers" in output to be more explicit
+    - improve "transformers" in output to be more explicit  
+- Rename single_parser into geocode_parser

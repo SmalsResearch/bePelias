@@ -383,6 +383,20 @@ geocode_output_model = namespace.model("GeocodeOutput", {
                            skip_none=True),
     }, skip_none=True)
 
+reverse_output_model = namespace.model("ReverseOutput", {
+    "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
+                            example="http://<hostname>/REST/bepelias/v1/reverse?lat=yy&lon=xx&radius=0.1&size=5",
+                            ),
+    "items":  fields.List(fields.Nested(item_model, skip_none=True), skip_none=True),
+    "total":  fields.Integer(description="Total number of items",
+                             example=1),
+    "peliasRaw": fields.Raw(default=None,
+                            description="Result provided by underlying Pelias. Only with 'witPeliasResult:true",
+                            skip_none=True),
+    "error": fields.String(description="Error message",
+                           skip_none=True),
+    }, skip_none=True)
+
 
 search_city_output_model = namespace.model("SearchCityOutput", {
     "self":   fields.String(description="Absolute URI (http or https) to the the resource's own location.",
@@ -557,7 +571,7 @@ class Reverse(Resource):
     @namespace.expect(reverse_parser)
     @namespace.response(500, 'Internal Server error')
     @namespace.response(400, 'Error in arguments')
-    @namespace.marshal_with(geocode_output_model,
+    @namespace.marshal_with(reverse_output_model,
                             description='Found one or several matches within the given radius (in km) of point (lat, lon)',
                             skip_none=True)
     def get(self):
