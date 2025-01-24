@@ -326,11 +326,28 @@ flowchart TB
 ```
 # Logical Data model
 
-To be developed...
+Appart from "/health" endpoint, the result of all calls is basically a list of "items", representing a geographical objects, which could be either an address, a street of a "city" (with a broad definition) :
+- With /geocode and /geocode/unstructured, items could be address, street or city depending of the most precise object the engine has been able to find with input
+- With /reverse, items will always be addresses
+- With /id/{bestid}, the list will contain at most one address (if an address BeSt id is provided), a (list of) street(s) (if a street BeSt id is provided) or a (list of) city (if a municipality BeSt id is provided).
+
+Note that a "city" is the combination of a municipality, a postal code, and, if applicable (in WAL), a part of municipality. It this then the lowest level of administrative entity.
+
+Unfortunatly, the BeSt address structure is not uniform, with differences between the three regions.
+
+
+
 
 ## Flat Data model
 
 ### Address precision
+
+In the case of an address, a item will gather some attributes specific to an address (a BeSt id, a housenumber, as status, as well a two coordinates), but also references to high level objects:
+- The street this address belongs to (BeSt id + names)
+- The municipality ("commune/gemeente") (BeSt id, names and 'NIS' code)
+- The postal infos (postal code, and, in BRU and VLG, a postal name)
+- In WAL, a "part of municipality" (BeSt id + names)
+- If an address contains several boxes, a list of boxes (with BeSt Id, coordinates, box number and status)
 
 ```mermaid 
 ---
@@ -375,8 +392,16 @@ Item "1..*" -- "1" Municipality
 Item "1..*" -- "0..1" PartOfMunicipality
 Item "1..*" -- "1" PostalInfo
 ```
+
+Notes about cardinalities: 
+- An address could have 0, 1 or several boxes. But a box BeSt Id is always linked to a single (main) address
+- A street could be "empty", without any address
+- An address is linked to (exactely) one "Part of Municipality" in Wallonia, but not in other regions
+
 ### Street precision
 
+
+In the case of a street item, we'll find the same elements as for address, behalve housenumber, status, and box info
 
 ```mermaid 
 classDiagram
@@ -410,13 +435,15 @@ Item "1..*" -- "1" PostalInfo
 
 ### City precision
 
+In case of a city precision item, we'll have the same scheme as for street items, behalve "Street" objects.
+
+If a result has been found in BeSt Address, we will have a municipality, a postal info, and, in WAL, a part of municipality.
 
 ```mermaid 
 classDiagram
 class Item {
     coordinates.lat/lon
     precison:city
-    name
 }
 class Municipality {
     id
@@ -432,12 +459,40 @@ class PartOfMunicipality{
     name.fr/nl/de
 }
 
-Item "1..*" -- "0..1" Municipality
-Item "1..*" -- "0..1" PartOfMunicipality
-Item "1..*" -- "0..1" PostalInfo
+Item "1..*" -- "1" Municipality
+Item "1..*" -- "1" PartOfMunicipality
+Item "1..*" -- "1" PostalInfo
 ```
 
+But if no result was found in BeSt Address, we could return result from WhosonFirst, and have in this case only "name" value in Item.
+
+```mermaid 
+classDiagram
+class Item {
+    coordinates.lat/lon
+    precison:city
+    name
+}
+
+```
+
+
 ## Street to municipality model 
+
+Beside the fact that items will "point" to one street, municipality, postal info, and, optionaly, one part of municipality, it is important to understand the relationships between those items. For instance, and address will never reference a Flemish municipality and a Walloon postal code.
+
+The first diagram is generic, because it combines the characteristics of all regions. It's easier to first consider each region appart.
+
+Two general facts: 
+- There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street
+- There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal code within the same municipality, keeping its id
+
+The general id is that a municipality is composed of several post codes, and those post codes will contain one or more "locality". But : 
+- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all 'locality names'
+- In BRU, all post codes contain one locality (with name into postal info)
+- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by 'part of municipality')
+
+[Following plot might be useless]
 
 ```mermaid 
 classDiagram
@@ -470,6 +525,8 @@ PartOfMunicipality "1..*" --  "1" PostalInfo
 
 ### BRU
 
+In BRU, municipality boundaries are slighly different from postal code boundaries. For instance, most addresses of "1040" are in "Etterbeek", but a few of them are in "Brussels". A postal code is then not always a subset of a municipality. This implies a "1..\*" -- "1..\*" relationships between PostalInfo and Municipality.
+
 
 ```mermaid 
 classDiagram
@@ -494,6 +551,9 @@ PostalInfo "1..*" --  "1..*" Municipality
 ```
 
 ### WAL
+
+In Wallonia, a postal code is always a subset of a municipality, and a part of municipality a subset of a postal code. 
+A street can cross several part of municipalities or postal codes, but not municipality.
 
 
 ```mermaid 
@@ -526,6 +586,9 @@ Street "1..*" --  "1" Municipality
 ### VLG
 
 
+In Flanders, a postal code is always a subset of a municipality. 
+A street can cross several postal codes, but not municipality.
+
 ```mermaid 
 classDiagram
 class Street{
@@ -550,15 +613,15 @@ Street "1..*" --  "1" Municipality
 
 # Todo
 
-- Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - autocomplete in place of unstructured
 - clean variable names in prepare_best_file
 - model: split "name" in name street, name municipality... ?
 - delete "retired"? low priority ?
 - get by id for postalname, part of mun
 - postalcode --> code (in postalInfo ?)
-- /geocode --> /addresses?
-- /searchCity --> /cities?
+- /geocode --> /addresses? /searchCity --> /cities?  /addresses/structured + /addresses/unstructured + /addresses/reverse
+
+
 - Migrate from Flask to FastAPI?
 - implementing "size" parameter for search call
 - unstructured:

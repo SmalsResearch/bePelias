@@ -135,6 +135,13 @@ if with_https == "YES":
 
     Api.specs_url = specs_url
 
+
+###################
+#  Input parsers  #
+###################
+
+# For /geocode
+
 single_parser = reqparse.RequestParser()
 
 single_parser.add_argument('mode',
@@ -179,6 +186,8 @@ single_parser.add_argument('withPeliasResult',
                            help="If True, return Pelias result as such in 'peliasRaw'.",
                            )
 
+# For /geocode/unstructured
+
 unstructured_parser = reqparse.RequestParser()
 
 unstructured_parser.add_argument('mode',
@@ -204,6 +213,7 @@ unstructured_parser.add_argument('withPeliasResult',
                                  help="If True, return Pelias result as such in 'peliasRaw'.",
                                  )
 
+# For /searchCity
 
 city_search_parser = reqparse.RequestParser()
 city_search_parser.add_argument('postCode',
@@ -218,6 +228,8 @@ city_search_parser.add_argument('postName',
                                 help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                                 )
 
+# For /id/<bestid>
+
 id_parser = reqparse.RequestParser()
 id_parser.add_argument('bestid',
                        type=str,
@@ -226,6 +238,7 @@ id_parser.add_argument('bestid',
                        location='query'
                        )
 
+# For /reverse
 
 reverse_parser = reqparse.RequestParser()
 reverse_parser.add_argument('lat',
@@ -255,6 +268,11 @@ reverse_parser.add_argument('withPeliasResult',
                             default=False,
                             help="If True, return Pelias result as such in 'peliasRaw'.",
                             )
+
+
+##################
+#  Ouput models  #
+##################
 
 name_model = namespace.model("ItemNameModel", {
     "fr":  fields.String(example="Avenue Fonsny",
@@ -422,8 +440,10 @@ health_output_model = namespace.model("HealthOutput", {
                               example="", skip_none=True),
     }, skip_none=True)
 
-# error_400_model = namespace.model("Error400Output", {}, skip_none=True, example="test", default="test")
 
+##############
+#  /geocode  #
+##############
 
 @namespace.route('/geocode')
 class Geocode(Resource):
@@ -501,6 +521,11 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         return "Wrong mode!"  # Should neve occur...
 
 
+###########################
+#  /geocode/unstructured  #
+###########################
+
+
 @namespace.route('/geocode/unstructured')
 class GeocodeUnstructured(Resource):
     """ Single (unstructured) address geocoding"""
@@ -563,6 +588,10 @@ class GeocodeUnstructured(Resource):
 
         return "Wrong mode!"  # Should neve occur...
 
+
+##############
+#  /reverse  #
+##############
 
 @namespace.route('/reverse')
 class Reverse(Resource):
@@ -643,6 +672,11 @@ Reverse geocoding
             return {"error": str(exc)}, 500
 
 
+#################
+#  /searchCity  #
+#################
+
+
 @namespace.route('/searchCity')
 class SearchCity(Resource):
     """ Search city level results"""
@@ -706,6 +740,11 @@ Search a city based on a postal code or a name (could be municipality name, part
             return {"error": f"Cannot connect to Elastic: {exc}"}, 500
 
 
+##################
+#  /id/<bestid>  #
+##################
+
+
 @namespace.route('/id/<string:bestid>')
 @namespace.param('bestid',
                  type=str,
@@ -733,12 +772,6 @@ class GetById(Resource):
 
         if "%2F" in bestid:
             bestid = unquote_plus(bestid)
-        # log(f"{(bestid, a1, a2, a3, a4, a5)}")
-        # if a1 and "http" in bestid:
-        #      bestid += "/"
-        # for a in [a1, a2, a3, a4, a5]:
-        #     if a :
-        #         bestid += "/"+a
 
         log(f"get by id: {bestid}")
 
@@ -801,6 +834,10 @@ class GetById(Resource):
 
             return f"Cannot connect to Elastic: {exc}", 500
 
+#############
+#  /health  #
+#############
+
 
 @namespace.route('/health', methods=['GET'])
 class Health(Resource):
@@ -844,7 +881,7 @@ class Health(Resource):
                                             number=20,
                                             street="Avenue Fonsny")
             log(interp_res)
-            if len({}) > 0 and "geometry" not in interp_res:
+            if len(interp_res) > 0 and "geometry" not in interp_res:
                 return {
                     "status": "DEGRADED",
                     "details": {
