@@ -30,7 +30,7 @@ from elasticsearch.exceptions import ElasticsearchWarning
 from utils import (log, vlog, get_arg,
                    build_address, to_rest_guidelines,
                    struct_or_unstruct, advanced_mode,
-                   add_precision)
+                   add_precision, unstructured_mode)
 
 from pelias import Pelias, PeliasException
 
@@ -123,7 +123,9 @@ namespace = api.namespace(
 with_https = os.getenv('HTTPS', "NO").upper().strip()
 
 if with_https == "YES":
+    log("with https")
     # It runs behind a reverse proxy
+
     @property
     def specs_url(self) -> str:
         """
@@ -170,11 +172,38 @@ single_parser.add_argument('postName',
                            help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
                            )
 
+
 single_parser.add_argument('withPeliasResult',
                            type=bool,
                            default=False,
                            help="If True, return Pelias result as such in 'peliasRaw'.",
                            )
+
+unstructured_parser = reqparse.RequestParser()
+
+unstructured_parser.add_argument('mode',
+                                 type=str,
+                                 choices=('basic', 'advanced'),
+                                 default='advanced',
+                                 help="""
+How Pelias is used:
+
+- basic: Just call the unstructured version of Pelias
+- advanced: Try several variants until it gives a result""")
+
+unstructured_parser.add_argument('address',
+                                 type=str,
+                                 default='Avenue Fonsny 20, 1060 Saint-Gilles',
+                                 help="The whole address in a single string",
+                                 )
+
+
+unstructured_parser.add_argument('withPeliasResult',
+                                 type=bool,
+                                 default=False,
+                                 help="If True, return Pelias result as such in 'peliasRaw'.",
+                                 )
+
 
 city_search_parser = reqparse.RequestParser()
 city_search_parser.add_argument('postCode',
@@ -401,7 +430,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         log("geocode")
 
         mode = get_arg("mode", "advanced")
-        if mode not in ["basic", "simple", "advanced", "pelias_struct", "pelias_struct_noloc", "pelias_unstruct"]:
+        if mode not in ["basic", "simple", "advanced"]:
             namespace.abort(400, f"Invalid mode {mode}")
 
         street_name = get_arg("streetName", None)
@@ -427,11 +456,9 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             post_name = post_name.strip()
 
         log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
-
         log(f"Mode: {mode}")
 
         try:
-
             if mode in ("basic"):
                 pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
                                              "postalcode": post_code,
@@ -450,6 +477,69 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
                 vlog("advanced...")
 
                 pelias_res = advanced_mode(street_name, house_number, post_code, post_name, pelias)
+                return to_rest_guidelines(pelias_res, withPeliasResult)
+
+        except PeliasException as exc:
+            log("Exception during process: ")
+            log(exc)
+            return {"error": str(exc)}, 500
+
+        return "Wrong mode!"  # Should neve occur...
+
+
+@namespace.route('/geocode/unstructured')
+class GeocodeUnstructured(Resource):
+    """ Single (unstructured) address geocoding"""
+
+    @namespace.expect(unstructured_parser)
+    @namespace.response(500, 'Internal Server error')
+    @namespace.response(400, 'Error in arguments')
+    @namespace.marshal_with(geocode_output_model,
+                            description='Found one or several matches for this address',
+                            skip_none=True)
+    def get(self):
+        """
+[BETA] Geocode (postal address cleansing and conversion into geographical coordinates) a single address.
+
+        """
+
+        log("geocode unstructured")
+
+        mode = get_arg("mode", "advanced")
+        if mode not in ["basic", "advanced"]:
+            namespace.abort(400, f"Invalid mode {mode}")
+
+        address = get_arg("address", None)
+
+        withPeliasResult = get_arg("withPeliasResult", "False")
+        if withPeliasResult.lower() == "false":
+            withPeliasResult = False
+        elif withPeliasResult.lower() == "true":
+            withPeliasResult = True
+        else:
+            namespace.abort(400, f"Invalid withPeliasResult value ({withPeliasResult}). Should be 'true' or 'false'")
+
+        if address:
+            address = address.strip()
+        else:
+            address.abort(400, "Argument 'address' mandatory")
+
+        log(f"Request: {address}")
+
+        log(f"Mode: {mode}")
+
+        try:
+            if mode in ("basic"):
+                pelias_res = pelias.geocode(address)
+                add_precision(pelias_res)
+
+                return to_rest_guidelines(pelias_res, withPeliasResult)
+
+            if mode == "advanced":
+                vlog("advanced...")
+
+                pelias_res = unstructured_mode(address, pelias)
+
                 return to_rest_guidelines(pelias_res, withPeliasResult)
 
         except PeliasException as exc:

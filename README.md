@@ -509,11 +509,9 @@ PartOfMunicipality "1..*" --  "1" PostalInfo
 PostalInfo "1..*" --  "1" Municipality
 
 Street "1..*" --  "1" Municipality
-
 ```
 
 ### VLG
-
 
 
 ```mermaid 
@@ -538,13 +536,10 @@ PostalInfo "1..*" --  "1" Municipality
 Street "1..*" --  "1" Municipality
 ```
 
-
-
 # Todo
 
 - Unstructured version? Can use direct calls to Pelias, but need parsing to do any "cleansing". Can use "parsed_text" in Pelias result
 - autocomplete in place of unstructured
-- add a "reverse" endpoint
 - clean variable names in prepare_best_file
 - model: split "name" in name street, name municipality... ?
 - delete "retired"? low priority ?
@@ -553,4 +548,7 @@ Street "1..*" --  "1" Municipality
 - /geocode --> /addresses?
 - /searchCity --> /cities?
 - Migrate from Flask to FastAPI?
-
+- implementing "size" parameter for search call
+- unstructured:
+    - interp if coords = 0,0
+    - improve "transformers" in output to be more explicit

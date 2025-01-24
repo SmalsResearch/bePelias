@@ -728,7 +728,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
     addr = re.sub(",$", "", addr).strip()
     vlog(f"Call unstruct: '{addr}'")
     if addr and len(addr.strip()) > 0 and not re.match("^[0-9]+$", addr):
-        # If street name is empty, prevent to receive a "street" of "address" result by setting layers to "locality"
         pelias_unstruct = pelias.geocode(addr, layers=layers)
         cnt = 2
     else:
@@ -888,21 +887,26 @@ def get_precision(feature):
 
 
 def add_precision(pelias_res):
+    """Add 'precision' to each features item
+    Args:
+        pelias_res (dict): pelias result
+
+    Returns:
+        None
+    """
+
     # log("add precision")
     for feat in pelias_res["features"]:
         if "bepelias" not in feat:
             feat["bepelias"] = {}
         feat["bepelias"]["precision"] = get_precision(feat)
 
-    # log(pelias_res)
-    # log("--------")
-    
 
 def advanced_mode(street_name, house_number, post_code, post_name, pelias):
     """The full logic of bePelias
 
     Args:
-        street_name (str): Street nae
+        street_name (str): Street name
         house_number (str): House number
         post_code (str): Postal code
         post_name (str): Post (city/locality/...) name
@@ -1013,5 +1017,88 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
         add_precision(final_res)
 
         return final_res
-    
+
     return {"features": [], "bepelias": {"pelias_call_count": call_cnt}}
+
+
+def call_unstruct(address, pelias):
+    layers = None
+    # If there is no digit in street+housenumber, only keep street and locality layers
+    if re.search("[0-9]", address) is None:
+        layers = "street,locality"
+
+    pelias_unstruct = pelias.geocode(address, layers=layers)
+
+    pelias_unstruct["bepelias"] = {"call_type": "unstruct",
+                                   "in_addr": address,
+                                   "pelias_call_count": 1}
+
+    parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
+
+    log(f"parsed: {parsed}")
+
+    if "postalcode" in parsed:
+        pelias_unstruct = pelias_check_postcode(pelias_unstruct, parsed["postalcode"])
+
+    else:
+        vlog("No postcode in input")
+
+    if "street" in parsed:
+        pelias_unstruct = check_best_streetname(pelias_unstruct, parsed["street"])
+
+    add_precision(pelias_unstruct)
+
+    return pelias_unstruct
+
+
+def unstructured_mode(address, pelias):
+    """The full logic of bePelias when input in unstructured
+
+    Args:
+        address (str): address (unstructured) to geocode
+        pelias (Pelias): Pelias object
+
+    Returns:
+        dict: json result
+    """
+
+    pelias_unstruct = call_unstruct(address, pelias)
+
+    if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
+        return pelias_unstruct
+
+    log("No (address) result with simple unstructured call, try a simple clean")
+    address_clean = address
+
+    remove_patterns_unstruct = [(r"\(.+?\)",  "")]
+
+    for pat, rep in remove_patterns_unstruct:
+        address_clean = re.sub(pat, rep, address_clean)
+
+    if address_clean != address:
+        log(f"cleansed address: '{address_clean}'")
+        log(f"initial  address: '{address}'")
+        pelias_unstruct = call_unstruct(address_clean, pelias)
+        pelias_unstruct["bepelias"]["pelias_call_count"] = 2
+
+        if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
+            return pelias_unstruct
+    else:
+        log("Cleansing has no impact, skip...")
+
+    log("No (address) result with simple unstructured call, try advanced structured mode")
+    # No result with a simple call, try advanced mode
+    parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
+    if "street" in parsed and "postalcode" in parsed:
+        pelias_res = advanced_mode(street_name=parsed["street"],
+                                   house_number=parsed["housenumber"] if "housenumber" in parsed else "",
+                                   post_code=parsed["postalcode"],
+                                   post_name=parsed["city"] if "city" in parsed else "",
+                                   pelias=pelias)
+        pelias_res["bepelias"]["pelias_call_count"] += 2
+        return pelias_res
+    else:
+        log("Cannot parse address, skip...")
+
+    # Advanced mode to applicable, return (empty) initial result
+    return pelias_unstruct
