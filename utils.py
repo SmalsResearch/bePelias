@@ -960,7 +960,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
     log("No building result, keep the best match")
     # Get a score for each result
-    fields = ["housenumber", "street", "locality", "postalcode"]
+    fields = ["housenumber", "street", "locality", "postalcode", "best"]
     scores = []
     for res in all_res:
         score = {}
@@ -991,6 +991,11 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                         score["housescore"] += 0.8
             if res["features"][0]["geometry"]["coordinates"] != [0, 0]:
                 score["coordinates"] = 1.5
+            
+            # log('res["features"]["addendum"]:')
+            # log(res["features"])
+            if "addendum" in res["features"][0]["properties"] and "best" in res["features"][0]["properties"]["addendum"]:
+                score["best"] = 1.0
 
             res["score"] = sum(score.values())
 
@@ -1100,5 +1105,5 @@ def unstructured_mode(address, pelias):
     else:
         log("Cannot parse address, skip...")
 
-    # Advanced mode to applicable, return (empty) initial result
+    # Advanced mode not applicable, return (empty) initial result
     return pelias_unstruct

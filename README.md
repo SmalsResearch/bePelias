@@ -291,17 +291,14 @@ Each record contains a "precision" field, giving information about the first fea
 
 To be developed...
 
+API architecture
 ```mermaid
-
 flowchart TB
     subgraph network:belgium_bepelias_default 
         subgraph pelias
             api1[api:4000]
             interp[interpolation:4300]
             es[elasticsearch:9200]
-            import[csv-importer]
-            interpolation
-
         end
         subgraph bepelias
             api2[api:4001]
@@ -309,7 +306,6 @@ flowchart TB
             /v1/search/structured-->api1
             api2-- /search/geojson-->interp
             api2-- /search -->es
-            dataprep
         end
     end
     client --/geocode
@@ -319,30 +315,56 @@ flowchart TB
      /reverse
      /searchCity
       --> api2
-      feed -. [1 run] .-> dataprep
-      feed -. [2 run] .-> import
-      feed -. [2 run] .-> interpolation
+```
+
+Feed dataflow
+
+1. prepare_csv : dataprep : get files from BOSA, create files in /data/bestaddresses_\*be\*.csv
+2. update : 
+    - copy files to pelias dir
+    - run "pelias import csv"
+    - run "prepare_interpolation.sh" into "pelias/interpolation"
+
+```mermaid
+
+flowchart TB
+    subgraph pelias
+        import[csv-importer]
+        interpolation
+    shared2[(./pelias/projects/belgium_bepelias)]
+    end
+    subgraph bepelias
+        dataprep
+        shared1[(./data/)]
+    end
+    bosa{{opendata.bosa.be}}
+    
+    
+    bosa-.[1 download].-> dataprep
+    dataprep -.[2 ].-> shared1
+    shared1 -.[3 copy].-> shared2
+    shared2 -.[4 pelias import csv].-> import
+    shared2 -.[5 prepare_interpolation].-> interpolation
 
 ```
+
 # Logical Data model
 
-Appart from "/health" endpoint, the result of all calls is basically a list of "items", representing a geographical objects, which could be either an address, a street of a "city" (with a broad definition) :
-- With /geocode and /geocode/unstructured, items could be address, street or city depending of the most precise object the engine has been able to find with input
+Appart from "/health" endpoint, the result of all calls is basically a list of "items", representing geographical objects, which could be either an address, a street of a "city" (with a broad definition) :
+- With /geocode and /geocode/unstructured, items could be an address, a street or a city depending of the most precise object the engine has been able to find with input
 - With /reverse, items will always be addresses
 - With /id/{bestid}, the list will contain at most one address (if an address BeSt id is provided), a (list of) street(s) (if a street BeSt id is provided) or a (list of) city (if a municipality BeSt id is provided).
 
 Note that a "city" is the combination of a municipality, a postal code, and, if applicable (in WAL), a part of municipality. It this then the lowest level of administrative entity.
 
-Unfortunatly, the BeSt address structure is not uniform, with differences between the three regions.
-
-
+Unfortunatly, the BeSt address structure is not uniform, with differences between the three regions that we are going to develop below.
 
 
 ## Flat Data model
 
 ### Address precision
 
-In the case of an address, a item will gather some attributes specific to an address (a BeSt id, a housenumber, as status, as well a two coordinates), but also references to high level objects:
+In the case of an address, a item will gather some attributes specific to an address (a BeSt id, a housenumber, as status, as well a two coordinates), but also references to other level objects:
 - The street this address belongs to (BeSt id + names)
 - The municipality ("commune/gemeente") (BeSt id, names and 'NIS' code)
 - The postal infos (postal code, and, in BRU and VLG, a postal name)
@@ -350,11 +372,6 @@ In the case of an address, a item will gather some attributes specific to an add
 - If an address contains several boxes, a list of boxes (with BeSt Id, coordinates, box number and status)
 
 ```mermaid 
----
-  config:
-    class:
-      hideEmptyMembersBox: true
----
 classDiagram
 class Item {
     bestId
@@ -460,11 +477,11 @@ class PartOfMunicipality{
 }
 
 Item "1..*" -- "1" Municipality
-Item "1..*" -- "1" PartOfMunicipality
+Item "1..*" -- "0..1" PartOfMunicipality
 Item "1..*" -- "1" PostalInfo
 ```
 
-But if no result was found in BeSt Address, we could return result from WhosonFirst, and have in this case only "name" value in Item.
+But if no result was found in BeSt Address, we still could return result from WhosonFirst, and have in this case only "name" value in Item.
 
 ```mermaid 
 classDiagram
@@ -484,13 +501,13 @@ Beside the fact that items will "point" to one street, municipality, postal info
 The first diagram is generic, because it combines the characteristics of all regions. It's easier to first consider each region appart.
 
 Two general facts: 
-- There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street
-- There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal code within the same municipality, keeping its id
+- There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street and one address
+- There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal codes within the same municipality, keeping its id
 
-The general id is that a municipality is composed of several post codes, and those post codes will contain one or more "locality". But : 
-- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all 'locality names'
+The general id is that a municipality is composed of several post codes, and those post codes will contain one or more "localities". But : 
+- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all "locality names"
 - In BRU, all post codes contain one locality (with name into postal info)
-- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by 'part of municipality')
+- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by "part of municipality")
 
 [Following plot might be useless]
 

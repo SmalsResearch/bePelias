@@ -11,6 +11,10 @@ PORT=${IN_PORT:-4001}
     
 echo "Starting service... ($NB_WORKERS workers)" 
 
-gunicorn -w $NB_WORKERS -b 0.0.0.0:$PORT bepelias:app 
+gunicorn -w $NB_WORKERS -b api:$PORT bepelias:app  #&
+
+# echo "starting fastapi"
+
+# fastapi dev bepelias_fastapi.py --host=api
 
 while :; do sleep 3600 ; done
