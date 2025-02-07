@@ -991,7 +991,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
                         score["housescore"] += 0.8
             if res["features"][0]["geometry"]["coordinates"] != [0, 0]:
                 score["coordinates"] = 1.5
-            
+
             # log('res["features"]["addendum"]:')
             # log(res["features"])
             if "addendum" in res["features"][0]["properties"] and "best" in res["features"][0]["properties"]["addendum"]:
@@ -1027,6 +1027,19 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
 
 def call_unstruct(address, pelias):
+    """
+    Call the unstructured version of Pelias with "address" as input
+    If Pelias was able to parse the address (i.e., split it into component),
+    we try to check that the results is not too far away from the input.
+
+    Args:
+        address (str): full address in a single string
+        pelias (Pelias): Pelias object
+
+    Returns:
+        dict: json result
+    """
+
     layers = None
     # If there is no digit in street+housenumber, only keep street and locality layers
     if re.search("[0-9]", address) is None:

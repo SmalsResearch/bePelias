@@ -351,8 +351,8 @@ flowchart TB
 # Logical Data model
 
 Appart from "/health" endpoint, the result of all calls is basically a list of "items", representing geographical objects, which could be either an address, a street of a "city" (with a broad definition) :
-- With /geocode and /geocode/unstructured, items could be an address, a street or a city depending of the most precise object the engine has been able to find with input
-- With /reverse, items will always be addresses
+- With /geocode and /geocode/unstructured, items could be an address, a street or a city depending of the most precise object the engine has been able to find with input;
+- With /reverse, items will always be addresses;
 - With /id/{bestid}, the list will contain at most one address (if an address BeSt id is provided), a (list of) street(s) (if a street BeSt id is provided) or a (list of) city (if a municipality BeSt id is provided).
 
 ## Context
@@ -362,10 +362,10 @@ Each of those municipalities is divided into one or several postal codes, and ea
 
 But this is the theory and each region has implemented this concept in a different fashion in BeSt Address structure:
 - In BRU:   
-    - 18 communes contain only one postal code and one locality, but municipality of "Brussels" has 4 postal codes, each corresponding to one locality (one of them being also named Brussels). Then, no postal code contains more than one locality, and locality names will be stored in the "PostalInfo" objects
-    - The boundaries of the four postal codes of "Bruxelles-ville" (1000, 1130, 1020, 1120) is wider than the "municipality of Brussels". A small part of most surrounding postal codes (1040, 1050, 1030, 1170) surrounding 1000 also belong to "municipality of Brussels". So it is not possible, for several Brussels postal codes, to know the corresponding municipality : it depends of the exact address
-- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all "locality names"
-- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by "part of municipality")
+    - 18 communes contain only one postal code and one locality, but municipality of "Brussels" has 4 postal codes, each corresponding to one locality (one of them being also named Brussels). Then, no postal code contains more than one locality, and locality names will be stored in the "PostalInfo" objects,
+    - The boundaries of the four postal codes of "Bruxelles-ville" (1000, 1130, 1020, 1120) is wider than the "municipality of Brussels". A small part of most surrounding postal codes (1040, 1050, 1030, 1170) surrounding 1000 also belong to "municipality of Brussels". So it is not possible, for several Brussels postal codes, to know the corresponding municipality : it depends of the exact address;
+- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all "locality names";
+- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by "part of municipality").
 
 
 Note that in the following, a "city" is the combination of a municipality, a postal code, and, if applicable (in WAL), a part of municipality. It this then the lowest level of administrative entity.
@@ -375,12 +375,12 @@ Note that in the following, a "city" is the combination of a municipality, a pos
 
 ### Address precision
 
-In the case of an address, a item will gather some attributes specific to an address (a BeSt id, a housenumber, as status, as well a two coordinates), but also references to other level objects:
-- The street this address belongs to (BeSt id + names)
-- The municipality ("commune/gemeente") (BeSt id, names and 'NIS' code)
-- The postal infos (postal code, and, in BRU and VLG, a postal name)
-- In WAL, a "part of municipality" (BeSt id + names)
-- If an address contains several boxes, a list of boxes (with BeSt Id, coordinates, box number and status)
+In the case of an address, a item will gather some attributes specific to an address (a BeSt id, a housenumber, a status, as well a two coordinates), but also references to other level objects:
+- The street this address belongs to (BeSt id + names);
+- The municipality ("commune/gemeente") (BeSt id, names and 'NIS' code);
+- The postal infos (postal code, and, in BRU and VLG, a postal name);
+- In WAL, a "part of municipality" (BeSt id + names);
+- If an address contains several boxes, a list of boxes (with BeSt Id, coordinates, box number and status).
 
 ```mermaid 
 classDiagram
@@ -422,9 +422,9 @@ Item "1..*" -- "1" PostalInfo
 ```
 
 Notes about cardinalities: 
-- An address could have 0, 1 or several boxes. But a box BeSt Id is always linked to a single (main) address
-- A street could be "empty", without any address
-- An address is linked to (exactely) one "Part of Municipality" in Wallonia, but not in other regions
+- An address could have 0, 1 or several boxes. But a box BeSt Id is always linked to a single (main) address;
+- A street could be "empty", without any address;
+- An address is linked to (exactely) one "Part of Municipality" in Wallonia, but not in other regions.
 
 
 For the sake of readability, we drop datatypes in the following charts.
@@ -513,7 +513,7 @@ Beside the fact that items will "point" to one street, municipality, postal info
 The first diagram is generic, because it combines the characteristics of all regions. It is present for completeness, but it's easier to consider each region appart.
 
 Two general facts: 
-- There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street and one address
+- There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street and one address;
 - There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal codes within the same municipality, keeping its id.
 
 
@@ -644,6 +644,7 @@ Street "1..*" --  "1" Municipality
 - get by id for postalname, part of mun
 - postalcode --> code (in postalInfo ?)
 - /geocode --> /addresses? /searchCity --> /cities?  /addresses/structured + /addresses/unstructured + /addresses/reverse
+- id: "bestid" for addresses, "addressId" for boxes, "id" for other objects. All to "bestid" ? Or "addressId", "streetId", "boxId"...? 
 
 
 - Migrate from Flask to FastAPI?
