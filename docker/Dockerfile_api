@@ -3,6 +3,6 @@ FROM bepelias/base
 COPY docker/requirements_api.txt ./
 RUN pip3 install -r requirements_api.txt
 
-COPY scripts/start_api.sh bepelias.py pelias.py utils.py bepelias_fastapi.py ./
+COPY scripts/start_api.sh bepelias.py pelias.py utils.py ./
 
 CMD "./start_api.sh"
