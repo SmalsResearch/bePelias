@@ -222,10 +222,10 @@ city_search_parser.add_argument('postCode',
                                 help="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc). Example: '1060'",
                                 )
 
-city_search_parser.add_argument('postName',
+city_search_parser.add_argument('cityName',
                                 type=str,
                                 default='Saint-Gilles',
-                                help="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc). Example: 'Bruxelles'",
+                                help="Any name usually used to denote an administrative area. Could be a municipality, a locality (or part of municipality). Example: 'Bruxelles', 'Laeken'...",
                                 )
 
 # For /id/<bestid>
@@ -444,6 +444,8 @@ health_output_model = namespace.model("HealthOutput", {
 ##############
 #  /geocode  #
 ##############
+
+# error_400 = namespace.model("Error400", {"message":   fields.String(description="Error message")})
 
 @namespace.route('/geocode')
 class Geocode(Resource):
@@ -695,23 +697,25 @@ Search a city based on a postal code or a name (could be municipality name, part
         log("search city")
 
         post_code = get_arg("postCode", None)
-        post_name = get_arg("postName", None)
+        city_name = get_arg("cityName", None)
 
         must = [{"term": {"layer": "locality"}}]
         if post_code:
             must.append({"term": {"address_parts.zip": post_code}})
-        if post_name:
-            must.append({"query_string": {"query": f"name.default:\"{post_name}\""}})
+        if city_name:
+            must.append({"query_string": {"query": f"name.default:\"{city_name}\""}})
 
         try:
             client = Elasticsearch(pelias.elastic_api)
-            resp = client.search(index="pelias", body={
-                "query": {
-                    "bool": {
-                        "must": must
-                    }
-                }
-            })
+            resp = client.search(index="pelias",
+                                 size=100,
+                                 body={
+                                     "query": {
+                                         "bool": {
+                                             "must": must
+                                             }
+                                        }
+                                    })
             log("resp:")
             log(resp)
 

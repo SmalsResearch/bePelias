@@ -355,9 +355,20 @@ Appart from "/health" endpoint, the result of all calls is basically a list of "
 - With /reverse, items will always be addresses
 - With /id/{bestid}, the list will contain at most one address (if an address BeSt id is provided), a (list of) street(s) (if a street BeSt id is provided) or a (list of) city (if a municipality BeSt id is provided).
 
-Note that a "city" is the combination of a municipality, a postal code, and, if applicable (in WAL), a part of municipality. It this then the lowest level of administrative entity.
+## Context
 
-Unfortunatly, the BeSt address structure is not uniform, with differences between the three regions that we are going to develop below.
+Belgium is administratively divided into 565 "municipalities" (communes/gemeenten). 261 in WAL, 19 in BRU and 285 in VLG.
+Each of those municipalities is divided into one or several postal codes, and each of those postal codes is divided into "localities". 
+
+But this is the theory and each region has implemented this concept in a different fashion in BeSt Address structure:
+- In BRU:   
+    - 18 communes contain only one postal code and one locality, but municipality of "Brussels" has 4 postal codes, each corresponding to one locality (one of them being also named Brussels). Then, no postal code contains more than one locality, and locality names will be stored in the "PostalInfo" objects
+    - The boundaries of the four postal codes of "Bruxelles-ville" (1000, 1130, 1020, 1120) is wider than the "municipality of Brussels". A small part of most surrounding postal codes (1040, 1050, 1030, 1170) surrounding 1000 also belong to "municipality of Brussels". So it is not possible, for several Brussels postal codes, to know the corresponding municipality : it depends of the exact address
+- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all "locality names"
+- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by "part of municipality")
+
+
+Note that in the following, a "city" is the combination of a municipality, a postal code, and, if applicable (in WAL), a part of municipality. It this then the lowest level of administrative entity.
 
 
 ## Flat Data model
@@ -374,34 +385,34 @@ In the case of an address, a item will gather some attributes specific to an add
 ```mermaid 
 classDiagram
 class Item {
-    bestId
-    coordinates.lat/lon
-    housenumber
-    status
-    precison:address**
+    bestId: String #123;id#125;
+    coordinates.lat/lon: Float,Float
+    housenumber: String
+    status: Enum#40;currrent, retired, proposed#41;
+    precison: String #40;address**#41;
 }
 class BoxInfo {
-    addressId
-    coordinates.lat/lon
-    boxNumber
-    status
+    addressId: String #123;id#125;
+    coordinates.lat/lon: Float,Float
+    boxNumber: String
+    status: Enum#40;currrent, retired, proposed#41;
 }
 class Street{
-    id
-    name.fr/nl/de
+    id: String #123;id#125;
+    name.fr/nl/de: String
 }
 class Municipality {
-    id
-    code
-    name.fr/nl/de
+    id: String #123;id#125;
+    code: Integer #123;id#125;
+    name.fr/nl/de: String
 }
 class PostalInfo {
-    postalCode
-    name.fr/nl/de
+    postalCode: Integer #123;id#125;
+    name.fr/nl/de: String
 }
 class PartOfMunicipality{
-    id
-    name.fr/nl/de
+    id: String #123;id#125;
+    name.fr/nl/de: String
 }
 Item "1" -- "0..*" BoxInfo
 Item "0..*" -- "1" Street
@@ -415,6 +426,9 @@ Notes about cardinalities:
 - A street could be "empty", without any address
 - An address is linked to (exactely) one "Part of Municipality" in Wallonia, but not in other regions
 
+
+For the sake of readability, we drop datatypes in the following charts.
+
 ### Street precision
 
 
@@ -424,7 +438,7 @@ In the case of a street item, we'll find the same elements as for address, behal
 classDiagram
 class Item {
     coordinates.lat/lon
-    precison:street**
+    precison: street**
 }
 class Street{
     id
@@ -449,7 +463,6 @@ Item "1..*" -- "0..1" PartOfMunicipality
 Item "1..*" -- "1" PostalInfo
 ```
 
-
 ### City precision
 
 In case of a city precision item, we'll have the same scheme as for street items, behalve "Street" objects.
@@ -460,7 +473,7 @@ If a result has been found in BeSt Address, we will have a municipality, a posta
 classDiagram
 class Item {
     coordinates.lat/lon
-    precison:city
+    precison: city
 }
 class Municipality {
     id
@@ -487,10 +500,9 @@ But if no result was found in BeSt Address, we still could return result from Wh
 classDiagram
 class Item {
     coordinates.lat/lon
-    precison:city
+    precison: city
     name
 }
-
 ```
 
 
@@ -498,18 +510,13 @@ class Item {
 
 Beside the fact that items will "point" to one street, municipality, postal info, and, optionaly, one part of municipality, it is important to understand the relationships between those items. For instance, and address will never reference a Flemish municipality and a Walloon postal code.
 
-The first diagram is generic, because it combines the characteristics of all regions. It's easier to first consider each region appart.
+The first diagram is generic, because it combines the characteristics of all regions. It is present for completeness, but it's easier to consider each region appart.
 
 Two general facts: 
 - There are no empty municipality, postal code or part of municipality, meaning that each of them contains at least one street and one address
-- There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal codes within the same municipality, keeping its id
+- There are no cross-municipality streets. If a street is too long, it will have a different BeSt id in the two municipalities, while keeping the same name. However, a street can cross several postal codes within the same municipality, keeping its id.
 
-The general id is that a municipality is composed of several post codes, and those post codes will contain one or more "localities". But : 
-- In VLG, there are no administrative concept bellow postal codes. In a postal info, the name will contain the concatenation of all "locality names"
-- In BRU, all post codes contain one locality (with name into postal info)
-- In WAL, localities are denoted "Part of municipality" (postal info do not have names, which are contained by "part of municipality")
 
-[Following plot might be useless]
 
 ```mermaid 
 classDiagram
