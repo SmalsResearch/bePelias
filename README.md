@@ -653,3 +653,4 @@ Street "1..*" --  "1" Municipality
     - interp if coords = 0,0
     - improve "transformers" in output to be more explicit  
 - Rename single_parser into geocode_parser
+- organise python scripts into packages
