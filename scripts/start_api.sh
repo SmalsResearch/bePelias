@@ -11,4 +11,4 @@ PORT=${IN_PORT:-4001}
     
 echo "Starting service... ($NB_WORKERS workers)" 
 
-gunicorn -w $NB_WORKERS -b api:$PORT bepelias:app 
+gunicorn -w $NB_WORKERS -b api:$PORT bepelias.api:app 

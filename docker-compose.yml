@@ -12,7 +12,6 @@ services:
             dockerfile: docker/Dockerfile_api
         ports:
             - "4001:4001"   # [HOST_PORT]:[CONTAINER_PORT] ; HOST_PORT: port used to connect to API. CONTAINER_PORT: same value as "IN_PORT" below
-            - "8000:8000"   # fastapi
         environment:
             - PELIAS_HOST=pelias_api:4000
             - PELIAS_ES_HOST=pelias_elasticsearch:9200
