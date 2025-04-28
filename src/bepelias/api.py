@@ -199,7 +199,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
             post_name = post_name.strip()
 
         log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
-        
+
         try:
             if mode in ("basic"):
                 pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
