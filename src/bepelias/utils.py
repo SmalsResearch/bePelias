@@ -142,7 +142,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
         dict: REST Guideline compliant version of input
     """
 
-    log("Converting to to_rest_guidelines")
+    vlog("Converting to to_rest_guidelines")
     if not isinstance(pelias_res, dict):
         return pelias_res
     items = []
@@ -174,14 +174,14 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
             if fld in pelias_res_raw:
                 del pelias_res_raw[fld]
         for feat in pelias_res_raw["features"]:
-            log(feat)
+            vlog(feat)
             if "addendum" in feat["properties"]:
                 del feat["properties"]["addendum"]
             if "bepelias" in feat:
                 del feat["bepelias"]
         rest_res["peliasRaw"] = pelias_res_raw
 
-    log(rest_res)
+    vlog(rest_res)
     return rest_res
 
 # Check result functions
@@ -552,7 +552,7 @@ def interpolate(feature, pelias):
             "postalcode": feature['properties']['postalcode'],
             "locality": ""}
     street_res = pelias.geocode(addr)
-    log(f"Interpolate: street center: {street_res}")
+    vlog(f"Interpolate: street center: {street_res}")
 
     # Keep only results maching input postalcode
 
@@ -563,7 +563,7 @@ def interpolate(feature, pelias):
         return {}
 
     street_center_coords = street_res["features"][0]["geometry"]["coordinates"]
-    log(f"street_center_coords: {street_center_coords}")
+    vlog(f"street_center_coords: {street_center_coords}")
 
     interp_res = pelias.interpolate(lat=street_center_coords[1],
                                     lon=street_center_coords[0],
@@ -573,7 +573,7 @@ def interpolate(feature, pelias):
     if len(interp_res) == 0:
         interp_res = {"street_geometry": {"coordinates": street_center_coords}}
 
-    log(interp_res)
+    vlog(interp_res)
     return interp_res
 
 
@@ -633,7 +633,7 @@ def search_for_coordinates(feat, pelias):
     - Otherwise, try the interpolation engine
     """
 
-    log("Coordinates==0,0, check if any box number contains coordinates...")
+    vlog("Coordinates==0,0, check if any box number contains coordinates...")
 
     try:
         boxes = feat["properties"]["addendum"]["best"]["box_info"]
@@ -646,7 +646,7 @@ def search_for_coordinates(feat, pelias):
         feat["geometry"]["coordinates"] = boxes[0]["coordinates"]["lon"], boxes[0]["coordinates"]["lat"]
         feat["bepelias"] = {"interpolated": "from_boxnumber"}
     else:
-        log("Coordinates==0,0, try to interpolate...")
+        vlog("Coordinates==0,0, try to interpolate...")
         interp = interpolate(feat, pelias)
         if "geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0, 0]
@@ -847,7 +847,7 @@ def get_precision(feature):
                 city_00, city, country
     """
 
-    log("get_precision")
+    vlog("get_precision")
     try:
         feat_prop = feature["properties"]
         if feat_prop["layer"] == "address":
@@ -930,7 +930,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
             for t in transf:
                 transf_addr_data = transform(transf_addr_data, t)
 
-            log(f"transformed address: ({ ';'.join(transf)})")
+            vlog(f"transformed address: ({ ';'.join(transf)})")
             if transf_addr_data in previous_attempts:
                 vlog("Transformed address already tried, skip Pelias call")
             elif len(list(filter(lambda v: v and len(v) > 0, transf_addr_data.values()))) == 0:
@@ -955,10 +955,10 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
         if sum(len(r["features"]) for r in all_res) > 0:
             # If some result were found (even street-level), we stop here and select the best one.
             # Otherwise, we start again, accepting any postcode in the result
-            log("Some result found with check_postcode=True")
+            vlog("Some result found with check_postcode=True")
             break
 
-    log("No building result, keep the best match")
+    vlog("No building result, keep the best match")
     # Get a score for each result
     fields = ["housenumber", "street", "locality", "postalcode", "best"]
     scores = []
@@ -1009,7 +1009,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
             scores.append(score_line)
 
     with pd.option_context("display.max_columns", None, 'display.width', None):
-        log("\n"+str(pd.DataFrame(scores)))
+        vlog("\n"+str(pd.DataFrame(scores)))
 
     all_res = sorted(all_res, key=lambda x: -x["score"])
     if len(all_res) > 0:
@@ -1053,7 +1053,7 @@ def call_unstruct(address, pelias):
 
     parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
 
-    log(f"parsed: {parsed}")
+    vlog(f"parsed: {parsed}")
 
     if "postalcode" in parsed:
         pelias_unstruct = pelias_check_postcode(pelias_unstruct, parsed["postalcode"])
@@ -1085,7 +1085,7 @@ def unstructured_mode(address, pelias):
     if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
         return pelias_unstruct
 
-    log("No (address) result with simple unstructured call, try a simple clean")
+    vlog("No (address) result with simple unstructured call, try a simple clean")
     address_clean = address
 
     remove_patterns_unstruct = [(r"\(.+?\)",  "")]
@@ -1094,17 +1094,17 @@ def unstructured_mode(address, pelias):
         address_clean = re.sub(pat, rep, address_clean)
 
     if address_clean != address:
-        log(f"cleansed address: '{address_clean}'")
-        log(f"initial  address: '{address}'")
+        vlog(f"cleansed address: '{address_clean}'")
+        vlog(f"initial  address: '{address}'")
         pelias_unstruct = call_unstruct(address_clean, pelias)
         pelias_unstruct["bepelias"]["pelias_call_count"] = 2
 
         if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
             return pelias_unstruct
     else:
-        log("Cleansing has no impact, skip...")
+        vlog("Cleansing has no impact, skip...")
 
-    log("No (address) result with simple unstructured call, try advanced structured mode")
+    vlog("No (address) result with simple unstructured call, try advanced structured mode")
     # No result with a simple call, try advanced mode
     parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
     if "street" in parsed and "postalcode" in parsed:
@@ -1116,7 +1116,7 @@ def unstructured_mode(address, pelias):
         pelias_res["bepelias"]["pelias_call_count"] += 2
         return pelias_res
     else:
-        log("Cannot parse address, skip...")
+        vlog("Cannot parse address, skip...")
 
     # Advanced mode not applicable, return (empty) initial result
     return pelias_unstruct

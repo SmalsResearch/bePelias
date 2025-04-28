@@ -4,6 +4,6 @@ COPY docker/requirements_api.txt ./
 RUN pip3 install -r requirements_api.txt
 
 COPY scripts/start_api.sh ./
-COPY bepelias/api.py bepelias/model.py bepelias/pelias.py bepelias/utils.py /bepelias/
+COPY src/bepelias/api.py src/bepelias/model.py src/bepelias/pelias.py src/bepelias/utils.py /bepelias/
 
 CMD "./start_api.sh"

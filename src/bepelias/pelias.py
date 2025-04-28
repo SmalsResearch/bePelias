@@ -268,17 +268,17 @@ class Pelias:
             if pel is True:
                 log("Pelias working properly")
                 break
-            log("Pelias not up & running")
-            log(f"Try again in {delay} seconds")
+            vlog("Pelias not up & running")
+            vlog(f"Try again in {delay} seconds")
             if pel is not False:
-                log("Answer:")
-                log(pel)
+                vlog("Answer:")
+                vlog(pel)
 
-                log(f"Pelias host: {self.geocode_api }")
+                vlog(f"Pelias host: {self.geocode_api }")
 
                 # raise e
             time.sleep(delay)
             delay += 0.5
         if i == 9:
-            log("Pelias not up & running !")
-            log(f"Pelias: {self.geocode_api }")
+            vlog("Pelias not up & running !")
+            vlog(f"Pelias: {self.geocode_api }")

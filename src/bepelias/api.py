@@ -69,7 +69,7 @@ logging.getLogger("elasticsearch").setLevel(logging.WARNING)
 
 env_pelias_host = os.getenv('PELIAS_HOST')
 if env_pelias_host:
-    logging.info("get PELIAS_HOST from env: %s", env_pelias_host)
+    logging.debug("get PELIAS_HOST from env: %s", env_pelias_host)
     pelias_host = env_pelias_host
 else:
     logging.error("Missing PELIAS_HOST in docker-compose.yml or environment variable")
@@ -77,7 +77,7 @@ else:
 
 env_pelias_elastic = os.getenv('PELIAS_ES_HOST')
 if env_pelias_elastic:
-    logging.info("get PELIAS_ES_HOST from env: %s", env_pelias_elastic)
+    logging.debug("get PELIAS_ES_HOST from env: %s", env_pelias_elastic)
     pelias_es_host = env_pelias_elastic
 else:
     logging.error("Missing PELIAS_ES_HOST in docker-compose.yml or environment variable")
@@ -85,7 +85,7 @@ else:
 
 env_pelias_interpol = os.getenv('PELIAS_INTERPOL_HOST')
 if env_pelias_interpol:
-    logging.info("get PELIAS_INTERPOL_HOST from env: %s", env_pelias_interpol)
+    logging.debug("get PELIAS_INTERPOL_HOST from env: %s", env_pelias_interpol)
     pelias_interpol_host = env_pelias_interpol
 else:
     logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
@@ -96,9 +96,9 @@ pelias = Pelias(domain_api=pelias_host,
                 domain_elastic=pelias_es_host,
                 domain_interpol=pelias_interpol_host)
 
-log("test Pelias: ")
+vlog("test Pelias: ")
 try:
-    log(pelias.geocode("20, Avenue Fonsny, 1060 Bruxelles"))
+    vlog(pelias.geocode("20, Avenue Fonsny, 1060 Bruxelles"))
 except PeliasException as exc:
     log("Test failed!!")
     log(exc)
@@ -170,7 +170,7 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
 
         """
 
-        log("geocode")
+        # log("geocode")
 
         mode = get_arg("mode", "advanced")
         if mode not in ["basic", "simple", "advanced"]:
@@ -198,9 +198,8 @@ Geocode (postal address cleansing and conversion into geographical coordinates) 
         if post_name:
             post_name = post_name.strip()
 
-        log(f"Request: {street_name} / {house_number} / {post_code} / {post_name} ")
-        log(f"Mode: {mode}")
-
+        log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
+        
         try:
             if mode in ("basic"):
                 pelias_res = pelias.geocode({"address": build_address(street_name, house_number),
@@ -250,9 +249,6 @@ class GeocodeUnstructured(Resource):
 [BETA] Geocode (postal address cleansing and conversion into geographical coordinates) a single address.
 
         """
-
-        log("geocode unstructured")
-
         mode = get_arg("mode", "advanced")
         if mode not in ["basic", "advanced"]:
             namespace.abort(400, f"Invalid mode {mode}")
@@ -272,9 +268,7 @@ class GeocodeUnstructured(Resource):
         else:
             address.abort(400, "Argument 'address' mandatory")
 
-        log(f"Request: {address}")
-
-        log(f"Mode: {mode}")
+        log(f"Geocode (unstruct - {mode}): {address}")
 
         try:
             if mode in ("basic"):
@@ -318,7 +312,7 @@ Reverse geocoding
 
         """
 
-        log("reverse")
+        vlog("reverse")
 
         lat = get_arg("lat", None)
         lon = get_arg("lon", None)
@@ -360,7 +354,7 @@ Reverse geocoding
         except ValueError:
             namespace.abort(400, "Argument 'size' should be a integer")
 
-        log(f"Request: ({lat}, {lon}) / radius: {radius} / size:{size} ")
+        log(f"Reverse geocode: ({lat}, {lon}) / radius: {radius} / size:{size} ")
 
         try:
             # Note: max size for Pelias = 40. But as most records are duplicated in Pelias (one record in each languages for bilingual regions,
@@ -401,11 +395,12 @@ class SearchCity(Resource):
 Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
 
         """
-        log("search city")
+        vlog("search city")
 
         post_code = get_arg("postCode", None)
         city_name = get_arg("cityName", None)
 
+        log(f"searchCity: {post_code} / {city_name}")
         must = [{"term": {"layer": "locality"}}]
         if post_code:
             must.append({"term": {"address_parts.zip": post_code}})
@@ -423,8 +418,8 @@ Search a city based on a postal code or a name (could be municipality name, part
                                              }
                                         }
                                     })
-            log("resp:")
-            log(resp)
+            vlog("resp:")
+            vlog(resp)
 
             resp = resp["hits"]["hits"]
 
@@ -484,7 +479,7 @@ class GetById(Resource):
         if "%2F" in bestid:
             bestid = unquote_plus(bestid)
 
-        log(f"get by id: {bestid}")
+        log(f"Get by id: {bestid}")
 
         client = Elasticsearch(pelias.elastic_api)
 
@@ -493,7 +488,7 @@ class GetById(Resource):
         if mtch is None or len(mtch.groups()) != 2:
             namespace.abort(400, f"Cannot parse best id '{bestid}'")
 
-        log(f"mtch[2].lower(): '{mtch[2].lower()}'")
+        vlog(f"mtch[2].lower(): '{mtch[2].lower()}'")
         obj_type = None
         if mtch[2].lower() in ["address", "adres"]:
             obj_type = "address"
@@ -591,7 +586,7 @@ class Health(Resource):
                                             lon=4.33844,
                                             number=20,
                                             street="Avenue Fonsny")
-            log(interp_res)
+            vlog(interp_res)
             if len(interp_res) > 0 and "geometry" not in interp_res:
                 return {
                     "status": "DEGRADED",
