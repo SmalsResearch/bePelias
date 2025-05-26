@@ -651,4 +651,5 @@ Street "1..*" --  "1" Municipality
 - implementing "size" parameter for search call
 - unstructured:
     - interp if coords = 0,0
-    - improve "transformers" in output to be more explicit  
+    - improve "transformers" in output to be more explicit 
+- upgrate to pandas 2 

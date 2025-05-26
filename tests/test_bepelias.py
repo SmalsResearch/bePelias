@@ -4,6 +4,8 @@ Unitest for bepelias using pytest
 
 import json
 from typing import Literal
+from urllib.parse import quote_plus
+
 import requests
 
 import pytest
@@ -20,7 +22,41 @@ CITY_FIELD = "postName"
 FILENAME = "data.csv"  # A csv file with as header "streetName,houseNumber,postCode,postName"
 
 
-def call_ws(addr_data, mode="advanced"):
+def call_ws(url, params):
+    """
+        Call bePelias web service
+    """
+    try:
+        r = requests.get(
+            url,
+            params=params,
+            timeout=30)
+
+    except Exception as e:
+        print("Exception !")
+        print(params)
+        print(e)
+        raise e
+
+    try:
+        res = json.loads(r.text)
+    except ValueError as ve:
+        print("Cannot decode result:")
+        print(ve)
+        print(r.text)
+        res = {"error": f"Cannot decode {r.text}"}
+    res["status_code"] = r.status_code
+    return res
+
+
+def call_health():
+    """
+        Call bePelias web service
+    """
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/health', {})
+
+
+def call_geocode(addr_data, mode="advanced"):
     """
         Call bePelias web service
     """
@@ -29,138 +65,60 @@ def call_ws(addr_data, mode="advanced"):
 
     addr_data["mode"] = mode
     addr_data["withPeliasResult"] = False
-    try:
-        r = requests.get(
-            f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode',
-            params=addr_data,
-            timeout=30)
 
-    except Exception as e:
-        print("Exception !")
-        print(addr_data)
-        print(e)
-        raise e
-
-    if r.status_code == 204:
-        print("No result!")
-        print(addr_data)
-        print(r.text)
-        return r.status_code
-    if r.status_code == 400:
-        print("Argument error")
-        print(r.text)
-        return r.status_code
-    if r.status_code == 200:
-        try:
-            res = json.loads(r.text)
-        except ValueError as ve:
-            print("Cannot decode result:")
-            print(ve)
-            print(r.text)
-            return r.text
-        return res
-
-    print(f"Unknown return code: {r.status_code} ")
-    print(r.text)
-    return None
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode', 
+                   addr_data)
 
 
-def call_unstruct_ws(address, mode="advanced"):
+def call_unstruct(address, mode="advanced"):
     """Call unstructured bePelias
 
     Args:
         address (str): address
         mode (str, optional):
-
-    Raises:
-        e: _description_
-
-    Returns:
-        _type_: _description_
     """
     addr_data = {"address": address}
 
     addr_data["mode"] = mode
     addr_data["withPeliasResult"] = False
-    try:
-        r = requests.get(
-            f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode/unstructured',
-            params=addr_data,
-            timeout=30)
 
-    except Exception as e:
-        print("Exception !")
-        print(addr_data)
-        print(e)
-        raise e
-
-    if r.status_code == 204:
-        print("No result!")
-        print(addr_data)
-        print(r.text)
-        return
-    if r.status_code == 400:
-        print("Argument error")
-        print(r.text)
-        return r.status_code
-    if r.status_code == 200:
-        try:
-            res = json.loads(r.text)
-        except ValueError as ve:
-            print("Cannot decode result:")
-            print(ve)
-            print(r.text)
-            return r.text
-        return res
-
-    print(f"Unknown return code: {r.status_code} ")
-    print(r.text)
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode/unstructured', 
+                   addr_data)
 
 
-def call_ws_search_city(postcode=None, postname=None):
+def call_reverse(lat, lon, radius=1, size=10):
+    """Call reverse geocoder
+    """
+    data = {"lat": lat, "lon": lon, "radius": radius, "size": size}
+
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/reverse',
+                   data)
+
+
+def call_search_city(postcode=None, cityname=None):
+    """call searchCity endpoing
+
+    Args:
+        postcode (str, optional): postal code. Defaults to None.
+        postname (str, optional): (part of) City name. Defaults to None.
+    """
     data = {"postCode": postcode,
-            "cityName": postname,
+            "cityName": cityname,
             "raw": True
-           }
+            }
 
-    try:
-        r = requests.get(
-            f'http://{WS_HOSTNAME}/REST/bepelias/v1/searchCity',
-            params=data,
-            timeout=30)
-
-    except Exception as e:
-        print("Exception !")
-        print(e)
-        raise e
-
-    if r.status_code == 204:
-        return
-    elif r.status_code == 400:
-        print("Argument error")
-        print(r.text)
-        return r.status_code
-    elif r.status_code == 200:
-        try:
-            res = json.loads(r.text)
-            # res["time"] = (datetime.now() - t).total_seconds()
-        except ValueError as ve:
-
-            print("Cannot decode result:")
-            print(ve)
-            print(r.text)
-            return r.text
-        except AttributeError as ae:
-            print(ae)
-            print(type(r.text))
-            print(r.text)
-        return res
-    else: 
-        print(f"Unknown return code: {r.status_code} ")
-        print(r.text)
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/searchCity',
+                   data)
 
 
-data = {
+def call_get_by_id(bestid):
+    """call searchCity endpoing
+    """
+    
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/id/{quote_plus(bestid)}', {})
+
+
+test_data = {
     "smals": {
         "fixture": {
             "streetName": "Av Fonsny",
@@ -187,13 +145,13 @@ data = {
             "postCode": "6010",
             "postName": "Charleroi"},
         "expectings": [
-            # (["items", 1, "postalInfo", "postalCode"], "6010"),
-            # (["items", 1, "municipality", "code"], "52011"),
-            # (["items", 1, "partOfMunicipality", "name", "fr"], "Couillet"),
-            # (["total"], 2),
-            (["total"], 1),
-            (["items", 0, "name"], "Charleroi"),
-            (["items", 0, "precision"], "city")
+            (["items", 1, "postalInfo", "postalCode"], "6010"),
+            (["items", 1, "municipality", "code"], "52011"),
+            (["items", 1, "partOfMunicipality", "name", "fr"], "Couillet"),
+            (["total"], 2),
+            # (["total"], 1),
+            # (["items", 0, "name"], "Charleroi"),
+            # (["items", 0, "precision"], "city")
         ]
     },
     "gent": {
@@ -240,7 +198,7 @@ def check_expectings(actual, expectings):
         for k in keys:
             if isinstance(k, int):
                 assert isinstance(cur, list), f"Expecting '{cur}' to be a list"
-                assert len(cur) > k, f"Expecting at least '{k+1}' elements (found {len(cur)}) in {cur}"
+                assert len(cur) > k, f"Expecting at least {k+1} elements (found {len(cur)}) in {cur}"
             else:
                 assert k in cur, f"Expecting '{k}' in '{cur}': {actual}"
 
@@ -248,45 +206,65 @@ def check_expectings(actual, expectings):
         assert cur == value, f"Expected value for {keys}: '{value}', found '{cur}'. {actual}"
 
 
+def test_check_health():
+    """Check health
+    """
+    health = call_health()
+    assert "status" in health and health["status"] == "UP"
+
+
 @pytest.mark.parametrize(
         "addr, expectings",
         [
-            (it["fixture"], it["expectings"]) for (k, it) in data.items()
+            (it["fixture"], it["expectings"]) for (k, it) in test_data.items()
         ]
 )
-def test_check_single_addr(addr: Any, expectings: Any):
+def test_check_single_addr(addr, expectings):
     """Check result for struct call
 
     Args:
         addr (dict): _description_
         expectings (list): _description_
     """
-    actual = call_ws(addr)
+    actual = call_geocode(addr)
 
     check_expectings(actual, expectings)
 
 
-def test_code_400():
-    """Check that API returns a code 400 if parameters are wrong
-    """
-    code_400 = call_ws(data["smals"]["fixture"], mode="1")
-    assert code_400 == 400, f"Expecting code 400, got {code_400}"
+@pytest.mark.parametrize(
+        "function, params, expected_code",
+        [
+            (call_geocode, {"addr_data": test_data["smals"]["fixture"], "mode": "1"}, 422),
+            (call_unstruct, {"address": None}, 422),
+            (call_unstruct, {"address": "test", "mode": "1"}, 422),
+            (call_reverse, {"lat": 0, "lon": 0}, 422),
+            (call_reverse, {"lat": 50.8, "lon": None}, 422),
+            (call_search_city, {"postcode": None, "cityname": None}, 422),
+            (call_get_by_id, {"bestid": ""}, 404),
+            (call_get_by_id, {"bestid": "1234"}, 422)
+            
+        ]
+)
+def test_wrong_calls(function, params, expected_code):
+    """ Testing calls with wrong paramters"""
+    res = function(**params)
+    assert "status_code" in res and res["status_code"] == expected_code
 
 
 @pytest.mark.parametrize(
         "addr, expectings",
         [
-            (it["unstruct_fixture"], it["expectings"]) for (k, it) in data.items() if "unstruct_fixture" in it
+            (it["unstruct_fixture"], it["expectings"]) for (k, it) in test_data.items() if "unstruct_fixture" in it
         ]
 )
-def test_check_unstruct(addr: Any, expectings: Any):
+def test_check_unstruct(addr, expectings):
     """Check that unstructured geocode give the expected result
 
     Args:
         addr (str): input address
         expectings (list): _description_
     """
-    actual = call_unstruct_ws(addr)
+    actual = call_unstruct(addr)
 
     check_expectings(actual, expectings)
 
@@ -301,17 +279,20 @@ def test_check_unstruct(addr: Any, expectings: Any):
             ((1060, "Saint-Gilles"),  [(["items", 0, "municipality", "code"], "21013"),
                                        (["total"], 1)]),
             ((5190, "Spy"),  [(["items", 0, "municipality", "code"], "92140"),
-                              (["total"], 1)])
+                              (["total"], 1)]),
+            (("0612", None),  [(["total"], 0)]),
+            ((9000, None),  [(["items", 0, "municipality", "code"], "44021"),
+                             (["total"], 1)]),
         ]
 )
-def test_chech_city_search(addr, expectings):
+def test_check_city_search(addr, expectings):
     """Check that unstructured geocode give the expected result
 
     Args:
         addr (str): input address
         expectings (list): _description_
     """
-    actual = call_ws_search_city(addr[0], addr[1])
+    actual = call_search_city(addr[0], addr[1])
 
     check_expectings(actual, expectings)
 
@@ -319,18 +300,18 @@ def test_chech_city_search(addr, expectings):
 @pytest.mark.parametrize(
         "addr, unstruct",
         [
-            (it["fixture"], it["unstruct_fixture"]) for (k, it) in data.items() if "unstruct_fixture" in it
+            (it["fixture"], it["unstruct_fixture"]) for (k, it) in test_data.items() if "unstruct_fixture" in it
         ]
 )
-def test_compare_struct_unstruct(addr: Any, unstruct: Any):
+def test_compare_struct_unstruct(addr, unstruct):
     """Check that structured and unstructured version give the same result
 
     Args:
         addr (dict): structured address
         unstruct (str): unstructured address
     """
-    actual_struct = call_ws(addr)
-    actual_unstruct = call_unstruct_ws(unstruct)
+    actual_struct = call_geocode(addr)
+    actual_unstruct = call_unstruct(unstruct)
 
     assert "items" in actual_struct and isinstance(actual_struct["items"], list)
     assert "items" in actual_unstruct and isinstance(actual_unstruct["items"], list)
@@ -340,6 +321,30 @@ def test_compare_struct_unstruct(addr: Any, unstruct: Any):
     assert actual_struct["items"][0] == actual_unstruct["items"][0], "Comparison failed between struct and unstruct!"
 
 
+
+
+@pytest.mark.parametrize(
+        "addr",
+        [
+            it["fixture"] for (k, it) in test_data.items()
+        ]
+)
+def test_get_by_id(addr):
+    """Check result for struct call
+
+    Args:
+        addr (dict): _description_
+        expectings (list): _description_
+    """
+    res = call_geocode(addr)
+
+    for item in res["items"]:
+        if "bestId" in item: 
+            print(quote_plus(item["bestId"]))
+            res_by_id = call_get_by_id(quote_plus(item["bestId"]))
+
+            assert res_by_id["items"][0]["bestId"] == item["bestId"]
+            assert res_by_id["items"][0]["coordinates"] == item["coordinates"]
 
 @pytest.mark.parametrize(
         "filename",
@@ -354,7 +359,7 @@ def test_batch_call(filename: Literal['tests/data.csv']):
         filename (str): CVS filename
     """
     addresses = pd.read_csv(filename).iloc[0:10]
-    addresses["json"] = addresses.fillna("").apply(call_ws, mode="advanced", axis=1)
+    addresses["json"] = addresses.fillna("").apply(call_geocode, mode="advanced", axis=1)
     for json_item in addresses["json"]:
         assert "items" in json_item
         #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
