@@ -1,4 +1,6 @@
-
+"""
+Base code for bePelias
+"""
 import json
 import re
 
@@ -15,7 +17,7 @@ from bepelias.pelias import PeliasException
 from bepelias.utils import apply_sim_functions, log, vlog, remove_street_types, get_street_names, pelias_check_postcode, to_rest_guidelines
 
 
-transformer_sequence = [    
+transformer_sequence = [
     [],
     ["clean"],
     ["clean", "no_city"],
@@ -853,7 +855,7 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
     except PeliasException as exc:
         log("Exception during process: ")
         log(exc)
-        return {"error": str(exc), 
+        return {"error": str(exc),
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR}
 
 

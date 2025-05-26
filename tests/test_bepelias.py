@@ -66,7 +66,7 @@ def call_geocode(addr_data, mode="advanced"):
     addr_data["mode"] = mode
     addr_data["withPeliasResult"] = False
 
-    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode', 
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode',
                    addr_data)
 
 
@@ -82,7 +82,7 @@ def call_unstruct(address, mode="advanced"):
     addr_data["mode"] = mode
     addr_data["withPeliasResult"] = False
 
-    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode/unstructured', 
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode/unstructured',
                    addr_data)
 
 
@@ -114,7 +114,6 @@ def call_search_city(postcode=None, cityname=None):
 def call_get_by_id(bestid):
     """call searchCity endpoing
     """
-    
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/id/{quote_plus(bestid)}', {})
 
 
@@ -242,7 +241,6 @@ def test_check_single_addr(addr, expectings):
             (call_search_city, {"postcode": None, "cityname": None}, 422),
             (call_get_by_id, {"bestid": ""}, 404),
             (call_get_by_id, {"bestid": "1234"}, 422)
-            
         ]
 )
 def test_wrong_calls(function, params, expected_code):
@@ -321,8 +319,6 @@ def test_compare_struct_unstruct(addr, unstruct):
     assert actual_struct["items"][0] == actual_unstruct["items"][0], "Comparison failed between struct and unstruct!"
 
 
-
-
 @pytest.mark.parametrize(
         "addr",
         [
@@ -339,12 +335,13 @@ def test_get_by_id(addr):
     res = call_geocode(addr)
 
     for item in res["items"]:
-        if "bestId" in item: 
+        if "bestId" in item:
             print(quote_plus(item["bestId"]))
             res_by_id = call_get_by_id(quote_plus(item["bestId"]))
 
             assert res_by_id["items"][0]["bestId"] == item["bestId"]
             assert res_by_id["items"][0]["coordinates"] == item["coordinates"]
+
 
 @pytest.mark.parametrize(
         "filename",

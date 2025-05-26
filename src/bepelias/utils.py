@@ -308,4 +308,3 @@ def apply_sim_functions(str1, str2, threshold):
         if sim >= threshold:
             return sim
     return None
-

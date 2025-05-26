@@ -26,28 +26,18 @@ from fastapi.responses import RedirectResponse
 from typing_extensions import Literal
 from pydantic import AfterValidator
 
-from elasticsearch import Elasticsearch  #, NotFoundError
+from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
-
-
-
-
-# from bepelias.utils import (log,  vlog,
-#                             build_address, to_rest_guidelines,
-#                             struct_or_unstruct, advanced_mode,
-#                             add_precision, unstructured_mode
-#                             )
 
 from bepelias.base import log
 from bepelias.base import (geocode, geocode_reverse, geocode_unstructured,
-                           get_by_id, search_city, health
-                            )
+                           get_by_id, search_city, health)
 
 from bepelias.model import (GeocodeOutput, BePeliasError, Health,
                             ReverseGeocodeOutput, SearchCityOutput,
                             GetByIdOutput, BESTID_PATTERN)
 
-from bepelias.pelias import Pelias  #, PeliasException
+from bepelias.pelias import Pelias
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
