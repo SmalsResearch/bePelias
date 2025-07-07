@@ -1080,9 +1080,9 @@ def health(pelias):
                     "details": f"Interpolation answer: {interp_res}"
                 }}
 
-    except Exception:
+    except Exception as exc:
         return {"status": "DEGRADED",
                 "details": {"errorMessage": "Interpolation server does not answer",
-                            "details": "Interpolation server does not answer"}}
+                            "details": f"Interpolation server does not answer: {exc}"}}
 
     return {"status": "UP"}
