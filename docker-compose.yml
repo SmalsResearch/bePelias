@@ -12,13 +12,13 @@ services:
             dockerfile: docker/Dockerfile_api
         ports:
             - "4001:4001"   # [HOST_PORT]:[CONTAINER_PORT] ; HOST_PORT: port used to connect to API. CONTAINER_PORT: same value as "IN_PORT" below
-            - "8000:8000"   # fastapi
+            - "8008:8008"
         environment:
             - PELIAS_HOST=pelias_api:4000
             - PELIAS_ES_HOST=pelias_elasticsearch:9200
             - PELIAS_INTERPOL_HOST=pelias_interpolation:4300
             - LOG_LEVEL=LOW # LOW, MEDIUM or HIGH
-            - NB_WORKERS=8  # Number of gunicorn workers
+            - NB_WORKERS=2  # Number of fastapi workers
             - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"
         networks:
             - belgium_bepelias_default  

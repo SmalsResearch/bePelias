@@ -647,10 +647,10 @@ Street "1..*" --  "1" Municipality
 - id: "bestid" for addresses, "addressId" for boxes, "id" for other objects. All to "bestid" ? Or "addressId", "streetId", "boxId"...? 
 
 
-- Migrate from Flask to FastAPI?
 - implementing "size" parameter for search call
 - unstructured:
     - interp if coords = 0,0
-    - improve "transformers" in output to be more explicit  
-- Rename single_parser into geocode_parser
-- organise python scripts into packages
+    - improve "transformers" in output to be more explicit 
+- upgrate to pandas 2
+- https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ?
+- gérer les cas "Marche, Place aux Foires", "2", 

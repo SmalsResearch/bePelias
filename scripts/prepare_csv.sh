@@ -40,11 +40,11 @@ done
 
 rm -f best-full-latest.zip    
 
-cd -
+cd /
 
 # Convert BOSA CSV into Pelias CSV
 echo "Prepare CSV"
-python3 /prepare_best_files.py -i /data/in -o /data/ -r $REGION
+python3 /bepelias/prepare_best_files.py -i /data/in -o /data/ -r $REGION
 
 # Cleanup
 echo "Clean up input files"
@@ -52,6 +52,5 @@ for r in ${REGIONS[@]} ;
 do 
     rm -f /data/in/$r*.csv
 done
-
 
 set +x
