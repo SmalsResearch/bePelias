@@ -336,7 +336,7 @@ def test_get_by_id(addr):
 
     for item in res["items"]:
         if "bestId" in item:
-            print(quote_plus(item["bestId"]))
+            # print(quote_plus(item["bestId"]))
             res_by_id = call_get_by_id(quote_plus(item["bestId"]))
 
             assert res_by_id["items"][0]["bestId"] == item["bestId"]
