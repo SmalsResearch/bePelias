@@ -173,10 +173,10 @@ test_data = {
     },
     "nores": {
         "fixture": {
-            "streetName": "Ave Fonsnyaefaeef",
-            "housenumber": 20,
-            "postcode": "1060",
-            "city": "Saint-Gilles"},
+            "streetName": "Ave Fabsnyaefaeef",
+            "houseNumber": 20,
+            "postCode": "1234",
+            "city": "azerty"},
         "expectings": [
             (["items"], []),
             (["total"], 0)

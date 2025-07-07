@@ -38,7 +38,7 @@ Steps (short version):
 ### Build
 
 - `./scripts/build.sh api` : Build bePelias docker images (bepelias/api and bepelias/dataprep : ~5 min)
-- `./scripts/build.sh pelias` : Build bePelias docker images (~25 min)
+- `./scripts/build.sh pelias` : Build pelias docker images (~25 min)
 - `./scripts/build.sh cleanup` : Shut down everything, remove all docker images and all data
 
 

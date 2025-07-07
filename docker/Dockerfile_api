@@ -1,5 +1,7 @@
 FROM bepelias/base
 
+ENV PIP_ROOT_USER_ACTION=ignore
+
 COPY docker/requirements_api.txt ./
 RUN pip3 install -r requirements_api.txt
 
