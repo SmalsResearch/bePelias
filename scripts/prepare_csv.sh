@@ -34,7 +34,7 @@ do
     unzip best-full-latest.zip $r'*.zip'
     unzip $r'*.zip'
     rm -f $r*.zip
-    $JAVA_HOME/bin/java -jar /best-tools/java/converter/target/converter-1.4.0.jar -i . -${r:0:1}
+    $JAVA_HOME/bin/java -jar /best-tools/java/converter/target/converter-1.5.1.jar -i . -${r:0:1}
     rm -f *.xml openaddress-be*.csv *_municipalities.csv *_postal_street.csv  *_postalinfo.csv *_streetnames.csv
 done
 
