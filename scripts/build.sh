@@ -11,6 +11,11 @@ DIR=pelias/projects/belgium_bepelias
 
 PELIAS="$(pwd)/pelias/pelias"
 
+if ! command -v curl &> /dev/null; then
+    echo "Please install 'curl'"
+    exit 1
+fi
+
 # Choose docker compose or docker-compose command
 if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE="docker-compose"
