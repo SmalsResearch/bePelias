@@ -70,7 +70,7 @@ Steps (short version):
    - `NB_WORKERS=8`: number of (gunicorn) workers
 - `./scripts/run.sh <action> <target>`, where:
     - `<action>` in:
-        - `up`: start all containers (Pelias and bePelias API)
+        - `up` (default): start all containers (Pelias and bePelias API)
         - `down`: stop all containers
     - `<target>` in:
         - `all` (default): start or stop both Pelias and bePelias API
