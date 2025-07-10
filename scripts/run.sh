@@ -1,10 +1,12 @@
 #!/bin/bash
-ACTION=${1:-"all"}
+ACTION=${1:-"up"}
+TARGET=${2:-"all"}
 
 # This script runs on the host machine. It builds Pelias and bePelias and run them
 echo "Starting run.sh..."
 
 echo "ACTION: $ACTION"
+echo "TARGET: $TARGET"
 
 DIR=pelias/projects/belgium_bepelias
 
@@ -20,24 +22,28 @@ else
     exit 1
 fi
 
-if [[ $ACTION == "pelias" ||  $ACTION ==  "all" ]]; then
+if [[ $TARGET == "pelias" ||  $TARGET ==  "all" ]]; then
     echo "Will start Pelias"
 
     cd $DIR
 
-    $PELIAS compose up
+    $PELIAS compose $ACTION
 
     cd -
     set +x
 
 fi
 
-if [[ $ACTION == "api" ||  $ACTION ==  "all" ]]; then
+if [[ $TARGET == "api" ||  $TARGET ==  "all" ]]; then
     echo "Will start bePelias API"
     
     set -x    
 
-    $DOCKER_COMPOSE up -d --no-deps api
+    if [[ $ACTION == "down" ]]; then
+        $DOCKER_COMPOSE down
+    else
+        $DOCKER_COMPOSE up -d --no-deps api
+    fi
 
     set +x
     echo "run 'docker logs -f bepelias_api' "

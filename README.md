@@ -68,9 +68,16 @@ Steps (short version):
    - `PELIAS_HOST=172.27.0.64:4000`: IP+port of Pelias server
    - `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
    - `NB_WORKERS=8`: number of (gunicorn) workers
-- `./scripts/run.sh api`: start bePelias API (with the options described above)
-- In order to overide options without updating docker-compose.yml: `docker-compose run --rm -d -e LOG_LEVEL=HIGH api`
-- `./scripts/run.sh pelias`: start Pelias server 
+- `./scripts/run.sh <action> <target>`, where:
+    - `<action>` in:
+        - `up`: start all containers (Pelias and bePelias API)
+        - `down`: stop all containers
+    - `<target>` in:
+        - `all` (default): start or stop both Pelias and bePelias API
+        - `api`: start or stop only bePelias API
+        - `pelias`: start or stop only Pelias server
+
+In order to overide options without updating docker-compose.yml: `docker-compose run --rm -d -e LOG_LEVEL=HIGH api`.
 
 
 ### Two machines build
