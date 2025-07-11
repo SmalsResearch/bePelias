@@ -224,7 +224,7 @@ def remove_street_types(street_name):
         Cleansed version of input street_name.
     """
 
-    to_remove = ["^RUE ", "^AVENUE ", "^CHAUSSEE ", "^ALLEE ", "^BOULEVARD ", "^PLACE ",
+    to_remove = ["^RUE ", "^AVENUE ", "^CHAUSSEE ", "^ALLEE ", "^BOULEVARD ", "^PLACE ", "^CHEMIN ",
                  "STRAAT$", "STEENWEG$", "LAAN$"]
 
     for s in to_remove:
