@@ -144,22 +144,22 @@ async def redirect():
 def _geocode(street_name: Annotated[
                             Union[str, None],
                             Query(description="The name of a passage or way through from one location to another (cf. Fedvoc).",
-                                  examples='Avenue Fonsny',
+                                  example='Avenue Fonsny',
                                   alias="streetName")] = None,
              house_number: Annotated[
                             Union[str, None],
                             Query(description="An official alphanumeric code assigned to building units, mooring places, stands or parcels (cf. Fedvoc).",
-                                  examples='20',
+                                  example='20',
                                   alias="houseNumber")] = None,
              post_code: Annotated[
                             Union[str, None],
                             Query(description="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc).",
-                                  examples='1060',
+                                  example='1060',
                                   alias="postCode")] = None,
              post_name: Annotated[
                             Union[str, None],
                             Query(description="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc).",
-                                  examples='Saint-Gilles',
+                                  example='Saint-Gilles',
                                   alias="postName")] = None,
              mode: Annotated[
                  Literal["basic", "simple", "advanced"],
@@ -205,7 +205,7 @@ How Pelias is used:
             })
 def _geocode_unstructured(address: Annotated[str,
                                              Query(description="The whole address in a single string",
-                                                   examples='Avenue Fonsny 20, 1060 Saint-Gilles')],
+                                                   example='Avenue Fonsny 20, 1060 Saint-Gilles')],
                           mode: Annotated[
                              Literal["basic", "advanced"],
                              Query(description="""
@@ -249,17 +249,17 @@ How Pelias is used:
             })
 def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
                                                  gt=49.49, lt=51.51,
-                                                 examples=50.83582)],
+                                                 example=50.83582)],
                      lon: Annotated[float, Query(description="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
                                                              "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
                                                  gt=2.4, lt=6.41,
-                                                 examples=4.33844)],
+                                                 example=4.33844)],
                      radius: Annotated[float, Query(description="Distance (in kilometers)",
                                                     gt=0, lt=350,
-                                                    examples=1)] = 1,
+                                                    example=1)] = 1,
                      size: Annotated[int, Query(description="Maximal number of results (default: 10; maximum: 20)",
                                                 gt=0, lt=20,
-                                                examples=10)] = 10,
+                                                example=10)] = 10,
                      with_pelias_result: Annotated[
                             bool,
                             Query(description="If True, return Pelias result as such in 'peliasRaw'.",
@@ -300,12 +300,12 @@ def _search_city(
             post_code: Annotated[
                             Union[str, None],
                             Query(description="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc).",
-                                  examples='1060',
+                                  example='1060',
                                   alias="postCode")] = None,
             city_name: Annotated[
                             Union[str, None],
                             Query(description="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc).",
-                                  examples='Saint-Gilles',
+                                  example='Saint-Gilles',
                                   alias="cityName")] = None,
             request: Request = None,
             response: Response = None):
@@ -353,7 +353,7 @@ def check_valid_bestid(bestid: str):
 def _get_by_id(
             bestid: Annotated[str,
                               Path(description="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
-                                   examples='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7',
+                                   example='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7',
                                    alias="bestid"
                                    ),
                               AfterValidator(check_valid_bestid)],
