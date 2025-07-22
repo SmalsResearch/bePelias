@@ -38,6 +38,7 @@ from bepelias.model import (GeocodeOutput, BePeliasError, Health,
                             GetByIdOutput, BESTID_PATTERN)
 
 from bepelias.pelias import Pelias
+from bepelias.utils import get_precision, precision_map
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
@@ -188,10 +189,205 @@ How Pelias is used:
 
     return res
 
-###########################
-#  /geocode/unstructured  #
-###########################
+###############################
+#  /geocode/unstructured_flex #
+###############################
 
+@app.get("/geocode/unstructured_flex", response_model_exclude_none=True, responses={
+                status.HTTP_200_OK: {
+                    "model": GeocodeOutput,
+                    "description": "Model in case of success"
+                },
+                status.HTTP_500_INTERNAL_SERVER_ERROR: {
+                    "model": BePeliasError,
+                    "description": "In case an error occurred"
+                }
+            })
+def _geocode_unstructured_flex(
+    address: Annotated[
+        str,
+        Query(
+            description="The whole address in a single string",
+            examples='Avenue Fonsny 20, 1060 Saint-Gilles')],
+    mode: Annotated[
+        Literal["basic", "advanced"],
+        Query(description="""
+How Pelias is used:
+
+- basic: Just call the structured version of Pelias
+- advanced: Try several variants until it gives a result""")] = "advanced",
+    with_pelias_result: Annotated[
+        bool,
+        Query(
+            description="If True, return Pelias result as such in 'peliasRaw'.",
+            alias="withPeliasResult")
+    ] = False,
+    request: Request = None,
+    response: Response = None):
+    """ Single (unstructured_flex) address geocoding"""
+
+    log(f"Geocode (unstructured_flex): {address}")
+
+
+    # STEP 1) GET PARSED ADDRESS
+
+    layers = None
+    # If there is no digit in street+housenumber, only keep street and locality layers
+    if re.search("[0-9]", address) is None:
+        layers = "street,locality"
+
+    pelias_unstruct = pelias.geocode(address, layers=layers)
+    parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
+
+    log(f"Parsed address: {parsed}")
+
+    # STEP 2) GET POSTAL CODE AND CITY FROM PARSED ADDRESS
+
+    postalcode = parsed.get("postalcode", None)
+    city = parsed.get("city", None)
+
+    # STEP 3) COMPUTE THE CITY LIST (if no city in parsed text, try to find it based on postal code)
+    city_list = set()
+
+    if city is not None:
+        city = city.strip()
+        city_list.add(city)
+    elif city is None and postalcode is not None:
+        # In that case we will use the searchCity endpoint to find the city based on postal code
+
+        client = Elasticsearch(pelias.elastic_api)
+        search_city_response = search_city(client, postalcode, None)
+
+        log(f"Search city based on postal code: {search_city_response}")
+
+        for search_city_item in search_city_response.get("items", []):
+            municipality = search_city_item.get("postalInfo", {}).get("municipality", {})
+            if "fr" in municipality:
+                city_list.add(municipality["fr"])
+            elif "nl" in municipality:
+                city_list.add(municipality["nl"])
+            elif "de" in municipality:
+                city_list.add(municipality["de"])
+
+    # STEP 4) COMPUTE THE POSTAL CODE LIST (if no postal code in parsed text, try to find it based on city)
+    postalcode_list = set()
+
+    if postalcode is not None:
+        postalcode = postalcode.strip()
+        postalcode_list.add(postalcode)
+    elif postalcode is None and city is not None:
+        # In that case we will use the searchCity endpoint to find the postal code based on city
+
+        client = Elasticsearch(pelias.elastic_api)
+        search_city_response = search_city(client, None, city)
+
+        log(f"Search city based on city name: {search_city_response}")
+
+        for search_city_item in search_city_response.get("items", []):
+            search_city_postalcode =search_city_item.get("postalInfo", {}).get("postalCode", None)
+            postalcode_list.add(search_city_postalcode)
+
+
+    best_res_precision = "unknown"
+    best_res = None
+
+    for city in city_list:
+        for postalcode in postalcode_list:
+            log(f"Pelias Geocode with POSTALCODE, CITY :  {postalcode}, {city}")
+
+            street_name = parsed.get("street", "")
+            house_number = parsed.get("housenumber", "")
+
+            log(f"Lev 1. Search with postalcode: {postalcode}, city: {city}")
+            res = geocode(
+                pelias=pelias,
+                street_name=street_name,
+                house_number=house_number,
+                post_code=postalcode,
+                post_name=city,
+                mode=mode,
+                with_pelias_result=with_pelias_result)
+            # Check if we have a result with address precision
+            for item in res["items"]:
+                if item.get("precision", None) == "address":
+                    log(f"Found address at level 1 (CITY + POSTALCODE).")
+                    return res
+
+            res_precision = get_precision(res)
+            if precision_map.get(res_precision, -1) > precision_map.get(best_res_precision, -1):
+                best_res_precision = res_precision
+                best_res = res
+
+            log(f"L1-- precision: {res_precision} (best: {best_res_precision})")
+
+            log("Lev 2. Search with CITY ({city}) and without POSTALCODE")
+            # Check whithout the postalcode
+            res = geocode(
+                pelias=pelias,
+                street_name=street_name,
+                house_number=house_number,
+                post_code=None,
+                post_name=city,
+                mode=mode,
+                with_pelias_result=with_pelias_result)
+            # Check if we have a result with address precision
+            for item in res["items"]:
+                if item.get("precision", None) == "address":
+                    log("Found address at level 2 (ONLY CITY).")
+                    return res
+
+            res_precision = get_precision(res)
+            if precision_map.get(res_precision, -1) > precision_map.get(best_res_precision, -1):
+                best_res_precision = res_precision
+                best_res = res
+
+            log(f"-2-- precision: {res_precision} (best: {best_res_precision})")
+
+
+            log("Lev 3. Search with POSTALCODE ({postalcode}) and without CITY")
+            # Check whithout the city
+            res = geocode(
+                pelias=pelias,
+                street_name=street_name,
+                house_number=house_number,
+                post_code=postalcode,
+                post_name=None,
+                mode=mode,
+                with_pelias_result=with_pelias_result)
+            # Check if we have a result with address precision
+            for item in res["items"]:
+                if item.get("precision", None) == "address":
+                    log("Found address at level 3 (ONLY POSTALCODE).")
+                    return res
+
+            res_precision = get_precision(res)
+            if precision_map.get(res_precision, -1) > precision_map.get(best_res_precision, -1):
+                best_res_precision = res_precision
+                best_res = res
+
+            log(f"-3-- precision: {res_precision} (best: {best_res_precision})")
+
+
+    if len(postalcode_list) == 0 or len(city_list) == 0:
+        log("No postal code and no city in parsed text, cannot continue, returning to normal unstructured geocoding")
+
+
+    default_res = _geocode_unstructured(
+        address=address,
+        mode=mode,
+        with_pelias_result=with_pelias_result,
+        request=request,
+        response=response
+    )
+
+    default_res_precision = get_precision(default_res)
+
+    log(f"Default precision: {default_res_precision} (best: {best_res_precision})")
+
+    if precision_map.get(best_res_precision, -1) > precision_map.get(default_res_precision, -1):
+        return best_res
+    else:
+        return default_res
 
 @app.get("/geocode/unstructured", response_model_exclude_none=True, responses={
                 status.HTTP_200_OK: {

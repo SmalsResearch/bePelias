@@ -308,3 +308,27 @@ def apply_sim_functions(str1, str2, threshold):
         if sim >= threshold:
             return sim
     return None
+
+
+precision_map = {
+    "address": 2,
+    "street": 1,
+    "city": 0,
+    "unknown": -1,
+}
+
+def get_precision(pelias_res):
+    """
+    Get the best precision of a Pelias result ()
+    """
+    best_precision = "unknown"
+
+    for item in pelias_res.get("items", []):
+        if "precision" in item:
+            item_precision = item["precision"]
+
+            if item_precision in precision_map:
+                if precision_map[item_precision] > precision_map[best_precision]:
+                    best_precision = item_precision
+
+    return best_precision

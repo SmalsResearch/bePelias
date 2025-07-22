@@ -16,6 +16,7 @@ from bepelias.pelias import PeliasException
 
 from bepelias.utils import apply_sim_functions, log, vlog, remove_street_types, get_street_names, pelias_check_postcode, to_rest_guidelines
 
+import requests
 
 transformer_sequence = [
     [],
@@ -796,6 +797,7 @@ def unstructured_mode(address, pelias):
                                    post_name=parsed["city"] if "city" in parsed else "",
                                    pelias=pelias)
         pelias_res["bepelias"]["pelias_call_count"] += 2
+
         return pelias_res
     else:
         vlog("Cannot parse address, skip...")
