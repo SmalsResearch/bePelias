@@ -860,23 +860,6 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
         return {"error": str(exc),
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR}
 
-def geocode_via_requests(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result):
-    
-    res = requests.get("http://localhost:4001/REST/bepelias/v1/geocode",
-                       params={
-                           "streetName": street_name,
-                            "houseNumber": house_number,
-                            "postCode": post_code,
-                            "postName": post_name,
-                            "mode": "advanced",
-                            "withPeliasResult": False
-                        })
-    
-    if res.status_code != 200:
-        log(f"Error during geocode request: {res.status_code} - {res.text}")
-        return {"error": f"Error during geocode request: {res.status_code} - {res.text}",
-                "status_code": res.status_code} 
-    return res.json()
 
 def geocode_unstructured(pelias, address, mode, with_pelias_result):
     """ see _geocode_unstructured
