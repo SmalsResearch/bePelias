@@ -798,42 +798,6 @@ def unstructured_mode(address, pelias):
                                    pelias=pelias)
         pelias_res["bepelias"]["pelias_call_count"] += 2
 
-        """ 
-        vlog(f" result of advanced mode: {pelias_res}")
-
-        precision_street = None
-        precision_address = None
-
-        for feat in pelias_res["features"]:
-            vlog("-----------------------------")
-            vlog("--------------feat---")
-            vlog(feat)
-            precision = feat['bepelias']['precision']
-            if precision == "street":
-                precision_street = True
-            elif precision == "address":
-                precision_address = True
-
-        if precision_address:
-            vlog("Found an address precision in advanced mode")
-            return pelias_res
-        
-        if precision_address and not "housenumber" in parsed:
-            vlog("Found an address precision in advanced mode, but no housenumber in input, skip...")
-            return pelias_res
-        
-        # try to call without the post_name
-        if not "postalcode" in parsed:
-            vlog("No postalcode in input -- TO BE DONE")
-            return pelias_res
-        
-        pelias_res = advanced_mode(street_name=parsed["street"],
-                                   house_number=parsed["housenumber"] if "housenumber" in parsed else "",
-                                   post_code=parsed["postalcode"],
-                                   post_name="",
-                                   pelias=pelias)
-        pelias_res["bepelias"]["pelias_call_count"] += 2
-        """ 
         return pelias_res
     else:
         vlog("Cannot parse address, skip...")
