@@ -529,7 +529,7 @@ def get_precision(feature):
                 city_00, city, country
     """
 
-    vlog("get_precision")
+    # vlog("get_precision")
     try:
         feat_prop = feature["properties"]
         if feat_prop["layer"] == "address":
@@ -789,6 +789,7 @@ def unstructured_mode(address, pelias):
     vlog("No (address) result with simple unstructured call, try advanced structured mode")
     # No result with a simple call, try advanced mode
     parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
+
     if "street" in parsed and "postalcode" in parsed:
         pelias_res = advanced_mode(street_name=parsed["street"],
                                    house_number=parsed["housenumber"] if "housenumber" in parsed else "",
@@ -928,7 +929,14 @@ def search_city(es_client, post_code, city_name):
     if post_code:
         must.append({"term": {"address_parts.zip": post_code}})
     if city_name:
-        must.append({"query_string": {"query": f"name.default:\"{city_name}\""}})
+        must.append({"bool": {
+                        "should": [
+                            {"query_string": {"query": f"name.default:\"{city_name}\""}},
+                            {"query_string": {"query": f"name.fr:\"{city_name}\""}},
+                            {"query_string": {"query": f"name.nl:\"{city_name}\""}},
+                            {"query_string": {"query": f"name.de:\"{city_name}\""}}
+                        ]}}
+                    )
 
     try:
 
@@ -1080,7 +1088,7 @@ def health(pelias):
                     "details": f"Interpolation answer: {interp_res}"
                 }}
 
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         return {"status": "DEGRADED",
                 "details": {"errorMessage": "Interpolation server does not answer",
                             "details": f"Interpolation server does not answer: {exc}"}}

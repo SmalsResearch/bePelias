@@ -265,6 +265,10 @@ def get_base_data_xml(region):
     if "postname_de" not in data:
         data["postname_de"] = pd.NA
 
+    for lang in ["fr", "nl", "de"]:
+
+        data[f"locality_{lang}"] = build_locality(data, lang)
+
     if SPLIT_RECORDS:
         log(f"[base-{region}] -   Splitting records")
         log(f"[base-{region}]        in:  {data.shape[0]} ")
@@ -715,14 +719,15 @@ def create_locality_data(data, region):
 
     #  data_localities["id"] = data_localities.municipality_id+"_"+data_localities.index.astype(str)
 
+    (lg1, lg2, lg3) = get_language_prefered_order(region)
+
+    for lang in ["fr", "nl", "de"]:
+
+        data_localities[f"name_{lang}"] = data_localities["postalcode"].astype(str) + " " + data_localities[f"locality_{lang}"]
+
     if SPLIT_RECORDS:
         data_localities["name"] = data_localities["postalcode"].astype(str) + " " + data_localities["locality"]
     else:
-        (lg1, lg2, lg3) = get_language_prefered_order(region)
-
-        for lang in ["fr", "nl", "de"]:
-
-            data_localities[f"name_{lang}"] = data_localities["postalcode"].astype(str) + " " + data_localities[f"locality_{lang}"]
 
         for f in ["name"]:
             data_cols = data_localities[[f"{f}_{lg1}", f"{f}_{lg2}", f"{f}_{lg3}"]]

@@ -17,7 +17,7 @@ services:
             - PELIAS_HOST=pelias_api:4000
             - PELIAS_ES_HOST=pelias_elasticsearch:9200
             - PELIAS_INTERPOL_HOST=pelias_interpolation:4300
-            - LOG_LEVEL=LOW # LOW, MEDIUM or HIGH
+            - LOG_LEVEL=HIGH # LOW, MEDIUM or HIGH
             - NB_WORKERS=2  # Number of fastapi workers
             - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"
         networks:

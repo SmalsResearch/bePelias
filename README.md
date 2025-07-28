@@ -663,3 +663,4 @@ Street "1..*" --  "1" Municipality
 - gérer les cas "Marche, Place aux Foires", "2", 
 - add a "./run.sh down"
 - unstructured: gérer "Avenue Fonsny 20, Saint-Gilles" (sans code postal)
+- cannot searchCity for "Anvers". "Anvers" is available in input data, but as there is no street name in french, "Anvers" does not appear in "locality" in the output of get_base_data_xml
