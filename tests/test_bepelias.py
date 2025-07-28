@@ -141,13 +141,12 @@ test_data = {
         "fixture": {
             "streetName": "Avenue Jean Dupuis",
             "houseNumber": 1,
-            "postCode": "6010",
+            "postCode": "6000",
             "postName": "Charleroi"},
         "expectings": [
-            (["items", 1, "postalInfo", "postalCode"], "6010"),
-            (["items", 1, "municipality", "code"], "52011"),
-            (["items", 1, "partOfMunicipality", "name", "fr"], "Couillet"),
-            (["total"], 2),
+            (["items", 0, "postalInfo", "postalCode"], "6000"),
+            (["items", 0, "municipality", "code"], "52011"),
+            (["total"], 1),
             # (["total"], 1),
             # (["items", 0, "name"], "Charleroi"),
             # (["items", 0, "precision"], "city")
