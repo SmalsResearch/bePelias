@@ -681,7 +681,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias):
 
             res["score"] = sum(score.values())
 
-            score_line = {f: prop[f] if f in prop else '[NA]' for f in fields}
+            score_line = {f: prop.get(f, '[NA]') for f in fields}
             score_line["coordinates"] = str(res["features"][0]["geometry"]["coordinates"])
             for f in fields + ["coordinates"]:
                 if f in score:
@@ -751,6 +751,20 @@ def call_unstruct(address, pelias):
     return pelias_unstruct
 
 
+def get_postcode_list(city, pelias):
+    """ Get a list with all postcode matching with 'city' (as municipality name, postal info or part of municipality)"""
+    postcodes = set()
+
+    es_client = Elasticsearch(pelias.elastic_api)
+    search_city_resp = search_city(es_client, None, city)
+
+    for search_city_item in search_city_resp.get("items", []):
+        search_city_postalcode = search_city_item.get("postalInfo", {}).get("postalCode", None)
+        if search_city_postalcode is not None:
+            postcodes.add(search_city_postalcode)
+    return postcodes
+
+
 def unstructured_mode(address, pelias):
     """The full logic of bePelias when input in unstructured
 
@@ -762,48 +776,85 @@ def unstructured_mode(address, pelias):
         dict: json result
     """
 
-    pelias_unstruct = call_unstruct(address, pelias)
-
-    if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
-        return pelias_unstruct
-
-    vlog("No (address) result with simple unstructured call, try a simple clean")
-    address_clean = address
-
+    # TODO: update transformer to reflect below actions
+    
     remove_patterns_unstruct = [(r"\(.+?\)",  "")]
+    precision_order = {"address": 0,
+                       "address_interpol": 1,
+                       "address_streetcenter": 2,
+                       "street_interpol": 3,
+                       "street": 4,
+                       "city": 5}
 
-    for pat, rep in remove_patterns_unstruct:
-        address_clean = re.sub(pat, rep, address_clean)
+    all_res = []
+    previous_attempts = []
+    call_cnt = 0
+    for transf in ["", "clean"]:
+        if transf == "clean":
+            for pat, rep in remove_patterns_unstruct:
+                address = re.sub(pat, rep, address)
+        if address not in previous_attempts:
 
-    if address_clean != address:
-        vlog(f"cleansed address: '{address_clean}'")
-        vlog(f"initial  address: '{address}'")
-        pelias_unstruct = call_unstruct(address_clean, pelias)
-        pelias_unstruct["bepelias"]["pelias_call_count"] = 2
+            pelias_res = call_unstruct(address, pelias)
+            call_cnt += 1
+            pelias_res["bepelias"]["pelias_call_count"] = call_cnt
 
-        if len(pelias_unstruct["features"]) > 0 and is_building(pelias_unstruct["features"][0]):
-            return pelias_unstruct
+            if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
+                return pelias_res
+            pelias_res["bepelias"]["in"] = address  # only used for logging
+
+            if len(pelias_res["features"]) > 0:
+                pelias_res["bepelias"]["score"] = precision_order.get(pelias_res["features"][0]["bepelias"]["precision"], 10)
+            else:
+                pelias_res["bepelias"]["score"] = 20
+
+            all_res.append(pelias_res)
+
+        previous_attempts.append(address)
+
+    # Simple transformation weren't enough, we try to parse and use advanced structured mode
+    parsed = pelias_res["geocoding"]["query"]["parsed_text"]
+
+    if "postalcode" in parsed:
+        postalcode_candidates = [parsed["postalcode"]]
+    elif "city" in parsed:
+        postalcode_candidates = get_postcode_list(parsed["city"], pelias)
     else:
-        vlog("Cleansing has no impact, skip...")
+        postalcode_candidates = []
 
-    vlog("No (address) result with simple unstructured call, try advanced structured mode")
-    # No result with a simple call, try advanced mode
-    parsed = pelias_unstruct["geocoding"]["query"]["parsed_text"]
-
-    if "street" in parsed and "postalcode" in parsed:
-        pelias_res = advanced_mode(street_name=parsed["street"],
-                                   house_number=parsed["housenumber"] if "housenumber" in parsed else "",
-                                   post_code=parsed["postalcode"],
-                                   post_name=parsed["city"] if "city" in parsed else "",
+    for cp in postalcode_candidates:
+        vlog(f"Postcode candidate: {cp}")
+        pelias_res = advanced_mode(street_name=parsed.get("street", ""),
+                                   house_number=parsed.get("housenumber", ""),
+                                   post_code=cp,
+                                   post_name=parsed.get("city", ""),
                                    pelias=pelias)
-        pelias_res["bepelias"]["pelias_call_count"] += 2
-        return pelias_res
-    else:
-        vlog("Cannot parse address, skip...")
+        call_cnt += pelias_res["bepelias"]["pelias_call_count"]
+        pelias_res["bepelias"]["pelias_call_count"] = call_cnt
 
-    # Advanced mode not applicable, return (empty) initial result
-    return pelias_unstruct
+        if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
+            return pelias_res
 
+        pelias_res["bepelias"]["in"] = parsed | {"postalcode": cp}  # only used for logging
+        if len(pelias_res["features"]) > 0:
+            pelias_res["bepelias"]["score"] = precision_order.get(pelias_res["features"][0]["bepelias"]["precision"], 10)
+        else:
+            pelias_res["bepelias"]["score"] = 20
+
+        all_res.append(pelias_res)
+
+    # No result with building level --> keep the best candidate
+
+    vlog(pd.DataFrame([{"in": pr["bepelias"]["in"],
+                        "precision": pr["features"][0]["bepelias"]["precision"] if len(pr["features"]) > 0 else "-",
+                        "score": pr["bepelias"]["score"]} for pr in all_res]))
+
+    best_pelias_res = min(all_res, key=lambda pr: pr["bepelias"]["score"])
+    best_pelias_res["bepelias"]["pelias_call_count"] = call_cnt
+    del best_pelias_res["bepelias"]["score"]
+    del best_pelias_res["bepelias"]["in"]
+
+    return best_pelias_res
 
 #################
 # API Endpoints #
@@ -863,8 +914,6 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
 def geocode_unstructured(pelias, address, mode, with_pelias_result):
     """ see _geocode_unstructured
     """
-
-    log(f"Geocode (unstruct - {mode}): {address}")
 
     try:
         if mode in ("basic"):

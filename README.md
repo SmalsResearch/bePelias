@@ -661,6 +661,3 @@ Street "1..*" --  "1" Municipality
 - upgrate to pandas 2
 - https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ?
 - gérer les cas "Marche, Place aux Foires", "2", 
-- add a "./run.sh down"
-- unstructured: gérer "Avenue Fonsny 20, Saint-Gilles" (sans code postal)
-- cannot searchCity for "Anvers". "Anvers" is available in input data, but as there is no street name in french, "Anvers" does not appear in "locality" in the output of get_base_data_xml

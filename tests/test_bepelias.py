@@ -149,7 +149,7 @@ test_data = {
             (["total"], 1),
             # (["total"], 1),
             # (["items", 0, "name"], "Charleroi"),
-            # (["items", 0, "precision"], "city")
+            (["items", 0, "precision"], "street_00")
         ]
     },
     "gent": {
@@ -354,10 +354,71 @@ def test_batch_call(filename: Literal['tests/data.csv']):
     Args:
         filename (str): CVS filename
     """
-    addresses = pd.read_csv(filename).iloc[0:10]
+    addresses = pd.read_csv(filename)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
     addresses["json"] = addresses.fillna("").apply(call_geocode, mode="advanced", axis=1)
     for json_item in addresses["json"]:
         assert "items" in json_item
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "precision" in item
+
+
+@pytest.mark.parametrize(
+        "filename",
+        [
+            "tests/data.csv"
+        ]
+)
+def test_unstruct_batch_call(filename: Literal['tests/data.csv']):
+    """Send all addresses from filename to API
+
+    Args:
+        filename (str): CVS filename
+    """
+    addresses = pd.read_csv(filename)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
+    addresses["address"] = \
+        addresses[STREET_FIELD].fillna("") + " " + addresses[HOUSENBR_FIELD].fillna("") + " , " +\
+        addresses[POSTCODE_FIELD].fillna("").astype(str) + " " + addresses[CITY_FIELD].fillna("")
+
+    addresses["json"] = addresses.address.apply(call_unstruct, mode="advanced")
+    for i, json_item in enumerate(addresses["json"]):
+        assert "items" in json_item, f"No 'items' in '{json_item}' ; {addresses.iloc[i]}"
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "precision" in item
+
+
+@pytest.mark.parametrize(
+        "filename",
+        [
+            "tests/data.csv"
+        ]
+)
+def test_unstruct_nozip_batch_call(filename: Literal['tests/data.csv']):
+    """Send all addresses from filename to API
+
+    Args:
+        filename (str): CVS filename
+    """
+    addresses = pd.read_csv(filename)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
+    addresses["address"] = addresses[STREET_FIELD].fillna("") + " " + addresses[HOUSENBR_FIELD].fillna("") + ", " + addresses[CITY_FIELD].fillna("")
+    addresses["json"] = addresses.address.apply(call_unstruct, mode="advanced")
+    for i, json_item in enumerate(addresses["json"]):
+        assert "items" in json_item, f"No 'items' in '{json_item}' ; {addresses.iloc[i]}"
         #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
         assert json_item["total"] == len(json_item["items"])
         for item in json_item["items"]:
