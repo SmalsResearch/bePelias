@@ -776,8 +776,6 @@ def unstructured_mode(address, pelias):
         dict: json result
     """
 
-    # TODO: update transformer to reflect below actions
-    
     remove_patterns_unstruct = [(r"\(.+?\)",  "")]
     precision_order = {"address": 0,
                        "address_interpol": 1,
@@ -822,7 +820,7 @@ def unstructured_mode(address, pelias):
         postalcode_candidates = get_postcode_list(parsed["city"], pelias)
     else:
         postalcode_candidates = []
-    
+
     vlog(f"Postcode candidates: {postalcode_candidates}")
 
     for cp in postalcode_candidates:
@@ -834,7 +832,7 @@ def unstructured_mode(address, pelias):
                                    pelias=pelias)
         call_cnt += pelias_res["bepelias"]["pelias_call_count"]
         pelias_res["bepelias"]["pelias_call_count"] = call_cnt
-        pelias_res["bepelias"]["transformers"] = f"parsed(postcode={cp});"+pelias_res["bepelias"]["transformers"]        
+        pelias_res["bepelias"]["transformers"] = f"parsed(postcode={cp});"+pelias_res["bepelias"]["transformers"]
 
         if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
             return pelias_res
