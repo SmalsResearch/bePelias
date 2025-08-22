@@ -798,6 +798,7 @@ def unstructured_mode(address, pelias):
             pelias_res = call_unstruct(address, pelias)
             call_cnt += 1
             pelias_res["bepelias"]["pelias_call_count"] = call_cnt
+            pelias_res["bepelias"]["transformers"] = transf
 
             if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
                 return pelias_res
@@ -821,6 +822,8 @@ def unstructured_mode(address, pelias):
         postalcode_candidates = get_postcode_list(parsed["city"], pelias)
     else:
         postalcode_candidates = []
+    
+    vlog(f"Postcode candidates: {postalcode_candidates}")
 
     for cp in postalcode_candidates:
         vlog(f"Postcode candidate: {cp}")
@@ -831,6 +834,7 @@ def unstructured_mode(address, pelias):
                                    pelias=pelias)
         call_cnt += pelias_res["bepelias"]["pelias_call_count"]
         pelias_res["bepelias"]["pelias_call_count"] = call_cnt
+        pelias_res["bepelias"]["transformers"] = f"parsed(postcode={cp});"+pelias_res["bepelias"]["transformers"]        
 
         if len(pelias_res["features"]) > 0 and is_building(pelias_res["features"][0]):
             return pelias_res
@@ -998,8 +1002,8 @@ def search_city(es_client, post_code, city_name):
                                             }
                                     }
                                 })
-        vlog("resp:")
-        vlog(resp)
+        # vlog("resp:")
+        # vlog(resp)
 
         resp = resp["hits"]["hits"]
 
