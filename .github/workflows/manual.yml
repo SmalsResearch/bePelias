@@ -20,5 +20,7 @@ jobs:
           uses: actions/checkout@v1.0.0
         - name: Check files
           run: ls
-        - name: Run build script
+        - name: Run build script for API
           run: ./scripts/build.sh api
+        - name: Run build script for Pelias
+          run: ./scripts/build.sh pelias
