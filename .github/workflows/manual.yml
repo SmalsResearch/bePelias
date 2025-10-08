@@ -23,8 +23,5 @@ jobs:
           run: ./scripts/build.sh api
         - name: Run build script for Pelias
           run: ./scripts/build.sh pelias
-  feed:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get BeSt Address data
-        run: ./scripts/feed.sh
+        - name: Get BeSt Address data
+          run: ./scripts/feed.sh
