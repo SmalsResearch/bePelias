@@ -34,7 +34,9 @@ if [[ $ACTION == "api" ||  $ACTION == "all" ]]; then
     date
     chmod a+x scripts/*.sh
 
-    $DOCKER_COMPOSE build 
+    $DOCKER_COMPOSE build base
+    $DOCKER_COMPOSE build api
+    $DOCKER_COMPOSE build dataprep
     echo "Build bePelias done!"
     date
 fi
