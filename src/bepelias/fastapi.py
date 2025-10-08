@@ -39,6 +39,8 @@ from bepelias.model import (GeocodeOutput, BePeliasError, Health,
 
 from bepelias.pelias import Pelias
 
+from bepelias import __version__
+
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
 # WARNING : no logs
@@ -103,7 +105,7 @@ pelias = Pelias(domain_api=pelias_host,
                 domain_interpol=pelias_interpol_host)
 
 
-app = FastAPI(version='1.0.0',
+app = FastAPI(version=__version__,
               title='bePelias API',
               description="""A service that allows geocoding (postal address cleansing and conversion into geographical coordinates), based on Pelias and BestAddresses.
 
