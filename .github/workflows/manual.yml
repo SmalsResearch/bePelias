@@ -37,5 +37,5 @@ jobs:
           run: ./scripts/build.sh pelias
         - name: Get BeSt Address data (${{ inputs.region }})
           run: ./scripts/feed.sh all  ${{ inputs.region }}
-        - name: Run all service (${{ inputs.region }})
-          run: ./scripts/run.sh all
+        - name: Run all service
+          run: ./scripts/run.sh up
