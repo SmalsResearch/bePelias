@@ -1,4 +1,4 @@
-# This is a basic workflow that is manually triggered
+# This is still very experimental, do not work at all!
 
 name: Build & feed bePelias
 
@@ -28,10 +28,14 @@ jobs:
         - name: Check out repository code
           uses: actions/checkout@v1.0.0
         - name: Check files
-          run: ls
+          run: ls -l
         - name: Run build script for API
           run: ./scripts/build.sh api
+        # - name: Create non-root user
+        #   run:  groupadd -g 10001 pelias && useradd -u 10000 -g pelias pelias && chown pelias .
         - name: Run build script for Pelias
           run: ./scripts/build.sh pelias
-        - name: Get BeSt Address data
+        - name: Get BeSt Address data (${{ inputs.region }})
           run: ./scripts/feed.sh all  ${{ inputs.region }}
+        - name: Run all service (${{ inputs.region }})
+          run: ./scripts/run.sh all

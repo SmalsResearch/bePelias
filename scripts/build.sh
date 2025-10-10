@@ -1,11 +1,16 @@
 #!/bin/bash
 ACTION=${1:-"all"}
 
+
+# mkdir testmachin
 # This script runs on the host machine. It builds Pelias and bePelias and run them
 echo "Starting build.sh..."
 
 echo "ACTION: $ACTION"
 date
+
+echo "user: $USER"
+pwd
 
 DIR=pelias/projects/belgium_bepelias
 
@@ -75,6 +80,10 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
     #mkdir -p data
     # chmod a+wr data
     echo 'DATA_DIR=./data' >> .env
+
+    # echo "Create group & user" 
+    # groupadd -g 10001 pelias && \
+    # useradd -u 10000 -g pelias pelias 
 
     $PELIAS compose pull
     $PELIAS elastic start
