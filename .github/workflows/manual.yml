@@ -31,8 +31,6 @@ jobs:
           run: ls -l
         - name: Run build script for API
           run: ./scripts/build.sh api
-        # - name: Create non-root user
-        #   run:  groupadd -g 10001 pelias && useradd -u 10000 -g pelias pelias && chown pelias .
         - name: Run build script for Pelias
           run: ./scripts/build.sh pelias
         - name: Get BeSt Address data (${{ inputs.region }})
