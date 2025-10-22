@@ -30,6 +30,16 @@ transformer_sequence = [
     ["no_street"],
 ]
 
+remove_patterns = [(r"\(.+\)$",      ""),
+                   ("[, ]*(SN|ZN)$", ""),
+                   ("' ", "'"),
+                   (" [a-zA-Z][. ]", " "),
+                   ("[.]", " "),
+                   (",[a-zA-Z .'-]*$", " "),
+                   ("[ ]+$", ""),
+                   ("^[ ]+", "")
+                   ]
+
 
 def check_locality(feature, locality_name, threshold=0.8):
     """
@@ -253,10 +263,10 @@ def interpolate(feature, pelias):
                                     street=feature['properties']['street'])
 
     if len(interp_res) == 0:
-        interp_res = {"street_geometry": {"coordinates": street_center_coords}}
+        return {"street_geometry": {"coordinates": street_center_coords}}
 
     vlog(interp_res)
-    return interp_res
+    return {"geometry": {"coordinates": interp_res}}
 
 
 def build_address(street_name, house_number):
@@ -325,11 +335,12 @@ def search_for_coordinates(feat, pelias):
     if len(boxes) > 0 and boxes[0]["coordinates"]["lat"] != 0:
         vlog("Found coordinates in first box number")
         feat["geometry"]["coordinates_orig"] = [0, 0]
-        feat["geometry"]["coordinates"] = boxes[0]["coordinates"]["lon"], boxes[0]["coordinates"]["lat"]
+        feat["geometry"]["coordinates"] = [boxes[0]["coordinates"]["lon"], boxes[0]["coordinates"]["lat"]]
         feat["bepelias"] = {"interpolated": "from_boxnumber"}
     else:
         vlog("Coordinates==0,0, try to interpolate...")
         interp = interpolate(feat, pelias)
+        vlog(f"interpolate result: {interp}")
         if "geometry" in interp:
             feat["geometry"]["coordinates_orig"] = [0, 0]
             feat["geometry"]["coordinates"] = interp["geometry"]["coordinates"]
@@ -457,15 +468,6 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
 
     # Otherwhise, choose unstruct
     return pelias_unstruct
-
-
-remove_patterns = [(r"\(.+\)$",      ""),
-                   ("[, ]*(SN|ZN)$", ""),
-                   ("' ", "'"),
-                   (" [a-zA-Z][. ]", " "),
-                   ("[.]", " "),
-                   (",[a-zA-Z .'-]*$", " ")
-                   ]
 
 
 def transform(addr_data, transformer):
