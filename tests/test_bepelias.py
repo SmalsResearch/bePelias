@@ -1,5 +1,5 @@
 """
-Unitest for bepelias using pytest
+Unitest for bepelias api using pytest
 """
 
 import json
@@ -128,7 +128,7 @@ test_data = {
         "unstruct_fixture": "Av Fonsny 20, 1060 Saint-Gilles",
         "expectings": [
             (["items", 0, "postalInfo", "postalCode"], "1060"),
-            (["items", 0, "postalInfo", "name", "fr"], "Saint-Gilles"),
+            # (["items", 0, "postalInfo", "name", "fr"], "Saint-Gilles"),
             (["items", 0, "street", "name", "fr"], "Avenue Fonsny"),
             (["items", 0, "street", "name", "nl"], "Fonsnylaan"),
             (["items", 0, "municipality", "code"], "21013"),

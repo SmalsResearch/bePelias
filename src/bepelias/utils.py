@@ -47,9 +47,9 @@ def vlog(arg):
 def to_camel_case(data):
     """
     Convert a snake_case object to a camelCase.
-    If d is a string, convert the string
-    If d is a dict, convert all keys, recursively (i.e., values are dict or list), but not simple values
-    If d is a list, convert all objects in the list
+    If data is a string, convert the string
+    If data is a dict, convert all keys, recursively (i.e., values are dict or list), but not simple values
+    If data is a list, convert all objects in the list
 
     Parameters
     ----------
