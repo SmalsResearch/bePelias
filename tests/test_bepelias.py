@@ -56,7 +56,7 @@ def call_health():
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/health', {})
 
 
-def call_geocode(addr_data, mode="advanced"):
+def call_geocode(addr_data, mode="advanced", with_pelias_result=False):
     """
         Call bePelias web service
     """
@@ -64,7 +64,7 @@ def call_geocode(addr_data, mode="advanced"):
         addr_data = addr_data.to_dict()
 
     addr_data["mode"] = mode
-    addr_data["withPeliasResult"] = False
+    addr_data["withPeliasResult"] = with_pelias_result
 
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode',
                    addr_data)
@@ -366,6 +366,39 @@ def test_batch_call(filename: Literal['tests/data.csv']):
         assert json_item["total"] == len(json_item["items"])
         for item in json_item["items"]:
             assert "precision" in item
+
+
+@pytest.mark.parametrize(
+        "filename, mode, with_pelias_result",
+        [
+            ["tests/data.csv", "simple", True],
+            ["tests/data.csv", "simple", False],
+            ["tests/data.csv", "basic", True],
+            ["tests/data.csv", "basic", False],
+            ["tests/data.csv", "advanced", True], 
+            ["tests/data.csv", "advanced", False]
+        ]
+)
+def test_options_batch_call(filename: Literal['tests/data.csv'], mode, with_pelias_result):
+    """Send all addresses from filename to API
+
+    Args:
+        filename (str): CVS filename
+    """
+    addresses = pd.read_csv(filename).sample(10, random_state=0)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
+    addresses["json"] = addresses.fillna("").apply(call_geocode, mode=mode, with_pelias_result=with_pelias_result, axis=1)
+    for json_item in addresses["json"]:
+        assert "items" in json_item
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "precision" in item
+        if with_pelias_result:
+            assert "peliasRaw" in json_item
 
 
 @pytest.mark.parametrize(
