@@ -4,7 +4,8 @@
 import logging
 import re
 import copy
-
+import pprint
+import pandas as pd
 
 import textdistance
 
@@ -25,7 +26,8 @@ def log(arg):
     -------
     None.
     """
-    logging.info(arg)
+    for ln in str(arg).split("\n"):
+        logging.info(ln)
 
 
 def vlog(arg):
@@ -41,7 +43,8 @@ def vlog(arg):
     -------
     None.
     """
-    logging.debug(arg)
+    for ln in str(arg).split("\n"):
+        logging.debug(ln)
 
 
 def to_camel_case(data):
@@ -104,7 +107,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
         dict: REST Guideline compliant version of input
     """
 
-    vlog("Converting to to_rest_guidelines")
+    # vlog("Converting to to_rest_guidelines")
     if not isinstance(pelias_res, dict):
         return pelias_res
     items = []
@@ -142,7 +145,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
                 del feat["bepelias"]
         rest_res["peliasRaw"] = pelias_res_raw
 
-    vlog(rest_res)
+    # vlog(rest_res)
     return rest_res
 
 # Check result functions
@@ -150,7 +153,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
 
 def pelias_check_postcode(pelias_res, postcode, match_length=3):
     """
-    List a Pelias feature list by removing all feature having a postcode which
+    Filter a Pelias feature list by removing all feature having a postcode which
     does not start by the same 'match_length' digits as 'postcode'. If no postal code is
     provide in a feature, keep it
 
@@ -178,7 +181,7 @@ def pelias_check_postcode(pelias_res, postcode, match_length=3):
 
     pelias_res["features"] = filtered_feat
 
-    vlog(f"Check postcode : {nb_res} --> {len(filtered_feat)}")
+    vlog(f"    Check postcode : {nb_res} --> {len(filtered_feat)}")
     return pelias_res
 
 
@@ -308,3 +311,61 @@ def apply_sim_functions(str1, str2, threshold):
         if sim >= threshold:
             return sim
     return None
+
+
+def feature_to_df(features, to_string=True, margin=4):
+    """ Convert a list of Pelias features into a Pandas DataFrame
+        Convertible to a string for pretty printing if to_string is True, with a left margin of 'margin' spaces
+     """
+    rows = []
+    for feature in features:
+        row = {"source": feature["properties"]["source"],
+               "precision": feature["bepelias"]["precision"] if "bepelias" in feature and "precision" in feature["bepelias"] else None
+               }
+        row["city"] = feature["properties"].get("locality") or feature["properties"].get("name")
+
+        if "addendum" in feature["properties"]:
+            if "best" in feature["properties"]["addendum"]:
+                best = feature["properties"]["addendum"]["best"]
+                if "housenumber" in best:
+                    row["housenumber"] = best["housenumber"]
+                if "postal_info" in best and "postal_code" in best["postal_info"]:
+                    row["postal_code"] = best["postal_info"]["postal_code"]
+                if "street" in best and "name" in best["street"]:
+                    row["street"] = best["street"]["name"]
+                if "municipality" in best and "name" in best["municipality"]:
+                    row["city"] = best["municipality"]["name"]
+
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    if to_string:
+        margin_str = " " * margin
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
+            return margin_str + str(df).replace("\n", "\n"+margin_str)
+    return df
+
+
+def final_res_to_df(final_res, to_string=True, margin=0):
+    """ Convert a bepelias final result into a Pandas DataFrame
+        Convertible to a string for pretty printing if to_string is True, with a left margin of 'margin' spaces
+     """
+
+    rows = []
+    for item in final_res["items"]:
+        row = {"precision": item.get("precision"),
+               "housenumber": item.get("housenumber"),
+               "street": item.get("street").get("name") if item.get("street") else None,
+               "postalcode": item.get("postalInfo").get("postalCode") if item.get("postalInfo") else None,
+               "city": item.get("municipality").get("name") if item.get("municipality") else None
+               }
+        rows.append(row)
+    
+    df = pd.DataFrame(rows)
+
+    if to_string:
+        margin_str = " " * margin
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
+            return margin_str + str(df).replace("\n", "\n"+margin_str) + "\n"+pprint.pformat({k: v for (k, v) in final_res.items() if k != "items"})
+    return df

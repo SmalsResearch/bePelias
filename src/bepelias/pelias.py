@@ -152,7 +152,7 @@ class Pelias:
         params = urllib.parse.urlencode(params)
 
         url = f"{url}?{params}"
-        vlog(f"Call to Pelias: {url}")
+        vlog(f"    Call to Pelias: {url}")
 
         return self.call_service(url)
 
@@ -191,7 +191,7 @@ class Pelias:
         params = urllib.parse.urlencode(params)
 
         url = f"{url}?{params}"
-        vlog(f"Call to Pelias: {url}")
+        vlog(f"    Call to Pelias: {url}")
 
         return self.call_service(url)
 
@@ -226,7 +226,7 @@ class Pelias:
         params = urllib.parse.urlencode({"lat": lat, "lon": lon, "number": number, "street": street})
 
         url = f"{url}?{params}"
-        vlog(f"Call to interpolate: {url}")
+        vlog(f"    Call to interpolate: {url}")
 
         return self.call_service(url)
 

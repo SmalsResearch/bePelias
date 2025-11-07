@@ -16,7 +16,6 @@ import re
 from urllib.parse import unquote_plus
 
 from typing import Annotated, Union
-# from enum import Enum
 
 import logging
 
@@ -29,7 +28,7 @@ from pydantic import AfterValidator
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
 
-from bepelias.base import log
+from bepelias.base import log, vlog
 from bepelias.base import (geocode, geocode_reverse, geocode_unstructured,
                            get_by_id, search_city, health)
 
@@ -180,6 +179,8 @@ How Pelias is used:
             response: Response = None):
     """ Single address geocoding"""
 
+    vlog("")
+    vlog("------------------------")
     log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
 
     res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result)
@@ -224,7 +225,8 @@ How Pelias is used:
                           response: Response = None):
     """ Single (unstructured) address geocoding
     """
-
+    vlog("")
+    vlog("------------------------")
     log(f"Geocode (unstruct - {mode}): {address}")
     res = geocode_unstructured(pelias, address, mode, with_pelias_result)
 
@@ -274,6 +276,10 @@ def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:
 
     """
 
+    vlog("")
+    vlog("------------------------")
+    log(f"Reverse geocode: {lat} / {lon} / radius={radius} / size={size}")
+
     res = geocode_reverse(pelias, lat, lon, radius, size, with_pelias_result)
 
     if "status_code" in res:
@@ -315,6 +321,11 @@ def _search_city(
 Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
 
     """
+
+    vlog("")
+    vlog("------------------------")
+    log(f"Search city: {post_code} / {city_name}")
+
     client = Elasticsearch(pelias.elastic_api)
     res = search_city(client, post_code, city_name)
 
@@ -364,6 +375,10 @@ def _get_by_id(
 
     """Search for a Best item by its id in Elastic database
     """
+
+    vlog("")
+    vlog("------------------------")
+    log(f"Get by id: {bestid}")
 
     res = get_by_id(pelias, bestid)
     if "status_code" in res:
