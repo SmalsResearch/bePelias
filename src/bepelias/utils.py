@@ -27,6 +27,7 @@ def log(arg):
     -------
     None.
     """
+
     for ln in str(arg).split("\n"):
         logging.info(ln)
 

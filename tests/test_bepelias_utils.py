@@ -9,7 +9,7 @@ sys.path.append("src/")
 
 from bepelias.utils import (to_camel_case, convert_coordinates,  # pylint: disable=C0413, E0401 # noqa: E402
                             to_rest_guidelines, pelias_check_postcode,
-                            get_feature_street_names, get_feature_city_names, 
+                            get_feature_street_names, get_feature_city_names,
                             remove_street_types, feature_to_df,
                             is_partial_substring, apply_sim_functions)
 
@@ -167,7 +167,7 @@ def test_apply_sim_functions(input_value, output_value):
         "input_value, output_value",
         [
             ([{
-               "bepelias": {"precision": "test_prec"}, 
+               "bepelias": {"precision": "test_prec"},
                'properties': {
                     'source': 'test_src',
                     'locality': 'test_loc',
