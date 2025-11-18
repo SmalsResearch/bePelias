@@ -3,12 +3,14 @@ Unitest for bepelias 'utils' functions using pytest
 """
 import sys
 import pytest
+import pandas as pd
 
 sys.path.append("src/")
 
 from bepelias.utils import (to_camel_case, convert_coordinates,  # pylint: disable=C0413, E0401 # noqa: E402
                             to_rest_guidelines, pelias_check_postcode,
-                            get_street_names, remove_street_types,
+                            get_feature_street_names, get_feature_city_names, 
+                            remove_street_types, feature_to_df,
                             is_partial_substring, apply_sim_functions)
 
 
@@ -97,9 +99,28 @@ def test_pelias_check_postcode(input_value, output_value):
              ['AV FONSNY'])
         ]
 )
-def test_get_street_names(input_value, output_value):
-    """ test get_street_names """
-    assert list(get_street_names(input_value)) == output_value
+def test_get_feature_street_names(input_value, output_value):
+    """ test get_feature_street_names """
+    assert list(get_feature_street_names(input_value)) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+            ({'properties':
+                {'addendum': {'best': {
+                    "postname_fr": "saint-gilles",
+                    "postname_nl": "sint-gillis",
+                    "municipality_name_fr": "Saint-Gilles",
+                 }}}},
+             ['SAINT-GILLES', 'SINT-GILLIS']),
+            ({'properties': {'street': "av fonsny"}},
+             [])
+        ]
+)
+def test_get_feature_city_names(input_value, output_value):
+    """ test get_feature_city_names """
+    assert list(get_feature_city_names(input_value)) == output_value
 
 
 @pytest.mark.parametrize(
@@ -140,3 +161,55 @@ def test_is_partial_substring(input_value, output_value):
 def test_apply_sim_functions(input_value, output_value):
     """ test is_partial_substring """
     assert apply_sim_functions(input_value[0], input_value[1], input_value[2]) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+            ([{
+               "bepelias": {"precision": "test_prec"}, 
+               'properties': {
+                    'source': 'test_src',
+                    'locality': 'test_loc',
+                    'addendum': {
+                        'best': {
+                            "housenumber": "123",
+                            "postal_info": {"postal_code": "1000"},
+                            "street": {"name": {"fr": "rue de test"}},
+                            "municipality": {"name": {"fr": "Saint-Gilles"}}
+                        }}}}],
+             [{"source": "test_src",
+               "precision": "test_prec",
+               "housenumber": "123",
+               "postal_code": "1000",
+               "street": {'fr': "rue de test"},
+               "city": {'fr': 'Saint-Gilles'}}]),
+            ([{'properties': {'source': 'test_src'}}],
+             [{"source": "test_src", "precision": None, "city": None}])
+        ]
+)
+def test_feature_to_df(input_value, output_value):
+    """ test get_feature_city_names """
+    df = feature_to_df(input_value, to_string=False)
+    expected_df = pd.DataFrame(output_value)
+
+    # with pd.option_context('display.max_columns', None, 'display.max_colwidth', None):
+    #     print(df)
+    #     print(expected_df)
+    assert df.shape == expected_df.shape
+    assert set(df.columns) == set(expected_df.columns)
+    expected_df = expected_df[df.columns]
+    # print(df.columns)
+    # print(expected_df.columns)
+    # print((df.fillna("-") == expected_df.fillna("-")).all().all())
+    assert (df.fillna("-") == expected_df.fillna("-")).all().all()
+
+    df_str = feature_to_df(input_value, to_string=True)
+    for col in expected_df.columns:
+        assert col in df_str
+    for _, row in expected_df.iterrows():
+        for cell in row:
+            if pd.isna(cell):
+                assert "None" in df_str
+            else:
+                assert str(cell) in df_str

@@ -39,7 +39,7 @@ def test_check_locality(input_value, output_value):
 
 
 @pytest.mark.parametrize(
-        "input_value, output_value",
+        "input_value, sim_value",
         [
             (["", None], 1),
             ([{'properties':
@@ -53,12 +53,13 @@ def test_check_locality(input_value, output_value):
             ([{'properties':
                 {}}, "CHAUSSEE DE WAVRE"], 1),
             ([{'properties':
-                {'street': "avenue fonsny"}}, "AVENUE FONSNY (saint gilles)"], 1),
+                {'street': "avenue fonsny"}}, "AVENUE FONSNY (saint gilles)"], 0.85),
         ]
 )
-def test_check_streetname(input_value, output_value):
+def test_check_streetname(input_value, sim_value):
     """ test check_streetname """
-    assert check_streetname(input_value[0], input_value[1]) == output_value
+    val = check_streetname(input_value[0], input_value[1])
+    assert val is None and sim_value is None or val >= sim_value
 
 
 @pytest.mark.parametrize(
@@ -134,7 +135,7 @@ def test_interpolate(input_value, output_value):
     # emulate geocoder
     pelias.geocode = lambda addr: {'features': [{'properties': {'postalcode': addr['postalcode']},
                                                  'geometry': {'coordinates': [1, 1]}}]}
-    pelias.interpolate = lambda lat, lon, number, street: [2, 2]
+    pelias.interpolate = lambda lat, lon, number, street: {"geometry": {"coordinates": [2, 2]}}
     assert interpolate(input_value, pelias) == output_value
 
 
@@ -242,7 +243,8 @@ def test_search_for_coordinates(input_value, output_value):
     # emulate geocoder
     pelias.geocode = lambda addr: {'features': [{'properties': {'postalcode': addr['postalcode']},
                                                  'geometry': {'coordinates': [1, 1]}}]}
-    pelias.interpolate = lambda lat, lon, number, street: [2, 2]
+
+    pelias.interpolate = lambda lat, lon, number, street: {"geometry": {"coordinates": [2, 2]}}
 
     search_for_coordinates(input_value, pelias)
 

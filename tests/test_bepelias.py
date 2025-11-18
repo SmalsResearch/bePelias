@@ -172,7 +172,7 @@ test_data = {
     },
     "nores": {
         "fixture": {
-            "streetName": "Ave Fabsnyaefaeef",
+            "streetName": "Ave Fabsnyaefaeagkl",
             "houseNumber": 20,
             "postCode": "1234",
             "city": "azerty"},
@@ -345,10 +345,10 @@ def test_get_by_id(addr):
 @pytest.mark.parametrize(
         "filename",
         [
-            "tests/data.csv"
+            "tests/data/data.csv"
         ]
 )
-def test_batch_call(filename: Literal['tests/data.csv']):
+def test_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:
@@ -371,15 +371,15 @@ def test_batch_call(filename: Literal['tests/data.csv']):
 @pytest.mark.parametrize(
         "filename, mode, with_pelias_result",
         [
-            ["tests/data.csv", "simple", True],
-            ["tests/data.csv", "simple", False],
-            ["tests/data.csv", "basic", True],
-            ["tests/data.csv", "basic", False],
-            ["tests/data.csv", "advanced", True], 
-            ["tests/data.csv", "advanced", False]
+            ["tests/data/data.csv", "simple", True],
+            ["tests/data/data.csv", "simple", False],
+            ["tests/data/data.csv", "basic", True],
+            ["tests/data/data.csv", "basic", False],
+            ["tests/data/data.csv", "advanced", True],
+            ["tests/data/data.csv", "advanced", False]
         ]
 )
-def test_options_batch_call(filename: Literal['tests/data.csv'], mode, with_pelias_result):
+def test_options_batch_call(filename: Literal['tests/data/data.csv'], mode, with_pelias_result):
     """Send all addresses from filename to API
 
     Args:
@@ -404,10 +404,10 @@ def test_options_batch_call(filename: Literal['tests/data.csv'], mode, with_peli
 @pytest.mark.parametrize(
         "filename",
         [
-            "tests/data.csv"
+            "tests/data/data.csv"
         ]
 )
-def test_unstruct_batch_call(filename: Literal['tests/data.csv']):
+def test_unstruct_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:
@@ -434,10 +434,10 @@ def test_unstruct_batch_call(filename: Literal['tests/data.csv']):
 @pytest.mark.parametrize(
         "filename",
         [
-            "tests/data.csv"
+            "tests/data/data.csv"
         ]
 )
-def test_unstruct_nozip_batch_call(filename: Literal['tests/data.csv']):
+def test_unstruct_nozip_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:

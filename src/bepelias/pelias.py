@@ -134,8 +134,8 @@ class Pelias:
         if isinstance(query, dict):
             struct = True
             params = {
-                'address':    query['address'],
-                'locality':   query['locality']
+                'address':    query.get('address', ''),
+                'locality':   query.get('locality', '')
             }
             if 'postalcode' in query:
                 params["postalcode"] = query['postalcode']
@@ -147,6 +147,7 @@ class Pelias:
         if layers:
             params["layers"] = layers
 
+        params["size"] = 40
         url = self.geocode_struct_api if struct else self.geocode_api
 
         params = urllib.parse.urlencode(params)

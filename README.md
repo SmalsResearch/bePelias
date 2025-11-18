@@ -656,9 +656,11 @@ Street "1..*" --  "1" Municipality
 
 - implementing "size" parameter for search call
 - unstructured:
-    - interp if coords = 0,0
     - try first street+zipcode. If no res, do not go further this zipcode
-- upgrate to pandas 2
+    - if precision = street and street+zip match --> stop
+- upgrade to pandas 2
 - https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ?
 - gérer les cas "Marche, Place aux Foires", "2",
+- street_00, address_00 : place coordinates by zipcode center
+- is_partial_substring : imposer des espaces, pour éviter que "nxxxxexxxxexxxxfxx" ne match avec neef
  

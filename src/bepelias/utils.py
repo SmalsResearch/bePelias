@@ -9,6 +9,7 @@ import pandas as pd
 
 import textdistance
 
+from unidecode import unidecode
 
 # General functions
 
@@ -185,9 +186,9 @@ def pelias_check_postcode(pelias_res, postcode, match_length=3):
     return pelias_res
 
 
-def get_street_names(feature):
+def get_feature_street_names(feature):
     """
-    From a Pelias feature, extract all possible street name
+    From a Pelias feature, extract all possible street name (skipping duplicates)
 
     Parameters
     ----------
@@ -199,16 +200,51 @@ def get_street_names(feature):
     str
         street name.
     """
+    previous_res = set()
 
     if "street" in feature["properties"]:
-        yield feature["properties"]["street"].upper()
+        res = feature["properties"]["street"].upper()
+        if res not in previous_res:
+            previous_res.add(res)
+            yield res
+
     if "addendum" not in feature["properties"] or "best" not in feature["properties"]["addendum"]:
         return
 
     best = feature["properties"]["addendum"]["best"]
     for n in ["streetname_fr", "streetname_nl", "streetname_de"]:
         if n in best:
-            yield best[n].upper()
+            res = best[n].upper()
+            if res not in previous_res:
+                previous_res.add(res)
+                yield res
+
+
+def get_feature_city_names(feature):
+    """
+    From a Pelias feature, extract all possible city name (skipping duplicates)
+
+    Parameters
+    ----------
+    feature : dict
+        Pelias feature.
+
+    Yields
+    ------
+    str
+        city name.
+    """
+
+    previous_res = set()
+    for c in ["postname_fr", "postname_nl", "postname_de",
+              "municipality_name_fr", "municipality_name_nl", "municipality_name_de"]:
+
+        if "addendum" in feature["properties"] and "best" in feature["properties"]["addendum"] and c in feature["properties"]["addendum"]["best"]:
+            cty = unidecode(feature["properties"]["addendum"]["best"][c].upper())
+
+            if cty not in previous_res:
+                previous_res.add(cty)
+                yield cty
 
 
 def remove_street_types(street_name):
@@ -361,7 +397,7 @@ def final_res_to_df(final_res, to_string=True, margin=0):
                "city": item.get("municipality").get("name") if item.get("municipality") else None
                }
         rows.append(row)
-    
+
     df = pd.DataFrame(rows)
 
     if to_string:
