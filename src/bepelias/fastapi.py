@@ -50,9 +50,6 @@ logger = logging.getLogger()
 
 env_log_level = os.getenv('LOG_LEVEL', "HIGH").upper().strip()
 
-log(f"log level: {env_log_level}")
-
-
 if env_log_level == "LOW":
     logger.setLevel(logging.WARNING)
 elif env_log_level == "MEDIUM":
@@ -64,7 +61,7 @@ else:
 
 
 log(f"log level: {env_log_level}")
-
+vlog(f"Python version: {sys.version}")
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)

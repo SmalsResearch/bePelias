@@ -21,6 +21,8 @@ import getopt
 import pandas as pd
 import numpy as np
 
+from tqdm import tqdm
+
 import geopandas as gpd
 import shapely
 
@@ -337,8 +339,9 @@ def get_base_data_xml(region):
                                 "postcode":      "postalcode"
                                 })
 
-    log("no coordinates: ")
-    log(data[data.lat.isnull()])
+    # log("no coordinates: ")
+    # log(data[data.lat.isnull()])
+    log(f"[base-{region}] Records with no coordinates: {data[data.lat.isnull()].shape[0]} out of {data.shape[0]}")
 
     log(f"[base-{region}] Done!")
 
@@ -413,8 +416,9 @@ def get_empty_data_xml(region):
                                                "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
                                                "postalcode", "source", "country", "lat", "lon", "street_id",
                                                "municipality_id"] if f in empty_streets]]
-    log(f"[empty_street-{region}] - data: ")
-    log(empty_streets)
+    # log(f"[empty_street-{region}] - data: ")
+    # log(empty_streets)
+    log(f"[empty_street-{region}] Done!")
 
     return empty_streets
 
@@ -447,9 +451,7 @@ def create_address_data(data, region):
     chunks = [data.iloc[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
 
     addendum_chunks = []
-    for i, chunk in enumerate(chunks):
-        log(f"[addr-{region}] chunk {i} out of {len(chunks)}")
-
+    for chunk in tqdm(chunks):
         addendum_chunk = build_addendum({
             "best_id": chunk.address_id,
             "street": {
@@ -485,7 +487,7 @@ def create_address_data(data, region):
     data_addresses["addendum_json_best"] = addendum_chunks
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_be{region}.csv"
-    log(f"[addr-{region}] -->{fname}")
+    log(f"[addr-{region}] -->{fname} ({data_addresses.shape[0]} records)")
     # data_addresses = data_addresses.rename(columns={"streetname": "street"})
 
     data_addresses.to_csv(fname, index=False)
@@ -657,12 +659,12 @@ def create_street_data(data, empty_street, region):
 
     data_streets = data_streets.fillna({"lat": 0, "lon": 0})
 
-    log(data_streets)
+    # log(data_streets)
 
     data_streets["layer"] = "street"
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_streets_be{region}.csv"
-    log(f"[street-{region}] -->{fname}")
+    log(f"[street-{region}] -->{fname} ({data_streets.shape[0]} records)")
     data_streets.to_csv(fname, index=False)
 
     log(f"[street-{region}] Done!")
@@ -739,10 +741,10 @@ def create_locality_data(data, region):
 
     data_localities = data_localities.fillna({"lat": 0, "lon": 0})
 
-    log(data_localities)
+    # log(data_localities)
     fname = f"{DATA_DIR_OUT}/bestaddresses_localities_be{region}.csv"
 
-    log(f"[loc-{region}] -->{fname}")
+    log(f"[loc-{region}] -->{fname} ({data_localities.shape[0]} records)")
 
     data_localities.to_csv(fname, index=False)
     log(f"[loc-{region}] Done!")
@@ -809,7 +811,7 @@ def create_interpolation_data(addresses, region):
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_interpolation_be{region}.csv"
 
-    log(f"[loc-{region}] -->{fname}")
+    log(f"[interpol-{region}] -->{fname} ({addresses.shape[0]} records)")
     addresses.to_csv(fname, index=False)
 
     log(f"[interpol-{region}] Done!")
@@ -845,7 +847,6 @@ os.makedirs(f"{DATA_DIR_IN}", exist_ok=True)
 for reg in regions:
     base = get_base_data_xml(reg)
     empty = get_empty_data_xml(reg)
-
     addr = create_address_data(base, reg)
     create_street_data(base, empty, reg)
     create_locality_data(base, reg)

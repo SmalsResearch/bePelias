@@ -662,7 +662,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias, trans
                 transf_addr_data = transform(transf_addr_data, t)
 
             vlog("")
-            vlog(f"Transformed address ({ ';'.join(transf)}): {transf_addr_data}")
+            vlog(f"Transformed address ({';'.join(transf)}): {transf_addr_data}")
             if transf_addr_data in previous_attempts:
                 vlog("    Already tried, skip Pelias call")
             elif len(list(filter(lambda v: v and len(v) > 0, transf_addr_data.values()))) == 0:

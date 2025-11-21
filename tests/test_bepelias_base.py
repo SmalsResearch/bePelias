@@ -318,9 +318,6 @@ smals_addr = {'post_name': 'Saint-Gilles',
 
               ([smals_addr | {'post_name': "Saint-Gilles (Bruxelles)"}, "clean"],
                smals_addr)
-
-
-
         ]
 )
 def test_transform(input_value, output_value):

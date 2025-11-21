@@ -135,7 +135,7 @@ class Pelias:
             struct = True
             params = {
                 'address':    query.get('address', ''),
-                'locality':   query.get('locality', '')
+                'locality':   query.get('locality', '') or ''
             }
             if 'postalcode' in query:
                 params["postalcode"] = query['postalcode']

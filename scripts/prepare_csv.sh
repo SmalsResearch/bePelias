@@ -44,6 +44,7 @@ cd /
 
 # Convert BOSA CSV into Pelias CSV
 echo "Prepare CSV"
+. bepelias_venv/bin/activate
 python3 /bepelias/prepare_best_files.py -i /data/in -o /data/ -r $REGION
 
 # Cleanup
