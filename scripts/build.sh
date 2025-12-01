@@ -74,18 +74,15 @@ if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
     # chmod a+wr data
     echo 'DATA_DIR=./data' >> .env
 
-    $PELIAS compose pull
-    $PELIAS elastic start
-    $PELIAS elastic wait
-    $PELIAS elastic create
-    $PELIAS download wof
-    $PELIAS download osm  # needed for interpolation
-
-    $PELIAS prepare placeholder
-    $PELIAS prepare polylines
-
-    $PELIAS prepare interpolation
-
+    $PELIAS compose pull &&
+    $PELIAS elastic start &&
+    $PELIAS elastic wait && 
+    $PELIAS elastic create &&
+    $PELIAS download wof &&
+    $PELIAS download osm && # needed for interpolation
+    $PELIAS prepare placeholder &&
+    $PELIAS prepare polylines &&
+    $PELIAS prepare interpolation &&
     $PELIAS import wof
 
     echo "Build Pelias done!"

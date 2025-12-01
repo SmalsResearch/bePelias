@@ -275,11 +275,11 @@ class Pelias:
                 vlog("Answer:")
                 vlog(pel)
 
-                vlog(f"Pelias host: {self.geocode_api }")
+                vlog(f"Pelias host: {self.geocode_api}")
 
                 # raise e
             time.sleep(delay)
             delay += 0.5
         if i == 9:
             vlog("Pelias not up & running !")
-            vlog(f"Pelias: {self.geocode_api }")
+            vlog(f"Pelias: {self.geocode_api}")

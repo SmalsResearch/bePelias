@@ -26,11 +26,21 @@ from tqdm import tqdm
 import geopandas as gpd
 import shapely
 
+
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+DEF_CHUNK_SIZE = 10000
+CHUNK_SIZE = os.getenv('CHUNK_SIZE', str(DEF_CHUNK_SIZE))
+try:
+    CHUNK_SIZE = int(CHUNK_SIZE)
+except ValueError:
+    logging.info("Invalid CHUNK_SIZE value (%s), using default (%s)", CHUNK_SIZE, DEF_CHUNK_SIZE)
+    CHUNK_SIZE = DEF_CHUNK_SIZE
 
 # General functions
 
@@ -172,9 +182,9 @@ def build_locality(data, lang):
     return locality_lang
 
 
-def get_base_data_xml(region):
+def get_base_data_csv(region):
     """
-    Download BestAddress file for 'region', and convert it to the appropriate
+    Get BestAddress addresses csv file for 'region', and convert it to the appropriate
     pandas DataFrame. This dataframe will be used by most other functions
 
     Parameters
@@ -188,7 +198,7 @@ def get_base_data_xml(region):
         All addresses for the given region.
 
     """
-    log(f"[base-{region}] Building data for {region}")
+    log(f"[{region}-base] Building data for {region}")
 
     best_fn = f"{DATA_DIR_IN}/{name_mapping[region]}_addresses.csv"
 
@@ -196,6 +206,9 @@ def get_base_data_xml(region):
               "city_fr": str,
               "city_nl": str,
               "city_de": str,
+              "citypart_fr": str,
+              "citypart_nl": str,
+              "citypart_de": str,
               "postal_fr":   str,
               "postal_nl":   str,
               "street_de": str,
@@ -203,7 +216,7 @@ def get_base_data_xml(region):
               "street_fr": str
               }
 
-    log(f"[base-{region}] - Reading")
+    log(f"[{region}-base] - Reading")
     data = pd.read_csv(best_fn, dtype=dtypes)
 
     data = data.rename(columns={
@@ -237,7 +250,7 @@ def get_base_data_xml(region):
     data["lon"] = data["lon"].where(data["lambertx"] != 0, pd.NA)
     data["lat"] = data["lat"].where(data["lamberty"] != 0, pd.NA)
 
-    log(f"[base-{region}] - Combining boxes ...")
+    log(f"[{region}-base] - Combining boxes ...")
 
     # Combine all addresses at the same number in one record with "box_info" field
     with_box = data[data.box_number.notnull()].copy()
@@ -262,7 +275,7 @@ def get_base_data_xml(region):
 
     del base_address, box_info
 
-    log(f"[base-{region}] -   --> from {cnt_before_mg} to {data.shape[0]} records")
+    log(f"[{region}-base] -   --> from {cnt_before_mg} to {data.shape[0]} records")
 
     if "postname_de" not in data:
         data["postname_de"] = pd.NA
@@ -272,8 +285,8 @@ def get_base_data_xml(region):
         data[f"locality_{lang}"] = build_locality(data, lang)
 
     if SPLIT_RECORDS:
-        log(f"[base-{region}] -   Splitting records")
-        log(f"[base-{region}]        in:  {data.shape[0]} ")
+        log(f"[{region}-base] -   Splitting records")
+        log(f"[{region}-base]        in:  {data.shape[0]} ")
         data_all = []
         for lang in ["fr", "nl", "de"]:
             for locality_field in ["municipality_name", "postname", "part_of_municipality_name"]:
@@ -299,10 +312,10 @@ def get_base_data_xml(region):
         epoch = data.groupby("address_id").cumcount()+1
         data["id"] = data.address_id + "_" + epoch.astype(str)
 
-        log(f"[base-{region}]        out: {data.shape[0]} ")
+        log(f"[{region}-base]        out: {data.shape[0]} ")
 
     else:
-        log(f"[base-{region}] -   Adding language data")
+        log(f"[{region}-base] -   Adding language data")
         for lang in ["fr", "nl", "de"]:
 
             data[f"locality_{lang}"] = build_locality(data, lang)
@@ -326,14 +339,14 @@ def get_base_data_xml(region):
 
 
 #     if split_records:
-#         log(f"[base-{region}] - remove language columns")
+#         log(f"[{region}-base] - remove language columns")
 #         log(data.columns)
 
 #         data = data.drop(columns=[ col for col in data if col[-3:] in ["_fr", "_nl", "_de"]])
 
 #         log(data.columns)
 
-    log(f"[base-{region}] -   Rename")
+    log(f"[{region}-base] -   Rename")
     data = data.rename(columns={"region_code":   "source",
                                 "house_number":  "housenumber",
                                 "postcode":      "postalcode"
@@ -341,16 +354,16 @@ def get_base_data_xml(region):
 
     # log("no coordinates: ")
     # log(data[data.lat.isnull()])
-    log(f"[base-{region}] Records with no coordinates: {data[data.lat.isnull()].shape[0]} out of {data.shape[0]}")
+    log(f"[{region}-base] Records with no coordinates: {data[data.lat.isnull()].shape[0]} out of {data.shape[0]}")
 
-    log(f"[base-{region}] Done!")
+    log(f"[{region}-base] Done!")
 
     return data
 
 
-def get_empty_data_xml(region):
+def get_empty_data_csv(region):
     """
-    Download BestAddress empty streets file for 'region', and convert it to the appropriate
+    Get BestAddress empty csv streets file for 'region', and convert it to the appropriate
     pandas DataFrame. This dataframe will be used by create_street_data
 
     Parameters
@@ -364,13 +377,13 @@ def get_empty_data_xml(region):
         All empty streets for the given region.
 
     """
-    log(f"[empty_street-{region}] - Reading")
+    log(f"[{region}-empty_street] - Reading")
 
     best_fn = f"{DATA_DIR_IN}/{name_mapping[region]}_empty_street.csv"
 
     empty_streets = pd.read_csv(best_fn)
 
-    log(f"[empty_street-{region}] - Building data")
+    log(f"[{region}-empty_street] - Building data")
 
     # Uniformizing column names to match with main CSV files
     for lang in ["fr", "nl", "de"]:
@@ -416,9 +429,9 @@ def get_empty_data_xml(region):
                                                "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
                                                "postalcode", "source", "country", "lat", "lon", "street_id",
                                                "municipality_id"] if f in empty_streets]]
-    # log(f"[empty_street-{region}] - data: ")
+    # log(f"[{region}-empty_street] - data: ")
     # log(empty_streets)
-    log(f"[empty_street-{region}] Done!")
+    log(f"[{region}-empty_street] Done!")
 
     return empty_streets
 
@@ -441,14 +454,13 @@ def create_address_data(data, region):
         Content of all addresses CSV
 
     """
-    log(f"[addr-{region}] - Building address data")
+    log(f"[{region}-addr] - Building address data")
 
-    log(f"[addr-{region}] -   Adding addendum")
+    log(f"[{region}-addr] -   Adding addendum")
 
     # Chunking data to reduce memory usage
-    chunk_size = 100000
 
-    chunks = [data.iloc[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
+    chunks = [data.iloc[i:i+CHUNK_SIZE] for i in range(0, len(data), CHUNK_SIZE)]
 
     addendum_chunks = []
     for chunk in tqdm(chunks):
@@ -487,12 +499,12 @@ def create_address_data(data, region):
     data_addresses["addendum_json_best"] = addendum_chunks
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_be{region}.csv"
-    log(f"[addr-{region}] -->{fname} ({data_addresses.shape[0]} records)")
+    log(f"[{region}-addr] -->{fname} ({data_addresses.shape[0]} records)")
     # data_addresses = data_addresses.rename(columns={"streetname": "street"})
 
     data_addresses.to_csv(fname, index=False)
 
-    log(f"[addr-{region}] Done!")
+    log(f"[{region}-addr] Done!")
 
     return data_addresses
 
@@ -593,7 +605,7 @@ def create_street_data(data, empty_street, region):
 
     streets_centers_duo = get_streets_centers_duo(data)
 
-    log(f"[street-{region}] - Building streets data")
+    log(f"[{region}-street] - Building streets data")
     fields = [f for f in ["municipality_id", "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
                           "part_of_municipality_id", "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
                           "postname_fr",   "postname_nl", "postname_de",
@@ -607,7 +619,7 @@ def create_street_data(data, empty_street, region):
 
     del streets_centers_duo
 
-    log(f"[street-{region}] - Combining data and empty streets")
+    log(f"[{region}-street] - Combining data and empty streets")
 
     data_streets = pd.concat([data_streets, empty_street])
 
@@ -664,10 +676,10 @@ def create_street_data(data, empty_street, region):
     data_streets["layer"] = "street"
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_streets_be{region}.csv"
-    log(f"[street-{region}] -->{fname} ({data_streets.shape[0]} records)")
+    log(f"[{region}-street] -->{fname} ({data_streets.shape[0]} records)")
     data_streets.to_csv(fname, index=False)
 
-    log(f"[street-{region}] Done!")
+    log(f"[{region}-street] Done!")
 
 
 def create_locality_data(data, region):
@@ -686,7 +698,7 @@ def create_locality_data(data, region):
     None.
 
     """
-    log(f"[loc-{region}] - Building localities data")
+    log(f"[{region}-loc] - Building localities data")
 
     data_localities = data.groupby([f for f in ["municipality_id", "municipality_name_fr", "municipality_name_nl", "municipality_name_de",
                                                 "part_of_municipality_id", "part_of_municipality_name_fr", "part_of_municipality_name_nl", "part_of_municipality_name_de",
@@ -744,10 +756,10 @@ def create_locality_data(data, region):
     # log(data_localities)
     fname = f"{DATA_DIR_OUT}/bestaddresses_localities_be{region}.csv"
 
-    log(f"[loc-{region}] -->{fname} ({data_localities.shape[0]} records)")
+    log(f"[{region}-loc] -->{fname} ({data_localities.shape[0]} records)")
 
     data_localities.to_csv(fname, index=False)
-    log(f"[loc-{region}] Done!")
+    log(f"[{region}-loc] Done!")
 
 
 def create_interpolation_data(addresses, region):
@@ -767,17 +779,17 @@ def create_interpolation_data(addresses, region):
 
     """
 
-    log(f"[interpol-{region}] Prepare interpolation data")
+    log(f"[{region}-interpol] Prepare interpolation data")
 
-    log(f"[interpol-{region}] init: {addresses.shape[0]}")
+    log(f"[{region}-interpol] init: {addresses.shape[0]}")
 
     addresses = addresses[addresses.lat > 0.0]
 
-    log(f"[interpol-{region}] remove 0,0: {addresses.shape[0]}")
+    log(f"[{region}-interpol] remove 0,0: {addresses.shape[0]}")
 
     addresses = addresses[addresses.status == "current"]
 
-    log(f"[interpol-{region}] only current: {addresses.shape[0]}")
+    log(f"[{region}-interpol] only current: {addresses.shape[0]}")
 
     addresses.columns = addresses.columns.str.upper()
 
@@ -789,7 +801,7 @@ def create_interpolation_data(addresses, region):
 
     addresses = addresses[addresses["NUMBER"] != ""]
 
-    log(f"[interpol-{region}] remove non digits: {addresses.shape[0]}")
+    log(f"[{region}-interpol] remove non digits: {addresses.shape[0]}")
 
     if not SPLIT_RECORDS:
         addresses = pd.concat([
@@ -811,10 +823,10 @@ def create_interpolation_data(addresses, region):
 
     fname = f"{DATA_DIR_OUT}/bestaddresses_interpolation_be{region}.csv"
 
-    log(f"[interpol-{region}] -->{fname} ({addresses.shape[0]} records)")
+    log(f"[{region}-interpol] -->{fname} ({addresses.shape[0]} records)")
     addresses.to_csv(fname, index=False)
 
-    log(f"[interpol-{region}] Done!")
+    log(f"[{region}-interpol] Done!")
 
 
 DATA_DIR_IN = "/data/in/"
@@ -845,23 +857,11 @@ os.makedirs(f"{DATA_DIR_IN}", exist_ok=True)
 
 # Sequential run
 for reg in regions:
-    base = get_base_data_xml(reg)
-    empty = get_empty_data_xml(reg)
+    base = get_base_data_csv(reg)
+    empty = get_empty_data_csv(reg)
     addr = create_address_data(base, reg)
     create_street_data(base, empty, reg)
     create_locality_data(base, reg)
     create_interpolation_data(base, reg)
 
-# dsk = {}
 
-# for reg in regions:
-
-#     dsk[f'load-{reg}']    =    (get_base_data_xml  if source=="xml" else get_base_data_csv,  reg)
-#     dsk[f'empty_street-{reg}']=(get_empty_data_xml if source=="xml" else get_empty_data_csv, reg)
-#     dsk[f'addr-{reg}']    =    (create_address_data,  f'load-{reg}', reg, source)
-#     dsk[f'streets-{reg}'] =    (create_street_data,   f'load-{reg}', f'empty_street-{reg}', reg, source)
-#     dsk[f'localities-{reg}'] = (create_locality_data, f'load-{reg}', reg, source)
-
-#     dsk[f'interpol-{reg}'] = (create_interpolation_data, f'addr-{reg}', reg)
-
-# get(dsk, f"localities-{regions[0]}") # 'result' could be any task, we don't use it

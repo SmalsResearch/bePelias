@@ -63,10 +63,10 @@ else:
 log(f"log level: {env_log_level}")
 vlog(f"Python version: {sys.version}")
 
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("elasticsearch").setLevel(logging.WARNING)
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+logging.getLogger("elasticsearch").setLevel(logging.ERROR)
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
 
 warnings.simplefilter('ignore', ElasticsearchWarning)
 
@@ -375,7 +375,7 @@ def _get_by_id(
 
     vlog("")
     vlog("------------------------")
-    log(f"Get by id: {bestid}")
+    log(f"Get by id: {bestid[1]}")
 
     res = get_by_id(pelias, bestid)
     if "status_code" in res:

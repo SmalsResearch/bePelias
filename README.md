@@ -663,4 +663,5 @@ Street "1..*" --  "1" Municipality
 - gérer les cas "Marche, Place aux Foires", "2",
 - street_00, address_00 : place coordinates by zipcode center
 - is_partial_substring : imposer des espaces, pour éviter que "nxxxxexxxxexxxxfxx" ne match avec neef
- 
+- dataprep: chunk size as an env variable (in dockercompose)
+- put all Pelias in a Docker container 
