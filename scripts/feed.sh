@@ -39,7 +39,6 @@ else
 fi
 
 
-
 if [[ $ACTION == "prepare_csv" ||  $ACTION ==  "all" ]]; then
     echo "Prepare CSV (from xml)"
     date
@@ -73,6 +72,7 @@ fi
 if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     echo "Update"
     set -x
+    set -e
 
     if [[ $REGION == "bru" ]] ; then
         grep -Ev "bevlg.csv|bewal.csv" pelias.json > $DIR/pelias.json
@@ -103,7 +103,9 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Import done"
     echo 
+    set +e
     set +x
+    
 fi
 
 

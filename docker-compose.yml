@@ -38,6 +38,10 @@ services:
             - CHUNK_SIZE=100000  # Number of rows to process at once when preparing best files. If dataprep process runs out of memory, lower this value.
         image: bepelias/dataprep
         container_name: bepelias_dataprep
+
+            
+
+
 networks:
     belgium_bepelias_default:
         external: true

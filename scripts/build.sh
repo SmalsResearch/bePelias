@@ -46,49 +46,8 @@ fi
 if [[ $ACTION == "pelias" ||  $ACTION == "all" ]]; then
     echo "Will build Pelias"
 
-    set -x
-    rm -rf pelias
-    git clone  https://github.com/pelias/docker.git pelias
-
-    mkdir -p $DIR
-    cp pelias.json $DIR
-    cp pelias/projects/belgium/elasticsearch.yml  $DIR
-    cp pelias/projects/belgium/docker-compose.yml  $DIR
-
-    # Change config to allow interpolation to be public
-    # cp  pelias/projects/belgium/elasticsearch.yml  $DIR
-    #sed 's/127.0.0.1:4300:4300/0.0.0.0:4300:4300/' pelias/projects/belgium/docker-compose.yml >$DIR/docker-compose.yml
-    
-    # Change config to allow elasticsearch to be public
-    #sed -i 's/127.0.0.1:9200:9200/0.0.0.0:9200:9200/' $DIR/docker-compose.yml
-    
-
-    mkdir $DIR/data
-    #mv data/bestaddresses_*.csv $DIR/data
-
-    cp ./scripts/prepare_interpolation.sh $DIR/data
-
-    cd $DIR
-
-    #mkdir -p data
-    # chmod a+wr data
-    echo 'DATA_DIR=./data' >> .env
-
-    $PELIAS compose pull &&
-    $PELIAS elastic start &&
-    $PELIAS elastic wait && 
-    $PELIAS elastic create &&
-    $PELIAS download wof &&
-    $PELIAS download osm && # needed for interpolation
-    $PELIAS prepare placeholder &&
-    $PELIAS prepare polylines &&
-    $PELIAS prepare interpolation &&
-    $PELIAS import wof
-
+    ./scripts/build_pelias.sh
     echo "Build Pelias done!"
-    date
-    
-    set +x
 
 fi
 

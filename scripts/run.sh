@@ -25,6 +25,8 @@ fi
 if [[ $TARGET == "pelias" ||  $TARGET ==  "all" ]]; then
     echo "Will start Pelias"
 
+    set -x    
+
     cd $DIR
 
     $PELIAS compose $ACTION
@@ -42,7 +44,7 @@ if [[ $TARGET == "api" ||  $TARGET ==  "all" ]]; then
     if [[ $ACTION == "down" ]]; then
         $DOCKER_COMPOSE down
     else
-        $DOCKER_COMPOSE up -d --no-deps api
+        $DOCKER_COMPOSE up -d --no-deps --remove-orphans api
     fi
 
     set +x

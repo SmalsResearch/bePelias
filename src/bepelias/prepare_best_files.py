@@ -26,6 +26,7 @@ from tqdm import tqdm
 import geopandas as gpd
 import shapely
 
+tqdm.pandas()
 
 logging.basicConfig(format='[%(asctime)s]  %(message)s', stream=sys.stdout)
 
@@ -209,14 +210,39 @@ def get_base_data_csv(region):
               "citypart_fr": str,
               "citypart_nl": str,
               "citypart_de": str,
-              "postal_fr":   str,
-              "postal_nl":   str,
+              "postal_fr": str,
+              "postal_nl": str,
               "street_de": str,
               "street_nl": str,
-              "street_fr": str
+              "street_fr": str,
+              "number": str
               }
 
     log(f"[{region}-base] - Reading")
+
+    # Try to read in chunks to reduce memory usage. But looks to be overly complex for a very small benefit
+    # Evaluate number of rows
+    # head = pd.read_csv(best_fn, dtype=dtypes, nrows=1000, sep="#")
+    # avg_row_size = head[head.columns[0]].str.len().sum()/head.shape[0]
+    # estimated_rows = int(os.path.getsize(best_fn)/avg_row_size)
+    # log(f"[{region}-base]     Estimated number of rows: {estimated_rows}")
+
+    # chunks = []
+    # total_rows = 0
+    # with tqdm(total=estimated_rows, leave=True) as pbar:
+    #     for chunk in pd.read_csv(best_fn, dtype=dtypes, chunksize=CHUNK_SIZE):
+    #         chunks.append(chunk)
+    #         total_rows += chunk.shape[0]
+    #         if total_rows > estimated_rows:
+    #             pbar.total = total_rows  # extend total if needed
+
+    #         pbar.update(chunk.shape[0])
+    #     if total_rows < estimated_rows:
+    #         pbar.total = total_rows  # adjust total if overestimated
+    #         pbar.refresh()
+
+    # data = pd.concat(chunks)
+    # del chunks, head
     data = pd.read_csv(best_fn, dtype=dtypes)
 
     data = data.rename(columns={
@@ -261,7 +287,7 @@ def get_base_data_csv(region):
                                  "postcode", "postname_fr", "postname_nl", "postname_de",
                                  "street_id", "streetname_de", "streetname_fr", "streetname_nl"],
                                 dropna=False)
-    box_info = box_info[["coordinates", "box_number", "address_id", "status"]].apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
+    box_info = box_info[["coordinates", "box_number", "address_id", "status"]].progress_apply(lambda x: x.to_json(orient='records')).rename("box_info").reset_index()
 
     base_address = data.sort_values("box_number", na_position="first")
     base_address = base_address.drop_duplicates(subset=["municipality_id", "street_id",
@@ -463,31 +489,33 @@ def create_address_data(data, region):
     chunks = [data.iloc[i:i+CHUNK_SIZE] for i in range(0, len(data), CHUNK_SIZE)]
 
     addendum_chunks = []
-    for chunk in tqdm(chunks):
-        addendum_chunk = build_addendum({
-            "best_id": chunk.address_id,
-            "street": {
-                "name": {"fr": chunk.streetname_fr, "nl": chunk.streetname_nl, "de": chunk.streetname_de},
-                "id": chunk.street_id
-            },
-            "municipality": {
-                "name": {"fr": chunk.municipality_name_fr, "nl": chunk.municipality_name_nl, "de": chunk.municipality_name_de},
-                "code": chunk.municipality_id.str.extract(r"/([0-9]{5})/")[0],
-                "id":  chunk.municipality_id
-            },
-            "part_of_municipality": {
-                "name": {"fr": chunk.part_of_municipality_name_fr, "nl": chunk.part_of_municipality_name_nl, "de": chunk.part_of_municipality_name_de},
-                "id": chunk.part_of_municipality_id
-            },
-            "postal_info": {
-                "name": {"fr": chunk.postname_fr, "nl": chunk.postname_nl, "de": chunk.postname_de},
-                "postal_code": chunk.postalcode
-            },
-            "housenumber": chunk.housenumber,
-            "status": chunk.status,
-            "box_info": chunk.box_info
-            }, ['box_info'], chunk.index)
-        addendum_chunks.append(addendum_chunk)
+    with tqdm(total=len(data)) as pbar:
+        for chunk in chunks:
+            addendum_chunk = build_addendum({
+                "best_id": chunk.address_id,
+                "street": {
+                    "name": {"fr": chunk.streetname_fr, "nl": chunk.streetname_nl, "de": chunk.streetname_de},
+                    "id": chunk.street_id
+                },
+                "municipality": {
+                    "name": {"fr": chunk.municipality_name_fr, "nl": chunk.municipality_name_nl, "de": chunk.municipality_name_de},
+                    "code": chunk.municipality_id.str.extract(r"/([0-9]{5})/")[0],
+                    "id":  chunk.municipality_id
+                },
+                "part_of_municipality": {
+                    "name": {"fr": chunk.part_of_municipality_name_fr, "nl": chunk.part_of_municipality_name_nl, "de": chunk.part_of_municipality_name_de},
+                    "id": chunk.part_of_municipality_id
+                },
+                "postal_info": {
+                    "name": {"fr": chunk.postname_fr, "nl": chunk.postname_nl, "de": chunk.postname_de},
+                    "postal_code": chunk.postalcode
+                },
+                "housenumber": chunk.housenumber,
+                "status": chunk.status,
+                "box_info": chunk.box_info
+                }, ['box_info'], chunk.index)
+            addendum_chunks.append(addendum_chunk)
+            pbar.update(chunk.shape[0])
 
     addendum_chunks = pd.concat(addendum_chunks)
 
@@ -863,5 +891,3 @@ for reg in regions:
     create_street_data(base, empty, reg)
     create_locality_data(base, reg)
     create_interpolation_data(base, reg)
-
-
