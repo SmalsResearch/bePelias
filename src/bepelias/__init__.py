@@ -1,3 +1,3 @@
 """bepelias package
 """
-__version__ = "1.1.2beta"
+__version__ = "1.1.2"
