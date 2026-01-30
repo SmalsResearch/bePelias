@@ -18,7 +18,7 @@ services:
             - PELIAS_ES_HOST=pelias_elasticsearch:9200
             - PELIAS_INTERPOL_HOST=pelias_interpolation:4300
             - LOG_LEVEL=HIGH # LOW, MEDIUM or HIGH
-            - NB_WORKERS=2  # Number of fastapi workers
+            - NB_WORKERS=1  # Number of fastapi workers
             - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"
             - POSTCODE_MATCH_LENGTH=2  # Minimum number of characters to match a postcode, between input postcode and Pelias postcode. 4 = fully trust input postcode. 
         networks:
