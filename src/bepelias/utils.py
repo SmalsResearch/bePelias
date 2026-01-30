@@ -183,7 +183,7 @@ def pelias_check_postcode(pelias_res, postcode, match_length=3):
 
     pelias_res["features"] = filtered_feat
 
-    vlog(f"    Check postcode : {nb_res} --> {len(filtered_feat)}")
+    vlog(f"    Check postcode ({match_length}) : {nb_res} --> {len(filtered_feat)}")
     return pelias_res
 
 

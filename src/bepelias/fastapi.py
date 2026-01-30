@@ -95,6 +95,13 @@ else:
     logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
     sys.exit(1)
 
+postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', '3')
+if not postcode_match_length.isdigit() or int(postcode_match_length) < 1 or int(postcode_match_length) > 4:
+    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of 3.")
+    postcode_match_length = 3
+else:
+    postcode_match_length = int(postcode_match_length)
+
 
 pelias = Pelias(domain_api=pelias_host,
                 domain_elastic=pelias_es_host,
@@ -180,7 +187,7 @@ How Pelias is used:
     vlog("------------------------")
     log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
 
-    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result)
+    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result, postcode_match_length=postcode_match_length)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -225,7 +232,7 @@ How Pelias is used:
     vlog("")
     vlog("------------------------")
     log(f"Geocode (unstruct - {mode}): {address}")
-    res = geocode_unstructured(pelias, address, mode, with_pelias_result)
+    res = geocode_unstructured(pelias, address, mode, with_pelias_result, postcode_match_length=postcode_match_length)
 
     if "status_code" in res:
         response.status_code = res["status_code"]

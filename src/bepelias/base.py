@@ -389,7 +389,7 @@ def search_for_coordinates(feat, pelias):
             feat["bepelias"] = {"interpolated": "street_center"}
 
 
-def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, check_postcode=True):
+def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, postcode_match_length, check_postcode=True):
     """
     Try structed version of Pelias. If it did not succeed, try the unstructured version, and keep the best result.
 
@@ -434,7 +434,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
 
     if post_code is not None:
         if check_postcode:
-            pelias_struct = pelias_check_postcode(pelias_struct, post_code)
+            pelias_struct = pelias_check_postcode(pelias_struct, post_code, match_length=postcode_match_length)
     else:
         vlog("    No postcode in input")
 
@@ -477,7 +477,7 @@ def struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, 
 
     if post_code is not None:
         if check_postcode:
-            pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code)
+            pelias_unstruct = pelias_check_postcode(pelias_unstruct, post_code, match_length=postcode_match_length)
     else:
         vlog("    No postcode in input")
 
@@ -631,7 +631,7 @@ def add_precision(pelias_res):
         feat["bepelias"]["precision"] = get_precision(feat)
 
 
-def advanced_mode(street_name, house_number, post_code, post_name, pelias, transformer_sequence=None):
+def advanced_mode(street_name, house_number, post_code, post_name, pelias, postcode_match_length, transformer_sequence=None):
     """The full logic of bePelias
 
     Args:
@@ -675,7 +675,8 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias, trans
                                                 transf_addr_data["post_code"],
                                                 transf_addr_data["post_name"],
                                                 pelias,
-                                                check_postcode=check_postcode)
+                                                check_postcode=check_postcode,
+                                                postcode_match_length=postcode_match_length)
                 pelias_res["bepelias"]["transformers"] = ";".join(transf) + ("(no postcode check)" if not check_postcode else "")
                 call_cnt += pelias_res["bepelias"]["pelias_call_count"]
 
@@ -783,7 +784,7 @@ def advanced_mode(street_name, house_number, post_code, post_name, pelias, trans
     return {"features": [], "bepelias": {"pelias_call_count": call_cnt}}
 
 
-def call_unstruct(address, pelias):
+def call_unstruct(address, pelias, postcode_match_length=3):
     """
     Call the unstructured version of Pelias with "address" as input
     If Pelias was able to parse the address (i.e., split it into component),
@@ -813,7 +814,7 @@ def call_unstruct(address, pelias):
     vlog(f"    Parsed by Pelias: {parsed}")
 
     if "postalcode" in parsed:
-        pelias_unstruct = pelias_check_postcode(pelias_unstruct, parsed["postalcode"])
+        pelias_unstruct = pelias_check_postcode(pelias_unstruct, parsed["postalcode"], match_length=postcode_match_length)
 
     else:
         vlog("    No postcode in input")
@@ -840,7 +841,7 @@ def get_postcode_list(city, pelias):
     return postcodes
 
 
-def unstructured_mode(address, pelias):
+def unstructured_mode(address, pelias, postcode_match_length):
     """The full logic of bePelias when input in unstructured
 
     - We first try unstructured mode, with the raw input
@@ -898,7 +899,7 @@ def unstructured_mode(address, pelias):
             vlog("")
             vlog(f"Attempt {attempt_id}: unstructured address='{address}' (transformer='{transf}')")
             attempt_id += 1
-            pelias_res = call_unstruct(address, pelias)
+            pelias_res = call_unstruct(address, pelias, postcode_match_length=postcode_match_length)
             call_cnt += 1
             pelias_res["bepelias"]["pelias_call_count"] = call_cnt
             pelias_res["bepelias"]["transformers"] = transf
@@ -960,7 +961,8 @@ def unstructured_mode(address, pelias):
                                    post_code=cp,
                                    post_name=parsed.get("city", ""),
                                    pelias=pelias,
-                                   transformer_sequence=unstruct_transformer_sequence)
+                                   transformer_sequence=unstruct_transformer_sequence,
+                                   postcode_match_length=postcode_match_length)
         call_cnt += pelias_res["bepelias"]["pelias_call_count"]
         pelias_res["bepelias"]["pelias_call_count"] = call_cnt
         pelias_res["bepelias"]["transformers"] = f"parsed(postcode={cp});"+pelias_res["bepelias"]["transformers"]
@@ -1001,7 +1003,7 @@ def unstructured_mode(address, pelias):
 #################
 
 
-def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result):
+def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result, postcode_match_length):
     """ cf api._geocode """
 
     if street_name:
@@ -1023,7 +1025,7 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
             return to_rest_guidelines(pelias_res, with_pelias_result)
 
         elif mode == "simple":
-            pelias_res = struct_or_unstruct(street_name, house_number, post_code, post_name, pelias)
+            pelias_res = struct_or_unstruct(street_name, house_number, post_code, post_name, pelias, postcode_match_length=postcode_match_length)
             add_precision(pelias_res)
 
             return to_rest_guidelines(pelias_res, with_pelias_result)
@@ -1031,7 +1033,7 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
         else:  # --> mode == "advanced":
             # log("advanced...")
 
-            pelias_res = advanced_mode(street_name, house_number, post_code, post_name, pelias)
+            pelias_res = advanced_mode(street_name, house_number, post_code, post_name, pelias, postcode_match_length=postcode_match_length)
 
             # vlog("result (before rest_guidelines):")
             # vlog(pelias_res)
@@ -1051,7 +1053,7 @@ def geocode(pelias, street_name, house_number, post_code, post_name, mode, with_
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR}
 
 
-def geocode_unstructured(pelias, address, mode, with_pelias_result):
+def geocode_unstructured(pelias, address, mode, with_pelias_result, postcode_match_length):
     """ see _geocode_unstructured
     """
 
@@ -1061,7 +1063,7 @@ def geocode_unstructured(pelias, address, mode, with_pelias_result):
             add_precision(pelias_res)
 
         else:  # --> mode == "advanced":
-            pelias_res = unstructured_mode(address, pelias)
+            pelias_res = unstructured_mode(address, pelias, postcode_match_length)
 
         # vlog(pelias_res)
         res = to_rest_guidelines(pelias_res, with_pelias_result)
