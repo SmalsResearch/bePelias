@@ -134,8 +134,8 @@ class Pelias:
         if isinstance(query, dict):
             struct = True
             params = {
-                'address':    query['address'],
-                'locality':   query['locality']
+                'address':    query.get('address', ''),
+                'locality':   query.get('locality', '') or ''
             }
             if 'postalcode' in query:
                 params["postalcode"] = query['postalcode']
@@ -147,12 +147,13 @@ class Pelias:
         if layers:
             params["layers"] = layers
 
+        params["size"] = 40
         url = self.geocode_struct_api if struct else self.geocode_api
 
         params = urllib.parse.urlencode(params)
 
         url = f"{url}?{params}"
-        vlog(f"Call to Pelias: {url}")
+        vlog(f"    Call to Pelias: {url}")
 
         return self.call_service(url)
 
@@ -191,7 +192,7 @@ class Pelias:
         params = urllib.parse.urlencode(params)
 
         url = f"{url}?{params}"
-        vlog(f"Call to Pelias: {url}")
+        vlog(f"    Call to Pelias: {url}")
 
         return self.call_service(url)
 
@@ -226,7 +227,7 @@ class Pelias:
         params = urllib.parse.urlencode({"lat": lat, "lon": lon, "number": number, "street": street})
 
         url = f"{url}?{params}"
-        vlog(f"Call to interpolate: {url}")
+        vlog(f"    Call to interpolate: {url}")
 
         return self.call_service(url)
 
@@ -274,11 +275,11 @@ class Pelias:
                 vlog("Answer:")
                 vlog(pel)
 
-                vlog(f"Pelias host: {self.geocode_api }")
+                vlog(f"Pelias host: {self.geocode_api}")
 
                 # raise e
             time.sleep(delay)
             delay += 0.5
         if i == 9:
             vlog("Pelias not up & running !")
-            vlog(f"Pelias: {self.geocode_api }")
+            vlog(f"Pelias: {self.geocode_api}")

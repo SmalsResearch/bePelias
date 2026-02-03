@@ -13,10 +13,10 @@ DIR=pelias/projects/belgium_bepelias
 PELIAS="$(pwd)/pelias/pelias"
 
 # Choose docker compose or docker-compose command
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
 else
     echo "No version of Docker Compose is installed."
     exit 1
@@ -24,6 +24,8 @@ fi
 
 if [[ $TARGET == "pelias" ||  $TARGET ==  "all" ]]; then
     echo "Will start Pelias"
+
+    set -x    
 
     cd $DIR
 
@@ -42,7 +44,7 @@ if [[ $TARGET == "api" ||  $TARGET ==  "all" ]]; then
     if [[ $ACTION == "down" ]]; then
         $DOCKER_COMPOSE down
     else
-        $DOCKER_COMPOSE up -d --no-deps api
+        $DOCKER_COMPOSE up -d --no-deps --remove-orphans api
     fi
 
     set +x

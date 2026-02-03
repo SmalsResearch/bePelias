@@ -4,9 +4,11 @@ USER root
 
 ENV PIP_ROOT_USER_ACTION=ignore
 
-RUN yum -y install python39 python3-pip
+RUN yum -y install python3.12 python3-pip
 RUN yum -y remove python3-requests
-RUN pip3 install pip==25.1.1
+
+RUN pip3 install pip==25.3
 
 COPY docker/requirements_base.txt ./
-RUN pip3 install -r requirements_base.txt
+RUN python3.12 -m venv bepelias_venv
+RUN bepelias_venv/bin/pip3 install -r requirements_base.txt

@@ -4,10 +4,12 @@
 import logging
 import re
 import copy
-
+import pprint
+import pandas as pd
 
 import textdistance
 
+from unidecode import unidecode
 
 # General functions
 
@@ -25,7 +27,9 @@ def log(arg):
     -------
     None.
     """
-    logging.info(arg)
+
+    for ln in str(arg).split("\n"):
+        logging.info(ln)
 
 
 def vlog(arg):
@@ -41,15 +45,16 @@ def vlog(arg):
     -------
     None.
     """
-    logging.debug(arg)
+    for ln in str(arg).split("\n"):
+        logging.debug(ln)
 
 
 def to_camel_case(data):
     """
     Convert a snake_case object to a camelCase.
-    If d is a string, convert the string
-    If d is a dict, convert all keys, recursively (i.e., values are dict or list), but not simple values
-    If d is a list, convert all objects in the list
+    If data is a string, convert the string
+    If data is a dict, convert all keys, recursively (i.e., values are dict or list), but not simple values
+    If data is a list, convert all objects in the list
 
     Parameters
     ----------
@@ -104,7 +109,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
         dict: REST Guideline compliant version of input
     """
 
-    vlog("Converting to to_rest_guidelines")
+    # vlog("Converting to to_rest_guidelines")
     if not isinstance(pelias_res, dict):
         return pelias_res
     items = []
@@ -142,7 +147,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
                 del feat["bepelias"]
         rest_res["peliasRaw"] = pelias_res_raw
 
-    vlog(rest_res)
+    # vlog(rest_res)
     return rest_res
 
 # Check result functions
@@ -150,7 +155,7 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
 
 def pelias_check_postcode(pelias_res, postcode, match_length=3):
     """
-    List a Pelias feature list by removing all feature having a postcode which
+    Filter a Pelias feature list by removing all feature having a postcode which
     does not start by the same 'match_length' digits as 'postcode'. If no postal code is
     provide in a feature, keep it
 
@@ -178,13 +183,13 @@ def pelias_check_postcode(pelias_res, postcode, match_length=3):
 
     pelias_res["features"] = filtered_feat
 
-    vlog(f"Check postcode : {nb_res} --> {len(filtered_feat)}")
+    vlog(f"    Check postcode ({match_length}) : {nb_res} --> {len(filtered_feat)}")
     return pelias_res
 
 
-def get_street_names(feature):
+def get_feature_street_names(feature):
     """
-    From a Pelias feature, extract all possible street name
+    From a Pelias feature, extract all possible street name (skipping duplicates)
 
     Parameters
     ----------
@@ -196,16 +201,51 @@ def get_street_names(feature):
     str
         street name.
     """
+    previous_res = set()
 
     if "street" in feature["properties"]:
-        yield feature["properties"]["street"].upper()
+        res = feature["properties"]["street"].upper()
+        if res not in previous_res:
+            previous_res.add(res)
+            yield res
+
     if "addendum" not in feature["properties"] or "best" not in feature["properties"]["addendum"]:
         return
 
     best = feature["properties"]["addendum"]["best"]
     for n in ["streetname_fr", "streetname_nl", "streetname_de"]:
         if n in best:
-            yield best[n].upper()
+            res = best[n].upper()
+            if res not in previous_res:
+                previous_res.add(res)
+                yield res
+
+
+def get_feature_city_names(feature):
+    """
+    From a Pelias feature, extract all possible city name (skipping duplicates)
+
+    Parameters
+    ----------
+    feature : dict
+        Pelias feature.
+
+    Yields
+    ------
+    str
+        city name.
+    """
+
+    previous_res = set()
+    for c in ["postname_fr", "postname_nl", "postname_de",
+              "municipality_name_fr", "municipality_name_nl", "municipality_name_de"]:
+
+        if "addendum" in feature["properties"] and "best" in feature["properties"]["addendum"] and c in feature["properties"]["addendum"]["best"]:
+            cty = unidecode(feature["properties"]["addendum"]["best"][c].upper())
+
+            if cty not in previous_res:
+                previous_res.add(cty)
+                yield cty
 
 
 def remove_street_types(street_name):
@@ -308,3 +348,61 @@ def apply_sim_functions(str1, str2, threshold):
         if sim >= threshold:
             return sim
     return None
+
+
+def feature_to_df(features, to_string=True, margin=4):
+    """ Convert a list of Pelias features into a Pandas DataFrame
+        Convertible to a string for pretty printing if to_string is True, with a left margin of 'margin' spaces
+     """
+    rows = []
+    for feature in features:
+        row = {"source": feature["properties"]["source"],
+               "precision": feature["bepelias"]["precision"] if "bepelias" in feature and "precision" in feature["bepelias"] else None
+               }
+        row["city"] = feature["properties"].get("locality") or feature["properties"].get("name")
+
+        if "addendum" in feature["properties"]:
+            if "best" in feature["properties"]["addendum"]:
+                best = feature["properties"]["addendum"]["best"]
+                if "housenumber" in best:
+                    row["housenumber"] = best["housenumber"]
+                if "postal_info" in best and "postal_code" in best["postal_info"]:
+                    row["postal_code"] = best["postal_info"]["postal_code"]
+                if "street" in best and "name" in best["street"]:
+                    row["street"] = best["street"]["name"]
+                if "municipality" in best and "name" in best["municipality"]:
+                    row["city"] = best["municipality"]["name"]
+
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    if to_string:
+        margin_str = " " * margin
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
+            return margin_str + str(df).replace("\n", "\n"+margin_str)
+    return df
+
+
+def final_res_to_df(final_res, to_string=True, margin=0):
+    """ Convert a bepelias final result into a Pandas DataFrame
+        Convertible to a string for pretty printing if to_string is True, with a left margin of 'margin' spaces
+     """
+
+    rows = []
+    for item in final_res["items"]:
+        row = {"precision": item.get("precision"),
+               "housenumber": item.get("housenumber"),
+               "street": item.get("street").get("name") if item.get("street") else None,
+               "postalcode": item.get("postalInfo").get("postalCode") if item.get("postalInfo") else None,
+               "city": item.get("municipality").get("name") if item.get("municipality") else None
+               }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    if to_string:
+        margin_str = " " * margin
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
+            return margin_str + str(df).replace("\n", "\n"+margin_str) + "\n"+pprint.pformat({k: v for (k, v) in final_res.items() if k != "items"})
+    return df

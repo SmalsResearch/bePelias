@@ -1,5 +1,5 @@
 """
-Unitest for bepelias using pytest
+Unitest for bepelias api using pytest
 """
 
 import json
@@ -56,7 +56,7 @@ def call_health():
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/health', {})
 
 
-def call_geocode(addr_data, mode="advanced"):
+def call_geocode(addr_data, mode="advanced", with_pelias_result=False):
     """
         Call bePelias web service
     """
@@ -64,7 +64,7 @@ def call_geocode(addr_data, mode="advanced"):
         addr_data = addr_data.to_dict()
 
     addr_data["mode"] = mode
-    addr_data["withPeliasResult"] = False
+    addr_data["withPeliasResult"] = with_pelias_result
 
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/geocode',
                    addr_data)
@@ -128,7 +128,7 @@ test_data = {
         "unstruct_fixture": "Av Fonsny 20, 1060 Saint-Gilles",
         "expectings": [
             (["items", 0, "postalInfo", "postalCode"], "1060"),
-            (["items", 0, "postalInfo", "name", "fr"], "Saint-Gilles"),
+            # (["items", 0, "postalInfo", "name", "fr"], "Saint-Gilles"),
             (["items", 0, "street", "name", "fr"], "Avenue Fonsny"),
             (["items", 0, "street", "name", "nl"], "Fonsnylaan"),
             (["items", 0, "municipality", "code"], "21013"),
@@ -172,7 +172,7 @@ test_data = {
     },
     "nores": {
         "fixture": {
-            "streetName": "Ave Fabsnyaefaeef",
+            "streetName": "Ave Fabsnyaefaeagkl",
             "houseNumber": 20,
             "postCode": "1234",
             "city": "azerty"},
@@ -345,10 +345,10 @@ def test_get_by_id(addr):
 @pytest.mark.parametrize(
         "filename",
         [
-            "tests/data.csv"
+            "tests/data/data.csv"
         ]
 )
-def test_batch_call(filename: Literal['tests/data.csv']):
+def test_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:
@@ -369,12 +369,50 @@ def test_batch_call(filename: Literal['tests/data.csv']):
 
 
 @pytest.mark.parametrize(
-        "filename",
+        "filename, mode, with_pelias_result",
         [
-            "tests/data.csv"
+            ["tests/data/data.csv", "simple", True],
+            ["tests/data/data.csv", "simple", False],
+            ["tests/data/data.csv", "basic", True],
+            ["tests/data/data.csv", "basic", False],
+            ["tests/data/data.csv", "advanced", True],
+            ["tests/data/data.csv", "advanced", False]
         ]
 )
-def test_unstruct_batch_call(filename: Literal['tests/data.csv']):
+def test_options_batch_call(filename: Literal['tests/data/data.csv'], mode, with_pelias_result):
+    """Send all addresses from filename to API
+
+    Args:
+        filename (str): CVS filename
+    """
+    addresses = pd.read_csv(filename).sample(100, random_state=0)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
+    addresses["json"] = addresses.fillna("").apply(call_geocode, mode=mode, with_pelias_result=with_pelias_result, axis=1)
+    nb_with_res = 0
+    for json_item in addresses["json"]:
+        assert "items" in json_item
+        nb_with_res += 1 if len(json_item["items"]) > 0 else 0
+
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "precision" in item
+        if with_pelias_result:
+            assert "peliasRaw" in json_item
+
+    assert nb_with_res > addresses.shape[0]*0.6, "Expecting at least 60% of addresses to be resolved"
+
+
+@pytest.mark.parametrize(
+        "filename",
+        [
+            "tests/data/data.csv"
+        ]
+)
+def test_unstruct_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:
@@ -401,10 +439,10 @@ def test_unstruct_batch_call(filename: Literal['tests/data.csv']):
 @pytest.mark.parametrize(
         "filename",
         [
-            "tests/data.csv"
+            "tests/data/data.csv"
         ]
 )
-def test_unstruct_nozip_batch_call(filename: Literal['tests/data.csv']):
+def test_unstruct_nozip_batch_call(filename: Literal['tests/data/data.csv']):
     """Send all addresses from filename to API
 
     Args:

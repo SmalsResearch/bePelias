@@ -29,15 +29,14 @@ fi
 
 
 # Choose docker compose or docker-compose command
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
 else
     echo "No version of Docker Compose is installed."
     exit 1
 fi
-
 
 
 if [[ $ACTION == "prepare_csv" ||  $ACTION ==  "all" ]]; then
@@ -73,6 +72,7 @@ fi
 if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     echo "Update"
     set -x
+    set -e
 
     if [[ $REGION == "bru" ]] ; then
         grep -Ev "bevlg.csv|bewal.csv" pelias.json > $DIR/pelias.json
@@ -103,7 +103,9 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Import done"
     echo 
+    set +e
     set +x
+    
 fi
 
 

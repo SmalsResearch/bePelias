@@ -16,7 +16,6 @@ import re
 from urllib.parse import unquote_plus
 
 from typing import Annotated, Union
-# from enum import Enum
 
 import logging
 
@@ -29,7 +28,7 @@ from pydantic import AfterValidator
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
 
-from bepelias.base import log
+from bepelias.base import log, vlog
 from bepelias.base import (geocode, geocode_reverse, geocode_unstructured,
                            get_by_id, search_city, health)
 
@@ -51,9 +50,6 @@ logger = logging.getLogger()
 
 env_log_level = os.getenv('LOG_LEVEL', "HIGH").upper().strip()
 
-log(f"log level: {env_log_level}")
-
-
 if env_log_level == "LOW":
     logger.setLevel(logging.WARNING)
 elif env_log_level == "MEDIUM":
@@ -65,12 +61,12 @@ else:
 
 
 log(f"log level: {env_log_level}")
+vlog(f"Python version: {sys.version}")
 
-
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("elasticsearch").setLevel(logging.WARNING)
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+logging.getLogger("elasticsearch").setLevel(logging.ERROR)
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
 
 warnings.simplefilter('ignore', ElasticsearchWarning)
 
@@ -98,6 +94,13 @@ if env_pelias_interpol:
 else:
     logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
     sys.exit(1)
+
+postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', '3')
+if not postcode_match_length.isdigit() or int(postcode_match_length) < 1 or int(postcode_match_length) > 4:
+    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of 3.")
+    postcode_match_length = 3
+else:
+    postcode_match_length = int(postcode_match_length)
 
 
 pelias = Pelias(domain_api=pelias_host,
@@ -146,22 +149,23 @@ async def redirect():
 def _geocode(street_name: Annotated[
                             Union[str, None],
                             Query(description="The name of a passage or way through from one location to another (cf. Fedvoc).",
-                                  example='Avenue Fonsny',
+                                  openapi_examples={"Avenue Fonsny": {"value": 'Avenue Fonsny'},
+                                                    "Fonsnylaan": {"value": 'Fonsnylaan'}},
                                   alias="streetName")] = None,
              house_number: Annotated[
                             Union[str, None],
                             Query(description="An official alphanumeric code assigned to building units, mooring places, stands or parcels (cf. Fedvoc).",
-                                  example='20',
+                                  openapi_examples={'20': {"value": '20'}},
                                   alias="houseNumber")] = None,
              post_code: Annotated[
                             Union[str, None],
                             Query(description="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc).",
-                                  example='1060',
+                                  openapi_examples={'1060': {'value': '1060'}},
                                   alias="postCode")] = None,
              post_name: Annotated[
                             Union[str, None],
                             Query(description="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc).",
-                                  example='Saint-Gilles',
+                                  openapi_examples={'Saint-Gilles': {'value': 'Saint-Gilles'}, 'Sint-Gillis': {'value': 'Sint-Gillis'}},
                                   alias="postName")] = None,
              mode: Annotated[
                  Literal["basic", "simple", "advanced"],
@@ -180,9 +184,11 @@ How Pelias is used:
             response: Response = None):
     """ Single address geocoding"""
 
+    vlog("")
+    vlog("------------------------")
     log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
 
-    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result)
+    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result, postcode_match_length=postcode_match_length)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -207,7 +213,8 @@ How Pelias is used:
             })
 def _geocode_unstructured(address: Annotated[str,
                                              Query(description="The whole address in a single string",
-                                                   example='Avenue Fonsny 20, 1060 Saint-Gilles')],
+                                                   openapi_examples={'Avenue Fonsny 20, 1060 Saint-Gilles': {'value': 'Avenue Fonsny 20, 1060 Saint-Gilles'},
+                                                                     'Fonsnylaan 20, 1060 Sint-Gillis': {'value': 'Fonsnylaan 20, 1060 Sint-Gillis'}})],
                           mode: Annotated[
                              Literal["basic", "advanced"],
                              Query(description="""
@@ -224,9 +231,10 @@ How Pelias is used:
                           response: Response = None):
     """ Single (unstructured) address geocoding
     """
-
+    vlog("")
+    vlog("------------------------")
     log(f"Geocode (unstruct - {mode}): {address}")
-    res = geocode_unstructured(pelias, address, mode, with_pelias_result)
+    res = geocode_unstructured(pelias, address, mode, with_pelias_result, postcode_match_length=postcode_match_length)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -251,17 +259,15 @@ How Pelias is used:
             })
 def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:4326. Angular distance from some specified circle or plane of reference",
                                                  gt=49.49, lt=51.51,
-                                                 example=50.83582)],
+                                                 openapi_examples={'50.83582': {'value': 50.83582}})],
                      lon: Annotated[float, Query(description="Longitude, in EPSG:4326. Angular distance measured on a great circle of reference from the intersection " +
                                                              "of the adopted zero meridian with this reference circle to the similar intersection of the meridian passing through the object",
                                                  gt=2.4, lt=6.41,
-                                                 example=4.33844)],
+                                                 openapi_examples={'4.33844': {'value': 4.33844}})],
                      radius: Annotated[float, Query(description="Distance (in kilometers)",
-                                                    gt=0, lt=350,
-                                                    example=1)] = 1,
+                                                    gt=0, lt=350)] = 1,
                      size: Annotated[int, Query(description="Maximal number of results (default: 10; maximum: 20)",
-                                                gt=0, lt=20,
-                                                example=10)] = 10,
+                                                gt=0, lt=20)] = 10,
                      with_pelias_result: Annotated[
                             bool,
                             Query(description="If True, return Pelias result as such in 'peliasRaw'.",
@@ -273,6 +279,10 @@ def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:
     Reverse geocoding
 
     """
+
+    vlog("")
+    vlog("------------------------")
+    log(f"Reverse geocode: {lat} / {lon} / radius={radius} / size={size}")
 
     res = geocode_reverse(pelias, lat, lon, radius, size, with_pelias_result)
 
@@ -302,12 +312,12 @@ def _search_city(
             post_code: Annotated[
                             Union[str, None],
                             Query(description="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc).",
-                                  example='1060',
+                                  openapi_examples={'1060': {'value': '1060'}, '1000': {'value': '1000'}, '[empty]': {'value': ''}},
                                   alias="postCode")] = None,
             city_name: Annotated[
                             Union[str, None],
                             Query(description="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc).",
-                                  example='Saint-Gilles',
+                                  openapi_examples={'Saint-Gilles': {'value': 'Saint-Gilles'}, 'Sint-Gillis': {'value': 'Sint-Gillis'}, '[empty]': {'value': ''}},
                                   alias="cityName")] = None,
             request: Request = None,
             response: Response = None):
@@ -315,6 +325,11 @@ def _search_city(
 Search a city based on a postal code or a name (could be municipality name, part of municipality name or postal name)
 
     """
+
+    vlog("")
+    vlog("------------------------")
+    log(f"Search city: {post_code} / {city_name}")
+
     client = Elasticsearch(pelias.elastic_api)
     res = search_city(client, post_code, city_name)
 
@@ -355,7 +370,9 @@ def check_valid_bestid(bestid: str):
 def _get_by_id(
             bestid: Annotated[str,
                               Path(description="BeSt Id for an address, a street or a municipality. Value has to be url encoded (i.e., replace '/' by '%2F', ':' by '%3A')",
-                                   example='https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F7',
+                                   openapi_examples={
+                                        "street": {"value": 'https%3A%2F%2Fdatabrussels.be%2Fid%2Fstreetname%2F4921%2F1'},
+                                        "address": {"value": 'https%3A%2F%2Fdatabrussels.be%2Fid%2Faddress%2F219307%2F1'}},
                                    alias="bestid"
                                    ),
                               AfterValidator(check_valid_bestid)],
@@ -364,6 +381,10 @@ def _get_by_id(
 
     """Search for a Best item by its id in Elastic database
     """
+
+    vlog("")
+    vlog("------------------------")
+    log(f"Get by id: {bestid[1]}")
 
     res = get_by_id(pelias, bestid)
     if "status_code" in res:

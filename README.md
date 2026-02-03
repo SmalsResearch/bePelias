@@ -655,9 +655,12 @@ Street "1..*" --  "1" Municipality
 
 
 - implementing "size" parameter for search call
-- unstructured:
-    - interp if coords = 0,0
-    - improve "transformers" in output to be more explicit 
-- upgrate to pandas 2
 - https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ?
-- gérer les cas "Marche, Place aux Foires", "2", 
+- gérer les cas "Marche, Place aux Foires", "2",
+- street_00, address_00 : place coordinates by zipcode center
+- is_partial_substring : imposer des espaces, pour éviter que "nxxxxexxxxexxxxfxx" ne match avec neef
+- dataprep: chunk size as an env variable (in dockercompose)
+- put all Pelias in a Docker container 
+- "Rue Fr Van Cutsem, 1040" fails, but not "Rue F Van Cutsem". 
+- create bePelias class, to avoid passing constant parameters (pelias, postcode_match_length, transformer_sequence/unstruct_transformer_sequence)
+- fastapi: example-> examples (+fix version)

@@ -11,4 +11,5 @@ PORT=${IN_PORT:-4001}
     
 echo "Starting service... ($NB_WORKERS workers)" 
 
+. bepelias_venv/bin/activate
 fastapi run bepelias/fastapi.py --port $PORT --host 0.0.0.0 --workers $NB_WORKERS
