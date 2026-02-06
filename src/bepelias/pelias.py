@@ -62,7 +62,7 @@ class Pelias:
             f'{self.scheme}://{self.domain_elastic}'
         )
 
-    def call_service(self, url, nb_attempts=6):
+    def __call_service(self, url, nb_attempts=6):
         """
         Call URL. If something went wrong, wait a short delay, and try again,
         up to nb_attempts times
@@ -155,7 +155,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to Pelias: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def reverse(self, lat, lon, radius, size):
         """
@@ -194,7 +194,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to Pelias: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def interpolate(self, lat, lon, number, street):
         """
@@ -229,7 +229,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to interpolate: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def check(self, city_test_from="Bruxelles"):
         """

@@ -25,18 +25,15 @@ from fastapi.responses import RedirectResponse
 from typing_extensions import Literal
 from pydantic import AfterValidator
 
-from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
 
-from bepelias.base import log, vlog
-from bepelias.base import (geocode, geocode_reverse, geocode_unstructured,
-                           get_by_id, search_city, health)
+from bepelias.utils import log, vlog
+from bepelias.bepelias import BePelias
 
 from bepelias.model import (GeocodeOutput, BePeliasError, Health,
                             ReverseGeocodeOutput, SearchCityOutput,
                             GetByIdOutput, BESTID_PATTERN)
 
-from bepelias.pelias import Pelias
 
 from bepelias import __version__
 
@@ -98,15 +95,13 @@ else:
 postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', '3')
 if not postcode_match_length.isdigit() or int(postcode_match_length) < 1 or int(postcode_match_length) > 4:
     logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of 3.")
-    postcode_match_length = 3
+    postcode_match_length = 3  # pylint: disable=invalid-name
 else:
     postcode_match_length = int(postcode_match_length)
 
 
-pelias = Pelias(domain_api=pelias_host,
-                domain_elastic=pelias_es_host,
-                domain_interpol=pelias_interpol_host)
-
+bepelias = BePelias(domain_api=pelias_host, domain_elastic=pelias_es_host, domain_interpol=pelias_interpol_host,
+                    postcode_match_length=postcode_match_length, similarity_threshold=0.8)
 
 app = FastAPI(version=__version__,
               title='bePelias API',
@@ -188,7 +183,7 @@ How Pelias is used:
     vlog("------------------------")
     log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
 
-    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result, postcode_match_length=postcode_match_length)
+    res = bepelias.geocode(street_name, house_number, post_code, post_name, mode, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -234,7 +229,7 @@ How Pelias is used:
     vlog("")
     vlog("------------------------")
     log(f"Geocode (unstruct - {mode}): {address}")
-    res = geocode_unstructured(pelias, address, mode, with_pelias_result, postcode_match_length=postcode_match_length)
+    res = bepelias.geocode_unstructured(address, mode, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -284,7 +279,7 @@ def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:
     vlog("------------------------")
     log(f"Reverse geocode: {lat} / {lon} / radius={radius} / size={size}")
 
-    res = geocode_reverse(pelias, lat, lon, radius, size, with_pelias_result)
+    res = bepelias.geocode_reverse(lat, lon, radius, size, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -330,8 +325,7 @@ Search a city based on a postal code or a name (could be municipality name, part
     vlog("------------------------")
     log(f"Search city: {post_code} / {city_name}")
 
-    client = Elasticsearch(pelias.elastic_api)
-    res = search_city(client, post_code, city_name)
+    res = bepelias.search_city(post_code, city_name)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -386,7 +380,7 @@ def _get_by_id(
     vlog("------------------------")
     log(f"Get by id: {bestid[1]}")
 
-    res = get_by_id(pelias, bestid)
+    res = bepelias.get_by_id(bestid)
     if "status_code" in res:
         response.status_code = res["status_code"]
     res["self"] = str(request.url)
@@ -409,7 +403,7 @@ def _get_by_id(
                     "description": "Not running"
                 }})
 def _health(response: Response, request: Request = None) -> Health:
-    res = health(pelias)
+    res = bepelias.health()
     if "status_code" in res:
         response.status_code = res["status_code"]
     res["self"] = str(request.url)

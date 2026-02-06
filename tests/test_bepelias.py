@@ -269,7 +269,7 @@ def test_check_unstruct(addr, expectings):
 @pytest.mark.parametrize(
         "addr, expectings",
         [
-            ((1060, None),  [(["items", 0, "municipality", "code"], "21013"),
+            ((1160, None),  [(["items", 0, "municipality", "code"], "21002"),
                              (["total"], 1)]),
             ((None, "Saint-Gilles"),  [(["items", 0, "municipality", "code"], "21013"),
                                        (["total"], 1)]),

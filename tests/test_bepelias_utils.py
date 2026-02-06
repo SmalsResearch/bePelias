@@ -1,17 +1,23 @@
 """
 Unitest for bepelias 'utils' functions using pytest
 """
+
 import sys
+import logging
+
 import pytest
 import pandas as pd
 
 sys.path.append("src/")
 
-from bepelias.utils import (to_camel_case, convert_coordinates,  # pylint: disable=C0413, E0401 # noqa: E402
-                            to_rest_guidelines, pelias_check_postcode,
-                            get_feature_street_names, get_feature_city_names,
-                            remove_street_types, feature_to_df,
-                            is_partial_substring, apply_sim_functions)
+from bepelias.bepelias import remove_patterns  # pylint: disable=wrong-import-position, import-error # noqa: E402
+
+from bepelias.utils import (to_camel_case, convert_coordinates,  # pylint: disable=wrong-import-position, import-error # noqa: E402
+                            to_rest_guidelines, feature_to_df, is_building, build_address, build_city, get_precision, add_precision,
+                            transform)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize(
@@ -71,101 +77,6 @@ def test_to_rest_guidelines(input_value, output_value):
 @pytest.mark.parametrize(
         "input_value, output_value",
         [
-            ([{'features': [{'properties': {'postalcode': 1160}},
-                            {'properties': {'postalcode': 1161}},
-                            {'properties': {'postalcode': 1170}}]}, 1160],
-             ({'features': [{'properties': {'postalcode': 1160}},
-                            {'properties': {'postalcode': 1161}}]})),
-            ([{}, 1160], {'features': []})
-        ]
-)
-def test_pelias_check_postcode(input_value, output_value):
-    """ test convert_coordinates """
-    assert pelias_check_postcode(input_value[0], input_value[1]) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
-            ({'properties':
-                {'street': "av fonsny",
-                 'addendum': {'best': {
-                    "streetname_fr": "avenue fonsny",
-                    "streetname_nl": "fonsnylaan",
-                    "streetname_de": "fonsnylaan de"
-                 }}}},
-             ['AV FONSNY', 'AVENUE FONSNY', 'FONSNYLAAN', 'FONSNYLAAN DE']),
-            ({'properties': {'street': "av fonsny"}},
-             ['AV FONSNY'])
-        ]
-)
-def test_get_feature_street_names(input_value, output_value):
-    """ test get_feature_street_names """
-    assert list(get_feature_street_names(input_value)) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
-            ({'properties':
-                {'addendum': {'best': {
-                    "postname_fr": "saint-gilles",
-                    "postname_nl": "sint-gillis",
-                    "municipality_name_fr": "Saint-Gilles",
-                 }}}},
-             ['SAINT-GILLES', 'SINT-GILLIS']),
-            ({'properties': {'street': "av fonsny"}},
-             [])
-        ]
-)
-def test_get_feature_city_names(input_value, output_value):
-    """ test get_feature_city_names """
-    assert list(get_feature_city_names(input_value)) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
-            ("AVENUE FONSNY", "FONSNY"),
-            ("FONSNYLAAN", "FONSNY"),
-            ("RUE DE LA LIBERTE", "LIBERTE"),
-            ("CHAUSSEE DE WAVRE", "WAVRE")
-        ]
-)
-def test_remove_street_types(input_value, output_value):
-    """ test remove_street_types """
-    assert remove_street_types(input_value) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
-            (["Rue Albert", "Rue Marcel Albert"], 1),
-            (["Rue Marcel Albert", "Rue Albert"], 1),
-            (["Rue Albert", "Rue Albert Marcel"], 1),
-            (["Rue Albert", "Rue Marcel"], 0)
-        ]
-)
-def test_is_partial_substring(input_value, output_value):
-    """ test is_partial_substring """
-    assert is_partial_substring(input_value[0], input_value[1]) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
-            (["Rue Albert", "Rue albert", 0.9], 0.96),
-            (["Rue Albert", "Rue olbert", 1.0], None),
-        ]
-)
-def test_apply_sim_functions(input_value, output_value):
-    """ test is_partial_substring """
-    assert apply_sim_functions(input_value[0], input_value[1], input_value[2]) == output_value
-
-
-@pytest.mark.parametrize(
-        "input_value, output_value",
-        [
             ([{
                "bepelias": {"precision": "test_prec"},
                'properties': {
@@ -193,15 +104,9 @@ def test_feature_to_df(input_value, output_value):
     df = feature_to_df(input_value, to_string=False)
     expected_df = pd.DataFrame(output_value)
 
-    # with pd.option_context('display.max_columns', None, 'display.max_colwidth', None):
-    #     print(df)
-    #     print(expected_df)
     assert df.shape == expected_df.shape
     assert set(df.columns) == set(expected_df.columns)
     expected_df = expected_df[df.columns]
-    # print(df.columns)
-    # print(expected_df.columns)
-    # print((df.fillna("-") == expected_df.fillna("-")).all().all())
     assert (df.fillna("-") == expected_df.fillna("-")).all().all()
 
     df_str = feature_to_df(input_value, to_string=True)
@@ -213,3 +118,144 @@ def test_feature_to_df(input_value, output_value):
                 assert "None" in df_str
             else:
                 assert str(cell) in df_str
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+            ({'properties': {'match_type': "exact", "housenumber": 1}}, True),
+            ({'properties': {'match_type': "fake", 'accuracy': "point", "housenumber": 1}}, True),
+            ({'properties': {'match_type': "fake", 'accuracy': 'fake'}}, False)
+        ]
+)
+def test_is_building(input_value, output_value):
+    """ test check_best_streetname """
+    assert is_building(input_value) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+            (["avenue fonsnsy", "20"], "avenue fonsnsy, 20"),
+            ([None, "20"], ""),
+            (["", "20"], ""),
+            (["avenue fonsnsy", ""], "avenue fonsnsy"),
+            (["avenue fonsnsy", None], "avenue fonsnsy"),
+        ]
+)
+def test_build_address(input_value, output_value):
+    """ test check_best_streetname """
+    assert build_address(input_value[0], input_value[1]) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+            (["1160", "Auderghem"], "1160 Auderghem"),
+            ([None, "Auderghem"], "Auderghem"),
+            (["1160", ""], "1160")
+        ]
+)
+def test_build_city(input_value, output_value):
+    """ test build_city """
+    assert build_city(input_value[0], input_value[1]) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+              ({'properties': {'layer': "address"}, 'geometry': {'coordinates': [0, 0]}}, "address_00"),
+              ({'properties': {'layer': "address"},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {'interpolated': 'street_center'}}, "address_streetcenter"),
+              ({'properties': {'layer': "address"},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {'interpolated': True}}, "address_interpol"),
+              ({'properties': {'layer': "address", 'match_type': 'interpolated', 'id': '.../streetname/...'},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {}}, "street_interpol"),
+              ({'properties': {'layer': "address", 'match_type': 'interpolated', 'id': '...'},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {}}, "address_interpol2"),
+              ({'properties': {'layer': "address", 'match_type': 'exact'},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {}}, "address"),
+              ({'properties': {'layer': "street"},
+                'geometry': {'coordinates': [0, 0]}}, "street_00"),
+              ({'properties': {'layer': "street"},
+                'geometry': {'coordinates': [1, 1]}}, "street"),
+              ({'properties': {'layer': "city"},
+                'geometry': {'coordinates': [0, 0]}}, "city_00"),
+              ({'properties': {'layer': "city"},
+                'geometry': {'coordinates': [1, 1]}}, "city"),
+              ({'properties': {'layer': "street"},
+                'geometry': {'coordinates': [0, 0]}}, "street_00"),
+              ({'properties': {'layer': "region"}}, "country"),
+              ({'properties': {'layer': "fake"}}, "[todo]"),
+              ({}, "[keyerror]"),
+        ]
+)
+def test_get_precision(input_value, output_value):
+    """ test get_precision """
+    assert get_precision(input_value) == output_value
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+              ({"features": [{'properties': {'layer': "address"}, 'geometry': {'coordinates': [0, 0]}}]}, "address_00"),
+
+              ({"features": [{'properties': {'layer': "address", 'match_type': 'exact'},
+                'geometry': {'coordinates': [1, 1]},
+                'bepelias': {}}]}, "address"),
+        ]
+)
+def test_add_precision(input_value, output_value):
+    """ test add_precision """
+
+    add_precision(input_value)
+
+    for feat in input_value["features"]:
+        assert feat["bepelias"]["precision"] == output_value
+
+
+smals_addr = {'post_name': 'Saint-Gilles',
+              'house_number': "20",
+              'street_name': 'Avenue Fonsny'}
+
+
+@pytest.mark.parametrize(
+        "input_value, output_value",
+        [
+              ([smals_addr, "no_city"],
+               smals_addr | {"post_name": ""}),
+              ([smals_addr, "no_hn"],
+               smals_addr | {"house_number": ""}),
+              ([smals_addr, "no_street"],
+               smals_addr | {"house_number": "", "street_name": ""}),
+
+              ([smals_addr, "clean_hn"],
+               smals_addr),
+              ([smals_addr | {'house_number': "20-22"}, "clean_hn"],
+               smals_addr),
+              ([smals_addr | {'house_number': "20 A"}, "clean_hn"],
+               smals_addr),
+
+              ([smals_addr, "clean"],
+               smals_addr),
+              ([smals_addr | {'street_name': "Avenue Fonsny (St Gilles)"}, "clean"],
+               smals_addr),
+              ([smals_addr | {'street_name': "Avenue Fonsny, St Gilles"}, "clean"],
+               smals_addr),
+              ([smals_addr | {'street_name': "Avenue X Fonsny"}, "clean"],
+               smals_addr),
+              ([smals_addr | {'street_name': "  Avenue Fonsny  "}, "clean"],
+               smals_addr),
+
+              ([smals_addr | {'post_name': "Saint-Gilles (Bruxelles)"}, "clean"],
+               smals_addr)
+        ]
+)
+def test_transform(input_value, output_value):
+    """ test transform"""
+    assert transform(input_value[0], input_value[1], remove_patterns) == output_value

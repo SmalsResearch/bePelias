@@ -7,10 +7,6 @@ import copy
 import pprint
 import pandas as pd
 
-import textdistance
-
-from unidecode import unidecode
-
 # General functions
 
 
@@ -48,6 +44,8 @@ def vlog(arg):
     for ln in str(arg).split("\n"):
         logging.debug(ln)
 
+
+# Data conversion
 
 def to_camel_case(data):
     """
@@ -150,205 +148,6 @@ def to_rest_guidelines(pelias_res, with_pelias_raw=True):
     # vlog(rest_res)
     return rest_res
 
-# Check result functions
-
-
-def pelias_check_postcode(pelias_res, postcode, match_length=3):
-    """
-    Filter a Pelias feature list by removing all feature having a postcode which
-    does not start by the same 'match_length' digits as 'postcode'. If no postal code is
-    provide in a feature, keep it
-
-    Parameters
-    ----------
-    pelias_res : list
-        List of Pelias features.
-    postcode : str in int
-        Postal code
-
-    Returns
-    -------
-    list
-        Same as 'pelias_res', but excluding mismatching results.
-    """
-
-    if "features" not in pelias_res:  # Should not occur!
-        log("Missing features in pelias_res:")
-        log(pelias_res)
-        pelias_res["features"] = []
-
-    nb_res = len(pelias_res["features"])
-    filtered_feat = list(filter(lambda feat: "postalcode" not in feat["properties"] or str(feat["properties"]["postalcode"])[0:match_length] == str(postcode)[0:match_length],
-                                pelias_res["features"]))
-
-    pelias_res["features"] = filtered_feat
-
-    vlog(f"    Check postcode ({match_length}) : {nb_res} --> {len(filtered_feat)}")
-    return pelias_res
-
-
-def get_feature_street_names(feature):
-    """
-    From a Pelias feature, extract all possible street name (skipping duplicates)
-
-    Parameters
-    ----------
-    feature : dict
-        Pelias feature.
-
-    Yields
-    ------
-    str
-        street name.
-    """
-    previous_res = set()
-
-    if "street" in feature["properties"]:
-        res = feature["properties"]["street"].upper()
-        if res not in previous_res:
-            previous_res.add(res)
-            yield res
-
-    if "addendum" not in feature["properties"] or "best" not in feature["properties"]["addendum"]:
-        return
-
-    best = feature["properties"]["addendum"]["best"]
-    for n in ["streetname_fr", "streetname_nl", "streetname_de"]:
-        if n in best:
-            res = best[n].upper()
-            if res not in previous_res:
-                previous_res.add(res)
-                yield res
-
-
-def get_feature_city_names(feature):
-    """
-    From a Pelias feature, extract all possible city name (skipping duplicates)
-
-    Parameters
-    ----------
-    feature : dict
-        Pelias feature.
-
-    Yields
-    ------
-    str
-        city name.
-    """
-
-    previous_res = set()
-    for c in ["postname_fr", "postname_nl", "postname_de",
-              "municipality_name_fr", "municipality_name_nl", "municipality_name_de"]:
-
-        if "addendum" in feature["properties"] and "best" in feature["properties"]["addendum"] and c in feature["properties"]["addendum"]["best"]:
-            cty = unidecode(feature["properties"]["addendum"]["best"][c].upper())
-
-            if cty not in previous_res:
-                previous_res.add(cty)
-                yield cty
-
-
-def remove_street_types(street_name):
-    """
-    From a street name, remove most 'classical' street types, in French and Dutch
-    (Rue, Avenue, Straat...). Allow to improve string comparison reliability
-
-    Parameters
-    ----------
-    street_name : str
-        A street name.
-
-    Returns
-    -------
-    str
-        Cleansed version of input street_name.
-    """
-
-    to_remove = ["^RUE ", "^AVENUE ", "^CHAUSSEE ", "^ALLEE ", "^BOULEVARD ", "^PLACE ", "^CHEMIN ",
-                 "STRAAT$", "STEENWEG$", "LAAN$"]
-
-    for s in to_remove:
-        street_name = re.sub(s, "", street_name)
-
-    to_remove = ["^DE LA ", "^DE ", "^DU ", "^DES "]
-
-    for s in to_remove:
-        street_name = re.sub(s, "", street_name)
-
-    return street_name.strip()
-
-
-def is_partial_substring(s1, s2):
-    """
-    Check that s1 (assuming s1 is shorter than s2) is a subsequence of s2, i.e.,
-    s1 can be obtained by removing some characters to s2.
-    Example:"Rue Albert" vs "Rue Marcel Albert", or vs "Rue Albert Marcel". "Rue M. Albert" vs "Rue Marcel Albert"
-
-    Parameters
-    ----------
-    s1 : str
-
-    s2 : str
-
-    Returns
-    -------
-    int
-        1 if the shortest can be obtained by removing some characters from the longest
-        0 otherwise
-    """
-
-    s1 = re.sub("[. ]", "", s1)
-    s2 = re.sub("[. ]", "", s2)
-
-    if len(s1) > len(s2):
-        s1, s2 = s2, s1
-
-    while len(s1) > 0 and len(s2) > 0:
-        if s1[0] == s2[0]:
-            s1 = s1[1:]
-            s2 = s2[1:]
-        else:
-            s2 = s2[1:]
-
-    return int(len(s1) == 0)  # and len(s2)==0
-
-
-def apply_sim_functions(str1, str2, threshold):
-    """
-    Apply a sequence of similarity functions on (str1, str2) until one give a value
-    above "threshold", and return this value. If none of them are above the threshold,
-    return None
-
-    Following string similarities are tested: Jaro-Winkler, Sorensen-Dice,
-        Levenshtiein similarity
-
-    Parameters
-    ----------
-    str1 : str
-        Any string
-    str2: str
-        Any string.
-    threshold : float
-        String similarity we want to reach.
-
-    Returns
-    -------
-    sim : float or None
-        First string similarity between str1 and str2 bellow threshold. If None
-        of them if bellow, return None.
-    """
-
-    sim_functions = [textdistance.jaro_winkler,
-                     textdistance.sorensen_dice,
-                     lambda s1, s2: 1 - textdistance.levenshtein(s1, s2)/max(len(s1), len(s2)),
-                     is_partial_substring
-                     ]
-    for sim_fct in sim_functions:
-        sim = sim_fct(str1, str2)
-        if sim >= threshold:
-            return sim
-    return None
-
 
 def feature_to_df(features, to_string=True, margin=4):
     """ Convert a list of Pelias features into a Pandas DataFrame
@@ -406,3 +205,188 @@ def final_res_to_df(final_res, to_string=True, margin=0):
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):
             return margin_str + str(df).replace("\n", "\n"+margin_str) + "\n"+pprint.pformat({k: v for (k, v) in final_res.items() if k != "items"})
     return df
+
+# Main logic functions
+
+
+def is_building(feature):
+    """
+    Check that a Pelias feature corresponds to the position of a building
+
+    Parameters
+    ----------
+    feature : dict
+        A pelias feature.
+
+    Returns
+    -------
+    bool
+        True if the feature corresponds to a building.
+    """
+
+    return (feature["properties"]["match_type"] in ("exact", "interpolated") or feature["properties"]["accuracy"] == "point") and "housenumber" in feature["properties"]
+
+
+def build_address(street_name, house_number):
+    """
+    Build a string in the style "street_name, house_number", taking into account
+    that both arguments could be empty:
+        - if street_name is null or empty : returns ""
+        - else if house_number is null or empty: return street_name
+        - otherwise, return "street_name, house_number"
+
+    Parameters
+    ----------
+    street_name : str
+        Street name.
+    house_number : str
+        House number.
+
+    Returns
+    -------
+    str
+        "street_name, house_number", unless one of them is empty
+    """
+    if pd.isnull(street_name) or len(street_name.strip()) == 0:
+        return ""
+
+    if pd.isnull(house_number) or len(house_number.strip()) == 0:
+        return street_name
+
+    return f"{street_name}, {house_number}"
+
+
+def build_city(post_code, post_name):
+    """Build a string containing a post code and a city name, both of them being possibly empty
+
+    Args:
+        post_code (str): postcode, or "", or None
+        post_name (str): city name, or "", or None
+
+    Returns:
+        str: something like "1000 Bruxelles", "or "Bruxelles"
+    """
+
+    if pd.isnull(post_code) or len(post_code) == 0:
+        return post_name or ""
+
+    if pd.isnull(post_name) or len(post_name) == 0:
+        return post_code or ""
+
+    return f"{post_code} {post_name}"
+
+
+def transform(addr_data, transformer, remove_patterns):
+    """
+    Transform an address applying a transformer.
+
+    Parameters
+    ----------
+    addr_data : dict
+        dict with fields "post_name", "house_number", "street_name"
+    transformer : str
+        Transformer name. Could be:
+            - no_city: Remove city name
+            - no_hn: Remove house number
+            - clean_hn: Clean house number, by keeping only the first sequence of digits
+            - clean: Clean street and city names, by applying the substitutions
+              described in 'remove_patterns'
+
+    Returns
+    -------
+    addr_data : dict
+    """
+
+    addr_data = addr_data.copy()
+
+    if transformer == "no_city":
+        addr_data["post_name"] = ""
+
+    elif transformer == "no_hn":
+        addr_data["house_number"] = ""
+
+    elif transformer == "no_street":
+        addr_data["street_name"] = ""
+        addr_data["house_number"] = ""
+
+    elif transformer == "clean_hn":
+        if "house_number" in addr_data and not pd.isnull(addr_data["house_number"]):
+            if "-" in addr_data["house_number"]:
+                addr_data["house_number"] = addr_data["house_number"].split("-")[0].strip()  # useful? "match" bellow will do the same
+
+            hn = re.match("^[0-9]+", addr_data["house_number"])
+            if hn:
+                addr_data["house_number"] = hn[0]
+    elif transformer == "clean":
+        for pat, rep in remove_patterns:
+            addr_data["street_name"] = re.sub(pat, rep, addr_data["street_name"]) if not pd.isnull(addr_data["street_name"]) else None
+            addr_data["post_name"] = re.sub(pat, rep, addr_data["post_name"]) if not pd.isnull(addr_data["post_name"]) else None
+
+    return addr_data
+
+
+def get_precision(feature):
+    """Get the precision of a pelias result feature
+
+    Args:
+        pelias_res (dict): pelias result
+
+    Returns:
+        str: a value amongst address, address_00, street_center, address_streetcenter, address_interpol,
+                street_interpol, street_00, street,
+                city_00, city, country
+    """
+
+    # vlog("get_precision")
+    try:
+        feat_prop = feature["properties"]
+        if feat_prop["layer"] == "address":
+            if feature["geometry"]["coordinates"] == [0, 0]:
+                return "address_00"
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'street_center':
+                return "address_streetcenter"
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] is True:
+                return "address_interpol"
+            if feat_prop["match_type"] == "interpolated":
+                if "/streetname/" in feat_prop["id"].lower() or "/straatnaam/" in feat_prop["id"].lower():
+                    return "street_interpol"
+                return "address_interpol2"  # Should not occur?
+            if feat_prop["match_type"] == "exact" or feat_prop["accuracy"] == "point":
+                return "address"
+
+        if feat_prop["layer"] == "street":
+            if feature["geometry"]["coordinates"] == [0, 0]:
+                return "street_00"
+            return "street"
+
+        if feat_prop["layer"] in ("city", "locality", "postalcode", "localadmin", "neighbourhood"):
+            if feature["geometry"]["coordinates"] == [0, 0]:
+                return "city_00"
+            return "city"
+
+        if feat_prop["layer"] in ("region", "macroregion", "county"):
+            return "country"
+
+    except KeyError as e:
+        log("KeyError in get_precision")
+        log(feature)
+        log(e)
+        return "[keyerror]"
+
+    return "[todo]"
+
+
+def add_precision(pelias_res):
+    """Add 'precision' to each features item
+    Args:
+        pelias_res (dict): pelias result
+
+    Returns:
+        None
+    """
+
+    # log("add precision")
+    for feat in pelias_res["features"]:
+        if "bepelias" not in feat:
+            feat["bepelias"] = {}
+        feat["bepelias"]["precision"] = get_precision(feat)
