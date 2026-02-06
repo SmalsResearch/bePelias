@@ -6,6 +6,6 @@ COPY docker/requirements_api.txt ./
 RUN bepelias_venv/bin/pip3 install -r requirements_api.txt
 
 COPY scripts/start_api.sh ./
-COPY src/bepelias/fastapi.py src/bepelias/bepelias.py src/bepelias/pelias_elastic.py src/bepelias/result_checker.py src/bepelias/model.py src/bepelias/pelias.py src/bepelias/utils.py src/bepelias/__init__.py /bepelias/
+COPY src/bepelias/fastapi.py src/bepelias/bepelias.py src/bepelias/pelias_elastic.py src/bepelias/result_checker.py src/bepelias/model.py src/bepelias/pelias.py src/bepelias/config.py src/bepelias/utils.py  src/bepelias/__init__.py /bepelias/
 
 CMD "./start_api.sh"

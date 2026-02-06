@@ -56,7 +56,9 @@ def test_check_locality(input_value, output_value):
 )
 def test_check_streetname(input_value, sim_value):
     """ test check_streetname """
+    res_checker.similarity_threshold = 0.9
     val = res_checker.check_streetname(input_value[0], input_value[1])
+    res_checker.similarity_threshold = 0.8
     assert val is None and sim_value is None or val >= sim_value
 
 
@@ -86,9 +88,9 @@ def test_check_best_streetname(input_value, output_value):
             ([{}, 1160], {'features': []})
         ]
 )
-def test_pelias_check_postcode(input_value, output_value):
+def test_filter_postcode(input_value, output_value):
     """ test convert_coordinates """
-    assert res_checker.check_postcode(input_value[0], input_value[1]) == output_value
+    assert res_checker.filter_postcode(input_value[0], input_value[1]) == output_value
 
 
 @pytest.mark.parametrize(

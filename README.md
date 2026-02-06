@@ -150,7 +150,7 @@ is_building(feature) is True if (and only if):
 - "match_type" (in "properties") is "exact" or "interpolated", or "accuracy" is "point"
 - AND "housenumber" exists in "properties"
 
-check_postcode(features, postcode): keep only a feature from features if: 
+filter_postcode(features, postcode): keep only a feature from features if: 
 - "postalcode" does not exists in "properties"
 - OR the first three characters of "postalcode" are equal to the first three characters in postcode
 
@@ -159,7 +159,7 @@ check_postcode(features, postcode): keep only a feature from features if:
 Let now consider the build bloc "struct_or_unstruct(street_name, house_number, post_code, post_name)". 
 
 This will first call the structured version of Pelias. We receive then a "features list". 
-We first apply "check_postcode" to remove any result with a "wrong" postal code. 
+We first apply "filter_postcode" to remove any result with a "wrong" postal code. 
 Then, if any feature in the remaining features list is "is_building", we return the (filtered) features list.
 
 Otherwise, we call the unstructured version of Pelias with the text "street_name, house_number, post_code post_name". 
@@ -662,5 +662,3 @@ Street "1..*" --  "1" Municipality
 - dataprep: chunk size as an env variable (in dockercompose)
 - put all Pelias in a Docker container 
 - "Rue Fr Van Cutsem, 1040" fails, but not "Rue F Van Cutsem". 
-- create bePelias class, to avoid passing constant parameters (pelias, postcode_match_length, transformer_sequence/unstruct_transformer_sequence)
-- fastapi: example-> examples (+fix version)

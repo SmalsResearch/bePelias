@@ -17,42 +17,7 @@ from bepelias.result_checker import ResultChecker
 
 from bepelias.pelias import Pelias
 
-default_transformer_sequence = [
-    [],
-    ["clean"],
-    ["clean", "no_city"],
-    ["no_city"],
-    ["clean_hn"],
-    ["no_city", "clean_hn"],
-    ["clean", "no_city", "clean_hn"],
-    ["no_hn"],
-    ["no_city", "no_hn"],
-    ["no_street"],
-]
-
-unstruct_transformer_sequence = [  # Transformer sequence used in unstructured_mode
-    ["no_city"],
-    ["clean", "no_city"],
-    ["clean_hn", "no_city"],
-    ["clean", "clean_hn", "no_city"],
-    [],
-    ["clean"],
-    ["clean_hn"],
-    ["no_hn"],
-    ["no_city", "no_hn"],
-    ["no_street"],
-]
-
-
-remove_patterns = [(r"\(.+\)$",      ""),
-                   ("[, ]*(SN|ZN)$", ""),
-                   ("' ", "'"),
-                   (" [a-zA-Z][. ]", " "),
-                   ("[.]", " "),
-                   (",[a-zA-Z .'-]*$", " "),
-                   ("[ ]+$", ""),
-                   ("^[ ]+", "")
-                   ]
+from bepelias.config import (default_transformer_sequence, unstruct_transformer_sequence, remove_patterns)
 
 
 class BePelias:
@@ -161,7 +126,7 @@ class BePelias:
 
     def _struct_or_unstruct(self, street_name, house_number, post_code, post_name, check_postcode=True):
         """
-        Try structed version of Pelias. If it did not succeed, try the unstructured version, and keep the best result.
+        Try structured version of Pelias. If it did not succeed, try the unstructured version, and keep the best result.
 
         Parameters
         ----------
@@ -204,7 +169,7 @@ class BePelias:
 
         if post_code is not None:
             if check_postcode:
-                pelias_struct = self.res_checker.check_postcode(pelias_struct, post_code)
+                pelias_struct = self.res_checker.filter_postcode(pelias_struct, post_code)
         else:
             vlog("    No postcode in input")
 
@@ -247,7 +212,7 @@ class BePelias:
 
         if post_code is not None:
             if check_postcode:
-                pelias_unstruct = self.res_checker.check_postcode(pelias_unstruct, post_code)
+                pelias_unstruct = self.res_checker.filter_postcode(pelias_unstruct, post_code)
         else:
             vlog("    No postcode in input")
 
@@ -464,7 +429,7 @@ class BePelias:
         vlog(f"    Parsed by Pelias: {parsed}")
 
         if "postalcode" in parsed:
-            pelias_unstruct = self.res_checker.check_postcode(pelias_unstruct, parsed["postalcode"])
+            pelias_unstruct = self.res_checker.filter_postcode(pelias_unstruct, parsed["postalcode"])
 
         else:
             vlog("    No postcode in input")

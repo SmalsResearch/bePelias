@@ -34,6 +34,7 @@ from bepelias.model import (GeocodeOutput, BePeliasError, Health,
                             ReverseGeocodeOutput, SearchCityOutput,
                             GetByIdOutput, BESTID_PATTERN)
 
+from bepelias.config import (default_postcode_match_length, default_similarity_threshold)
 
 from bepelias import __version__
 
@@ -92,16 +93,16 @@ else:
     logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
     sys.exit(1)
 
-postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', '3')
+postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', str(default_postcode_match_length))
 if not postcode_match_length.isdigit() or int(postcode_match_length) < 1 or int(postcode_match_length) > 4:
-    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of 3.")
-    postcode_match_length = 3  # pylint: disable=invalid-name
+    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of %s.", default_postcode_match_length)
+    postcode_match_length = default_postcode_match_length  # pylint: disable=invalid-name
 else:
     postcode_match_length = int(postcode_match_length)
 
 
 bepelias = BePelias(domain_api=pelias_host, domain_elastic=pelias_es_host, domain_interpol=pelias_interpol_host,
-                    postcode_match_length=postcode_match_length, similarity_threshold=0.8)
+                    postcode_match_length=postcode_match_length, similarity_threshold=default_similarity_threshold)
 
 app = FastAPI(version=__version__,
               title='bePelias API',
