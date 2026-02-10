@@ -345,6 +345,8 @@ def get_precision(feature):
                 return "address_00"
             if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'street_center':
                 return "address_streetcenter"
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'postcode_center':
+                return "address_postcodecenter"
             if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] is True:
                 return "address_interpol"
             if feat_prop["match_type"] == "interpolated":
@@ -357,6 +359,8 @@ def get_precision(feature):
         if feat_prop["layer"] == "street":
             if feature["geometry"]["coordinates"] == [0, 0]:
                 return "street_00"
+            elif 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'postcode_center':
+                return "street_postcodecenter"
             return "street"
 
         if feat_prop["layer"] in ("city", "locality", "postalcode", "localadmin", "neighbourhood"):

@@ -149,7 +149,7 @@ test_data = {
             (["total"], 1),
             # (["total"], 1),
             # (["items", 0, "name"], "Charleroi"),
-            (["items", 0, "precision"], "street_00")
+            (["items", 0, "precision"], "street_postcodecenter")
         ]
     },
     "gent": {

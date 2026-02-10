@@ -58,7 +58,7 @@ class BePelias:
             feat["geometry"]["coordinates_orig"] = [0, 0]
             feat["geometry"]["coordinates"] = [boxes[0]["coordinates"]["lon"], boxes[0]["coordinates"]["lat"]]
             feat["bepelias"] = {"interpolated": "from_boxnumber"}
-        else:
+        elif "housenumber" in feat["properties"]:
             vlog("    Coordinates==0,0, try to interpolate...")
             interp = self._interpolate(feat)
             vlog(f"    Interpolate result: {interp}")
@@ -70,6 +70,33 @@ class BePelias:
                 feat["geometry"]["coordinates_orig"] = [0, 0]
                 feat["geometry"]["coordinates"] = interp["street_geometry"]["coordinates"]
                 feat["bepelias"] = {"interpolated": "street_center"}
+        
+        if feat["geometry"]["coordinates"] == [0, 0]:
+            # Fallback if no interpolation coords available
+            vlog("    No coordinates found with interpolation, try to search with postcode and part of municipality...")
+            postalcode = feat["properties"].get("postalcode", "")
+            if re.match("^[0-9]+$", postalcode):
+                vlog(f"    Postalcode in feature: {postalcode}")
+
+                part_of_munic_name = feat.get("properties", {}).get("addendum", {}).get("best", {}).get("part_of_municipality", {}).get("name", "")
+                if isinstance(part_of_munic_name, dict):
+                    part_of_munic_name = list(part_of_munic_name.values())[0]
+                else: 
+                    part_of_munic_name = ""
+                vlog(f"    Part of munic name: {part_of_munic_name}")
+
+                postcode_res = self.search_city(postalcode, part_of_munic_name)
+
+                if len(postcode_res["items"]) > 0:  # In Wallonia, there are some cases where the postcode is shared by multiple part of municipalities.
+                    filtered_items = list(filter(lambda item: item.get("partOfMunicipality", {}).get("name", {}).get("fr") == part_of_munic_name, postcode_res["items"]))
+                    # log(f"    Filtered items with part_of_munic_name={part_of_munic_name}: {filtered_items}")
+                    if len(filtered_items) > 0:
+                        postcode_res["items"] = filtered_items
+                # log(postcode_res)
+
+                feat["geometry"]["coordinates_orig"] = [0, 0]
+                feat["geometry"]["coordinates"] = postcode_res["items"][0]["coordinates"]
+                feat["bepelias"] = {"interpolated": "postcode_center"}
 
     def _interpolate(self, feature):
         """
@@ -179,9 +206,10 @@ class BePelias:
 
             for feat in pelias_struct["features"]:
                 # vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
+                if feat["geometry"]["coordinates"] == [0, 0]:
+                    self._search_for_coordinates(feat)
+
                 if is_building(feat):
-                    if feat["geometry"]["coordinates"] == [0, 0]:
-                        self._search_for_coordinates(feat)
 
                     # vlog("Found a building in res1")
                     # vlog(feat)
@@ -224,9 +252,10 @@ class BePelias:
 
             for feat in pelias_unstruct["features"]:
                 # vlog(feat["properties"]["name"] if "name" in feat["properties"] else feat["properties"]["label"] if "label" in feat["properties"] else "--")
+                if feat["geometry"]["coordinates"] == [0, 0]:
+                    self._search_for_coordinates(feat)
+
                 if is_building(feat):
-                    if feat["geometry"]["coordinates"] == [0, 0]:
-                        self._search_for_coordinates(feat)
                     return pelias_unstruct
 
         # No result has a building precision -> get the best one, according the first feature
