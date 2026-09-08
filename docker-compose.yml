@@ -1,12 +1,5 @@
 services:
-    base:
-        build:
-            context: .
-            dockerfile: docker/Dockerfile_base
-        image: bepelias/base
     api:
-        depends_on:
-            - base
         build:
             context: .
             dockerfile: docker/Dockerfile_api
@@ -20,19 +13,17 @@ services:
             - LOG_LEVEL=LOW # LOW, MEDIUM or HIGH
             - NB_WORKERS=4  # Number of fastapi workers
             - IN_PORT=4001  # Internal port. Should correspond to the first value in the above "ports"
-            - POSTCODE_MATCH_LENGTH=3  # Minimum number of characters to match a postcode, between input postcode and Pelias postcode. 4 = fully trust input postcode. 
+            - POSTCODE_MATCH_LENGTH=3  # Minimum number of characters to match a postcode, between input postcode and Pelias postcode. 4 = fully trust input postcode.
         networks:
             - belgium_bepelias_default
         volumes:
-            - ./data/:/data/   # Only needs metadata.json, but if the file does not exist, it would be created as a directory 
+            - ./data/:/data/   # Only needs metadata.json, but if the file does not exist, it would be created as a directory
                                # if we tried to mount ./data/metadata.json:/data/metadata.json.
         image: bepelias/api
         container_name: bepelias_api
         restart: always
 
     dataprep:
-        depends_on:
-            - base
         build:
             context: .
             dockerfile: docker/Dockerfile_dataprep
@@ -43,11 +34,6 @@ services:
         image: bepelias/dataprep
         container_name: bepelias_dataprep
 
-            
-
-
 networks:
     belgium_bepelias_default:
         external: true
-
-        

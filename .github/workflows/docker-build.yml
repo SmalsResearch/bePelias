@@ -1,0 +1,154 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build-best-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: Fedict/best-tools
+          ref: 1.5.0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: "microsoft"
+          java-version: "17"
+      - name: Build best-tools
+        run: |
+          cd java
+          mvn clean install -DskipTests
+      - uses: actions/upload-artifact@v7
+        with:
+          name: best-tools-artifact
+          path: |
+            java/converter/target/converter-*.jar
+
+  build-docker-api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Log into GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/api
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=bePelias API
+            org.opencontainers.image.description=bePelias API Docker image
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile_api
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Attest
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@v4
+        id: attest
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/api
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  build-docker-dataprep:
+    runs-on: ubuntu-latest
+    needs: build-best-tools
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: best-tools-artifact
+          path: best-tools-artifact
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Log into GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/dataprep
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=bePelias Data Preparation
+            org.opencontainers.image.description=bePelias Data Preparation Docker image
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile_dataprep
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Attest
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@v4
+        id: attest
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/dataprep
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
