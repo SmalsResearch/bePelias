@@ -1,6 +1,8 @@
+DOCKER := docker
 DOCKER_COMPOSE := docker compose
 DIR := pelias/projects/belgium_bepelias
 PELIAS := "$(PWD)/pelias/pelias"
+BESTTOOLS_VERSION := 1.5.0
 
 REGION ?= all
 ACTION ?= all
@@ -11,6 +13,7 @@ ACTION ?= all
 help:
 	@echo "Targets:"
 	@echo "  make build                             # Build all services (api, dataprep, pelias)"
+	@echo "  make build-besttools                   # Build the BeST tools"
 	@echo "  make build-dataprep                    # Build the dataprep service"
 	@echo "  make build-api                         # Build the api service"
 	@echo "  make build-pelias                      # Build the pelias service"
@@ -19,7 +22,15 @@ help:
 	@echo "  make stop                              # Stop the API and Pelias services"
 	@echo "  make cleanup                           # Stop services and remove all containers, images and volumes; usage: make cleanup"
 
-build: build-api build-pelias build-dataprep
+build: build-api build-pelias build-besttools build-dataprep
+
+build-besttools:
+	mkdir -p $(CURDIR)/best-tools-artifact
+	wget https://github.com/Fedict/best-tools/archive/refs/tags/$(BESTTOOLS_VERSION).zip
+	unzip $(BESTTOOLS_VERSION).zip && rm $(BESTTOOLS_VERSION).zip
+	$(DOCKER) run -it --rm --name best-tools -v "$(CURDIR)/best-tools-$(BESTTOOLS_VERSION)/java":/usr/src/mymaven -w /usr/src/mymaven maven:3-eclipse-temurin-17-alpine mvn clean install -DskipTests
+	cp best-tools-$(BESTTOOLS_VERSION)/java/converter/target/converter-$(BESTTOOLS_VERSION).jar $(CURDIR)/best-tools-artifact/
+	cp best-tools-$(BESTTOOLS_VERSION)/java/unzip/target/unzip-$(BESTTOOLS_VERSION).jar $(CURDIR)/best-tools-artifact/
 
 build-api:
 	$(DOCKER_COMPOSE) build api
@@ -28,10 +39,10 @@ build-dataprep:
 	$(DOCKER_COMPOSE) build dataprep
 
 build-pelias:
-	./scripts/build_pelias.sh
+	$(CURDIR)/scripts/build_pelias.sh
 
 feed:
-	./scripts/feed.sh $(ACTION) $(REGION)
+	$(CURDIR)/scripts/feed.sh $(ACTION) $(REGION)
 
 run: run-pelias run-api
 
@@ -41,7 +52,6 @@ run-pelias:
 
 run-api:
 	$(DOCKER_COMPOSE) up -d --no-deps --remove-orphans api
-
 
 stop: stop-api stop-pelias
 
@@ -61,10 +71,9 @@ cleanup-pelias:
 	cd $(DIR) && \
 	$(PELIAS) compose down --rmi all
 
-
 cleanup-folders:
-	rm -rf pelias
-	rm -rf data
+	rm -rf $(CURDIR)/pelias
+	rm -rf $(CURDIR)/data
 	echo "Advice: try also to run: \n\
 	 - docker system prune -a -f \n\
 	 - docker volume prune -f"
