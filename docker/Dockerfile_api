@@ -1,6 +1,6 @@
 FROM python:3.12-alpine
 
-RUN apk add build-base gdal-dev geos-dev
+RUN apk add build-base gdal-dev geos-dev bash
 
 COPY docker/requirements_base.txt .
 COPY docker/requirements_api.txt .

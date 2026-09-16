@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -e # Exit on any error
+
 ACTION=${1:-"all"}
 REGION=${2:-"all"}
 # prepare_csv: make CSV but do not load them in Pelias
@@ -107,12 +110,13 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Restart pelias"
     # Seems to be required after the first import, otherwise layers are not recognized...
-    $PELIAS compose down
+    $PELIAS compose down || echo "compose down failed, maybe not started yet"   # Sometimes fails if not started yet, but we want to continue anyway
+
     $PELIAS compose up
 
     cd -
     
-    (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date --iso-8601=seconds`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
+    (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
 
     echo "Import done"
     echo 

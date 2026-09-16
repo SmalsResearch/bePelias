@@ -29,6 +29,7 @@ services:
             dockerfile: docker/Dockerfile_dataprep
         volumes:
             - ./data:/data
+            - ./best-tools-artifact:/best-tools
         environment:
             - CHUNK_SIZE=100000  # Number of rows to process at once when preparing best files. If dataprep process runs out of memory, lower this value.
         image: bepelias/dataprep
