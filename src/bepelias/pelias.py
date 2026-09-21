@@ -33,35 +33,36 @@ class Pelias:
             scheme="http",
     ):
 
-        self.geocode_path = '/v1/search'
-        self.geocode_struct_path = '/v1/search/structured'
-        self.reverse_path = '/v1/reverse'
-        self.interpolate_path = '/search/geojson'
+        geocode_path = '/v1/search'
+        geocode_struct_path = '/v1/search/structured'
+        reverse_path = '/v1/reverse'
+        interpolate_path = '/search/geojson'
 
         self.verbose = False
         self.scheme = scheme
-        self.domain_api = domain_api.strip('/')
-        self.domain_elastic = domain_elastic.strip('/')
-        self.domain_interpol = domain_interpol.strip('/')
+
+        domain_api = domain_api.strip('/')
+        domain_elastic = domain_elastic.strip('/')
+        domain_interpol = domain_interpol.strip('/')
 
         self.geocode_api = (
-            f'{self.scheme}://{self.domain_api}{self.geocode_path}'
+            f'{self.scheme}://{domain_api}{geocode_path}'
         )
 
         self.reverse_api = (
-            f'{self.scheme}://{self.domain_api}{self.reverse_path}'
+            f'{self.scheme}://{domain_api}{reverse_path}'
         )
 
         self.geocode_struct_api = (
-            f'{self.scheme}://{self.domain_api}{self.geocode_struct_path}'
+            f'{self.scheme}://{domain_api}{geocode_struct_path}'
         )
 
         self.interpolate_api = (
-            f'{self.scheme}://{self.domain_interpol}{self.interpolate_path}'
+            f'{self.scheme}://{domain_interpol}{interpolate_path}'
         )
 
         self.elastic_api = (
-            f'{self.scheme}://{self.domain_elastic}'
+            f'{self.scheme}://{domain_elastic}'
         )
 
     def __call_service(self, url, nb_attempts=6):
@@ -112,6 +113,7 @@ class Pelias:
             except Exception as exc:
                 log(f"Cannot get Pelias results ({url}): {exc}")
                 raise exc
+        return {}  # should not be reached
 
     def geocode(self, query, layers=None):
         """

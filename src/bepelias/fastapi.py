@@ -56,7 +56,7 @@ elif env_log_level == "MEDIUM":
 elif env_log_level == "HIGH":
     logger.setLevel(logging.DEBUG)
 else:
-    print(f"Unkown log level '{env_log_level}'. Should be LOW/MEDIUM/HIGH")
+    print(f"Unknown log level '{env_log_level}'. Should be LOW/MEDIUM/HIGH")
 
 
 log(f"log level: {env_log_level}")
@@ -439,7 +439,7 @@ def _metadata(response: Response, request: Request = None):
 
 # app.openapi_schema["components"]["schemas"]
 
-def custom_openapi():
+def custom_openapi():  # pylint: disable=too-many-branches
     """Update openapi.json to be conform to REST Guidelines
     """
     if app.openapi_schema:
@@ -458,14 +458,6 @@ def custom_openapi():
     openapi_schema["components"]["schemas"]["HttpValidationError"] = openapi_schema["components"]["schemas"]["HTTPValidationError"]
     del openapi_schema["components"]["schemas"]["HTTPValidationError"]
 
-#     openapi_schema["components"]["schemas"]["HttpValidationError"] = {
-#     "type": "object",
-#     "properties": {
-#         "error": {"type": "string"},
-#     },
-#     "media_type": "application/problem+json"
-# }
-
     for rte in openapi_schema["paths"]:
         if '422' in openapi_schema["paths"][rte]["get"]["responses"]:
             openapi_schema["paths"][rte]["get"]["responses"]["422"]["content"]["application/json"]["schema"]["$ref"] = "#/components/schemas/HttpValidationError"
@@ -483,7 +475,6 @@ def custom_openapi():
         for meth in openapi_schema["paths"][path]:
             if "parameters" in openapi_schema["paths"][path][meth]:
                 for param in openapi_schema["paths"][path][meth]["parameters"]:
-                    # del openapi_schema["paths"][path][meth]["parameters"][param]["schema"]["title"]
                     del param["schema"]["title"]
 
             # move application/json in error response to application/problem+json

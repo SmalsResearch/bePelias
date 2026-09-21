@@ -325,7 +325,7 @@ def transform(addr_data, transformer, remove_patterns):
     return addr_data
 
 
-def get_precision(feature):
+def get_precision(feature):  # pylint: disable=too-many-return-statements,too-many-branches
     """Get the precision of a pelias result feature
 
     Args:
@@ -359,7 +359,7 @@ def get_precision(feature):
         if feat_prop["layer"] == "street":
             if feature["geometry"]["coordinates"] == [0, 0]:
                 return "street_00"
-            elif 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'postcode_center':
+            if 'interpolated' in feature['bepelias'] and feature['bepelias']['interpolated'] == 'postcode_center':
                 return "street_postcodecenter"
             return "street"
 

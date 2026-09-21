@@ -186,7 +186,7 @@ class BePelias:
         elif re.search("[0-9]", addr["address"]) is None:
             layers = "street,locality"
 
-        pelias_struct = self.pelias.geocode(addr, layers=layers)
+        pelias_struct = self.pelias.geocode(addr, layers=layers)  # pylint: disable=unexpected-keyword-arg  # Bug in Pylint?
 
         pelias_struct["bepelias"] = {"call_type": "struct",
                                      "in_addr": addr,
@@ -222,7 +222,7 @@ class BePelias:
         vlog("")
         vlog(f"  Call unstruct: '{addr}'")
         if addr and len(addr.strip()) > 0 and not re.match("^[0-9]+$", addr):
-            pelias_unstruct = self.pelias.geocode(addr, layers=layers)
+            pelias_unstruct = self.pelias.geocode(addr, layers=layers)     # pylint: disable=unexpected-keyword-arg  # Bug in Pylint?
             cnt = 1
         else:
             vlog("    Unstructured: empty inputs or only numbers, skip call")
@@ -237,7 +237,7 @@ class BePelias:
 
         return pelias_unstruct
 
-    def _advanced_mode(self, street_name, house_number, post_code, post_name, transformer_sequence=None):
+    def _advanced_mode(self, street_name, house_number, post_code, post_name, transformer_sequence=None):   # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """The full logic of bePelias
 
         Args:
@@ -451,7 +451,7 @@ class BePelias:
         if re.search("[0-9]", address) is None:
             layers = "street,locality"
 
-        pelias_unstruct = self.pelias.geocode(address, layers=layers)
+        pelias_unstruct = self.pelias.geocode(address, layers=layers)   # pylint: disable=unexpected-keyword-arg  # Bug in Pylint?
 
         pelias_unstruct["bepelias"] = {"call_type": "unstruct",
                                        "in_addr": address,
@@ -475,7 +475,7 @@ class BePelias:
 
         return pelias_unstruct
 
-    def _unstructured_mode(self, address):
+    def _unstructured_mode(self, address):   # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """The full logic of bePelias when input in unstructured
 
         - We first try unstructured mode, with the raw input
@@ -655,7 +655,7 @@ class BePelias:
 
                 return to_rest_guidelines(pelias_res, with_pelias_result)
 
-            elif mode == "simple":
+            if mode == "simple":
 
                 pelias_res = self._advanced_mode(street_name, house_number, post_code, post_name,
                                                  transformer_sequence=[(["struct", "unstruct"], [])])
@@ -664,21 +664,15 @@ class BePelias:
 
                 return to_rest_guidelines(pelias_res, with_pelias_result)
 
-            else:  # --> mode == "advanced":
-                # log("advanced...")
+            # --> mode == "advanced":
+            pelias_res = self._advanced_mode(street_name, house_number, post_code, post_name)
 
-                pelias_res = self._advanced_mode(street_name, house_number, post_code, post_name)
+            res = to_rest_guidelines(pelias_res, with_pelias_result)
 
-                # vlog("result (before rest_guidelines):")
-                # vlog(pelias_res)
-                # vlog("------")
+            vlog("\nFinal result:")
+            vlog(final_res_to_df(res))
 
-                res = to_rest_guidelines(pelias_res, with_pelias_result)
-
-                vlog("\nFinal result:")
-                vlog(final_res_to_df(res))
-
-                return res
+            return res
 
         except PeliasException as exc:
             log("Exception during process: ")
