@@ -1,6 +1,6 @@
 FROM python:3.12-alpine
 
-RUN apk add build-base gdal-dev geos-dev openjdk17
+RUN apk add build-base gdal-dev geos-dev openjdk17 bash jq
 
 COPY best-tools-artifact/converter-*.jar /best-tools/java/
 

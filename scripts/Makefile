@@ -23,7 +23,7 @@ DATA_OUT := /data
 METADATA_FILE := $(DATA_OUT)/metadata.json
 
 GLOBAL_ZIP := $(DATA_IN)/best-full-latest.zip
-CONVERTER_JAR := /best-tools/java/converter/target/converter-1.*.jar
+CONVERTER_JAR := /best-tools/converter-1.*.jar
 PREPARE_PY := /bepelias/prepare_best_files.py
 PYTHON := python3
 
@@ -92,9 +92,10 @@ prepare: $(PREPARED_MARKER)
 # Outputs: best-full-latest.zip
 $(GLOBAL_ZIP):
 	mkdir -p $(DATA_IN)
-	wget --progress=dot:giga -O "$@" https://opendata.bosa.be/download/best/best-full-latest.zip
-	$(call update_md,.$(REGION).download,`date --iso-8601=seconds`)
 
+	wget -O "$@" https://opendata.bosa.be/download/best/best-full-latest.zip
+
+	$(call update_md, .$(REGION).download,`date +%FT%T`)
 
 # --- Step 1: extract regional zip(s) from the global zip ---
 # Inputs: best-full-latest.zip
@@ -116,7 +117,7 @@ $(DATA_IN)/%.regional_zip_extracted: $(GLOBAL_ZIP)
 # Marker: (Brussels|Flanders|Wallonia).xml_extracted
 
 $(DATA_IN)/%.xml_extracted: $(DATA_IN)/%.regional_zip_extracted
-	cd $(DATA_IN) && unzip -o $(REG)'*.zip'
+	cd $(DATA_IN) && for zipfile in $(REG)*.zip; do unzip -o "$$zipfile"; done
 	touch $@
 
 
@@ -136,7 +137,7 @@ $(DATA_IN)/%.xml_extracted: $(DATA_IN)/%.regional_zip_extracted
 $(DATA_IN)/%.openaddress_ready: $(DATA_IN)/%.xml_extracted
 #	echo ".level= WARNING" > logging.properties
 	 
-	$$JAVA_HOME/bin/java -Djava.util.logging.config.file="logging.properties" -jar $(CONVERTER_JAR) -i $(DATA_IN) $(REGION_FLAGS_$*)
+	java -Djava.util.logging.config.file="logging.properties" -jar $(CONVERTER_JAR) -i $(DATA_IN) $(REGION_FLAGS_$*)
 	rm -f $(DATA_IN)/openaddress-be*.csv \
 	      $(DATA_IN)/*_municipalities.csv \
 	      $(DATA_IN)/*_postal_street.csv \
@@ -160,7 +161,7 @@ $(PREPARED_MARKER): $(OA_MARKERS)
 
 	. /bepelias_venv/bin/activate && \
 	$(PYTHON) $(PREPARE_PY) -i $(DATA_IN) -o $(DATA_OUT) -r $(REGION)
-	$(call update_md, .$(REGION).csv,`date --iso-8601=seconds`)
+	$(call update_md, .$(REGION).csv,`date +%FT%T`)
 	touch $@
 
 # --- Cleanup ---
