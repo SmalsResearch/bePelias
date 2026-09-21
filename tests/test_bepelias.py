@@ -1,7 +1,7 @@
 """
 Unitest for bepelias api using pytest
 """
-
+import os
 import json
 from typing import Literal
 from urllib.parse import quote_plus
@@ -12,7 +12,10 @@ import pytest
 
 import pandas as pd
 
-WS_HOSTNAME = "172.27.0.64:4001"  # bePelias hostname:port
+# create a .env file in the main directory with the following content:
+# BEPELIAS_HOSTNAME=<API IP>:4001
+
+WS_HOSTNAME = os.environ.get("BEPELIAS_HOSTNAME", "localhost:4001")
 
 STREET_FIELD = "streetName"
 HOUSENBR_FIELD = "houseNumber"
@@ -224,7 +227,11 @@ def test_check_metadata():
     metadata = call_metadata()
     assert "error" not in metadata and metadata["status_code"] == 200
 
-    assert "download" in metadata, "Expecting 'download' field in metadata"
+    assert "bru" in metadata or "vlg" in metadata or "wal" in metadata, "Expecting at least one region in metadata"
+    for reg in ["bru", "vlg", "wal"]:
+        if reg in metadata:
+            for fld in ["download", "csv", "xmlversion", "update"]:
+                assert fld in metadata[reg], f"Expecting '{fld}' field in metadata[{reg}]"
 
 
 @pytest.mark.parametrize(
