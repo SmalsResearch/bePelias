@@ -1,15 +1,13 @@
-FROM bepelias/base
+FROM python:3.12-alpine
 
-RUN yum -y install maven java-17-openjdk git wget unzip yum-utils make jq && package-cleanup --leaves --all
+RUN apk add build-base gdal-dev geos-dev openjdk17
 
-RUN git clone --branch 1.5.0 https://github.com/Fedict/best-tools.git
+COPY best-tools-artifact/converter-*.jar /best-tools/java/
 
-WORKDIR /best-tools/java/
+COPY docker/requirements_base.txt .
 
-ENV JAVA_HOME="/usr/lib/jvm/jre-17/"
+RUN python3 -m venv bepelias_venv
+RUN bepelias_venv/bin/pip3 install -r requirements_base.txt
 
-RUN mvn clean install -DskipTests
-
-COPY ./scripts/Makefile /bepelias/Makefile
-COPY src/bepelias/prepare_best_files.py src/bepelias/__init__.py /bepelias/
-RUN echo ".level= WARNING" > logging.properties
+COPY scripts/Makefile /bepelias/Makefile
+COPY src/bepelias/__init__.py src/bepelias/prepare_best_files.py /bepelias/
