@@ -117,7 +117,7 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     cd -
     
     # Update metadata.json with the current date and time for the updated region(s)
-    if ${REGION} == "all" ; then
+    if [[ $REGION == "all" ]] ; then
         regs="bru wal vlg"
     else
         regs="${REGION}"
@@ -129,7 +129,6 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     # (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
 
     
-
     echo "Import done"
     echo 
     set +e

@@ -1,7 +1,8 @@
-pandas==2.2.3 
-numpy==2.0.2 
-urllib3==2.6.3
-requests==2.33.0 
-geopandas==1.1.2
-shapely==2.0.7
-tqdm==4.67.1
+pandas==3.0.2
+numpy==2.5.3
+urllib3==2.8.0
+requests==2.34.2
+geopandas==1.1.4
+shapely==2.1.2
+tqdm==4.70.1
+

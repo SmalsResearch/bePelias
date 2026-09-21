@@ -37,17 +37,17 @@ class PeliasElastic:
 
         if post_code is None and city_name is None:
             return {"error": "Either 'postCode' or 'cityName' should be provided",
-                    "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY}
+                    "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT}
 
         if post_code and not re.match("^[0-9]{4}$", str(post_code)):
             # Shoud not happen because of the validation in fastapi, but just in case this function is called directly
             return {"error": "'postCode' should be a 4-digit number",
-                    "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY}
+                    "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT}
 
         if city_name and not re.match("^[A-ZÀÂÄÅÆÇÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜ '.()/-]+$", city_name.upper()):
             # Shoud not happen because of the validation in fastapi, but just in case this function is called directly
             return {"error": "'cityName' should be a string (letters, spaces, apostrophes, dots and hyphens only)",
-                    "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY}
+                    "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT}
 
         must = [{"term": {"layer": "locality"}}]
         if post_code:
@@ -111,7 +111,7 @@ class PeliasElastic:
 
         if mtch is None or len(mtch.groups()) != 5:
             return {"error": f"Cannot parse best id '{bestid}'",
-                    "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY}
+                    "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT}
 
         # vlog(f"mtch[2].lower(): '{mtch[3].lower()}'")
         obj_type = None
@@ -123,7 +123,7 @@ class PeliasElastic:
             obj_type = "locality"
         else:
             return {"error": f"Object type '{mtch[3]}' not supported so far in '{bestid}'",
-                    "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY}
+                    "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT}
 
         try:
             resp = self.es_client.search(index="pelias", body={
