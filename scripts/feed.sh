@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e # Exit on any error
+set -e  # Exit on any error
 
 ACTION=${1:-"all"}
 REGION=${2:-"all"}
@@ -11,6 +11,7 @@ REGION=${2:-"all"}
 # to reduce down time on a reset : prepare_csv ; reset_data ; update
 
 # This script runs on the host machine. It builds Pelias and bePelias and run them
+
 
 echo "ACTION: $ACTION"
 
@@ -110,13 +111,24 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Restart pelias"
     # Seems to be required after the first import, otherwise layers are not recognized...
-    $PELIAS compose down || echo "compose down failed, maybe not started yet"   # Sometimes fails if not started yet, but we want to continue anyway
-
+    $PELIAS compose down || echo "compose down failed, maybe not started yet"   # Sometimes fails if not started yet, but we want to continue anyway
     $PELIAS compose up
 
     cd -
     
-    (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
+    # Update metadata.json with the current date and time for the updated region(s)
+    if ${REGION} == "all" ; then
+        regs="bru wal vlg"
+    else
+        regs="${REGION}"
+    fi
+
+    for reg in $regs; do
+        (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$reg.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
+    done
+    # (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
+
+    
 
     echo "Import done"
     echo 
@@ -137,3 +149,5 @@ if [[ $ACTION == "clean" || $ACTION ==  "all" ]] ; then
     echo 
     set +x
 fi
+
+set +e
