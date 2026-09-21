@@ -2,7 +2,7 @@ DOCKER := docker
 DOCKER_COMPOSE := docker compose
 DIR := pelias/projects/belgium_bepelias
 PELIAS := "$(PWD)/pelias/pelias"
-BESTTOOLS_VERSION := 1.5.0
+BESTTOOLS_VERSION := 1.6.3
 
 REGION ?= all
 ACTION ?= all
@@ -28,7 +28,7 @@ build-besttools:
 	mkdir -p $(CURDIR)/best-tools-artifact
 	wget https://github.com/Fedict/best-tools/archive/refs/tags/$(BESTTOOLS_VERSION).zip
 	unzip $(BESTTOOLS_VERSION).zip && rm $(BESTTOOLS_VERSION).zip
-	$(DOCKER) run -it --rm --name best-tools -v "$(CURDIR)/best-tools-$(BESTTOOLS_VERSION)/java":/usr/src/mymaven -w /usr/src/mymaven maven:3-eclipse-temurin-17-alpine mvn clean install -DskipTests
+	$(DOCKER) run -it --rm --name best-tools -v "$(CURDIR)/best-tools-$(BESTTOOLS_VERSION)/java":/usr/src/mymaven -w /usr/src/mymaven maven:3-eclipse-temurin-21-alpine mvn clean install -DskipTests
 	cp best-tools-$(BESTTOOLS_VERSION)/java/converter/target/converter-$(BESTTOOLS_VERSION).jar $(CURDIR)/best-tools-artifact/
 	cp best-tools-$(BESTTOOLS_VERSION)/java/unzip/target/unzip-$(BESTTOOLS_VERSION).jar $(CURDIR)/best-tools-artifact/
 
