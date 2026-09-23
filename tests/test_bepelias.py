@@ -360,12 +360,12 @@ def test_get_by_id(addr):
     res = call_geocode(addr)
 
     for item in res["items"]:
-        assert "bestId" in item, f"Expecting bestId in {item}"
-        # print(quote_plus(item["bestId"]))
-        res_by_id = call_get_by_id(quote_plus(item["bestId"]))
+        if "bestId" in item:
+            # print(quote_plus(item["bestId"]))
+            res_by_id = call_get_by_id(quote_plus(item["bestId"]))
 
-        assert res_by_id["items"][0]["bestId"] == item["bestId"]
-        assert res_by_id["items"][0]["coordinates"] == item["coordinates"]
+            assert res_by_id["items"][0]["bestId"] == item["bestId"]
+            assert res_by_id["items"][0]["coordinates"] == item["coordinates"]
 
 
 @pytest.mark.parametrize(

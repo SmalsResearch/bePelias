@@ -59,8 +59,8 @@ Required softwares: make, docker compose, wget, unzip
         - `vlg`: Flanders
         - `all` (default): Belgium
 - Examples:
-    - `make feed ACTION=prepare_csv`: Prepare CSV (for all regions)
-    - `make feed ACTION=update`: Load files (prepared par `prepare_csv`)
+    - `make feed ACTION=prepare_csv`: Prepare CSV (for all regions ; ~30 minutes)
+    - `make feed ACTION=update`: Load files (prepared by `prepare_csv` ; ~60 minutes)
     - `make feed ACTION=all REGION=bru`: Prepare and update only Brussels data 
     - `make feed ACTION=prepare_csv REGION=bru`: Prepare only Brussels data 
     - `make feed ACTION=update REGION=bru`: Update only Brussels data
@@ -662,3 +662,5 @@ Street "1..*" --  "1" Municipality
 - "Rue Fr Van Cutsem, 1040" fails, but not "Rue F Van Cutsem". 
 - all.xmlversion : mis à jour 3x quand region=all
 - pelias.wait() is never used
+- move version number in pyproject.toml
+- use parallel-pandas in prepare_best_files
