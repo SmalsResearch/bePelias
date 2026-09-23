@@ -204,3 +204,31 @@ class GetByIdOutput(BaseModel):
     total:  Annotated[int,
                       Field(description="Number of results",
                             example=10)]
+
+
+class MetadataRegion(BaseModel):
+    """ Metadata for a region (Brussels, Flanders, Wallonia or all together)"""
+    csv: Annotated[Union[str, None],
+                   Field(description="Date of the last conversion from XML into CSV to be loaded into Pelias, in ISO 8601 format",
+                         example="2024-06-30T12:34:56+00:00"
+                         )] = None
+    xmlversion: Annotated[Union[str, None],
+                          Field(description="Version of the BeSt data, extracted from the zip file name",
+                                example="20240630"
+                                )] = None
+    update: Annotated[Union[str, None],
+                      Field(description="Date of the last update of the Pelias data, in ISO 8601 format",
+                            example="2024-06-30T12:34:56+00:00"
+                            )] = None
+
+
+class Metadata(BaseModel):
+    """ Metadata for all regions"""
+    download: Annotated[Union[str, None],
+                        Field(description="Date of the last download of the BeSt data, in ISO 8601 format",
+                              example="2024-06-30T12:34:56+00:00"
+                              )] = None
+    bru: Annotated[Union[MetadataRegion, None], Field(description="Metadata for Brussels region")] = None
+    wal: Annotated[Union[MetadataRegion, None], Field(description="Metadata for Wallonia region")] = None
+    vlg: Annotated[Union[MetadataRegion, None], Field(description="Metadata for Flanders region")] = None
+    all: Annotated[Union[MetadataRegion, None], Field(description="Metadata for all regions together (when applicable)")] = None

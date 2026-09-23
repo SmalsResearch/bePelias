@@ -1,7 +1,7 @@
 """
 Unitest for bepelias api using pytest
 """
-
+import os
 import json
 from typing import Literal
 from urllib.parse import quote_plus
@@ -12,7 +12,10 @@ import pytest
 
 import pandas as pd
 
-WS_HOSTNAME = "172.27.0.64:4001"  # bePelias hostname:port
+# create a .env file in the main directory with the following content:
+# BEPELIAS_HOSTNAME=<API IP>:4001
+
+WS_HOSTNAME = os.environ.get("BEPELIAS_HOSTNAME", "localhost:4001")
 
 STREET_FIELD = "streetName"
 HOUSENBR_FIELD = "houseNumber"
@@ -54,6 +57,13 @@ def call_health():
         Call bePelias web service
     """
     return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/health', {})
+
+
+def call_metadata():
+    """
+        Call bePelias web service
+    """
+    return call_ws(f'http://{WS_HOSTNAME}/REST/bepelias/v1/metadata', {})
 
 
 def call_geocode(addr_data, mode="advanced", with_pelias_result=False):
@@ -149,7 +159,7 @@ test_data = {
             (["total"], 1),
             # (["total"], 1),
             # (["items", 0, "name"], "Charleroi"),
-            (["items", 0, "precision"], "street_00")
+            (["items", 0, "precision"], "street_postcodecenter")
         ]
     },
     "gent": {
@@ -211,6 +221,19 @@ def test_check_health():
     assert "status" in health and health["status"] == "UP"
 
 
+def test_check_metadata():
+    """Check metadata
+    """
+    metadata = call_metadata()
+    assert "error" not in metadata and metadata["status_code"] == 200
+
+    assert "bru" in metadata or "vlg" in metadata or "wal" in metadata, "Expecting at least one region in metadata"
+    for reg in ["bru", "vlg", "wal"]:
+        if reg in metadata:
+            for fld in ["download", "csv", "xmlversion", "update"]:
+                assert fld in metadata[reg], f"Expecting '{fld}' field in metadata[{reg}]"
+
+
 @pytest.mark.parametrize(
         "addr, expectings",
         [
@@ -238,6 +261,9 @@ def test_check_single_addr(addr, expectings):
             (call_reverse, {"lat": 0, "lon": 0}, 422),
             (call_reverse, {"lat": 50.8, "lon": None}, 422),
             (call_search_city, {"postcode": None, "cityname": None}, 422),
+            (call_search_city, {"postcode": "abc", "cityname": None}, 422),
+            (call_search_city, {"postcode": None, "cityname": 123}, 422),
+            (call_search_city, {"postcode": None, "cityname": 'test=fail'}, 422),
             (call_get_by_id, {"bestid": ""}, 404),
             (call_get_by_id, {"bestid": "1234"}, 422)
         ]
@@ -269,7 +295,7 @@ def test_check_unstruct(addr, expectings):
 @pytest.mark.parametrize(
         "addr, expectings",
         [
-            ((1060, None),  [(["items", 0, "municipality", "code"], "21013"),
+            ((1160, None),  [(["items", 0, "municipality", "code"], "21002"),
                              (["total"], 1)]),
             ((None, "Saint-Gilles"),  [(["items", 0, "municipality", "code"], "21013"),
                                        (["total"], 1)]),
@@ -277,7 +303,7 @@ def test_check_unstruct(addr, expectings):
                                        (["total"], 1)]),
             ((5190, "Spy"),  [(["items", 0, "municipality", "code"], "92140"),
                               (["total"], 1)]),
-            (("0612", None),  [(["total"], 0)]),
+            (("9999", None),  [(["total"], 0)]),
             ((9000, None),  [(["items", 0, "municipality", "code"], "44021"),
                              (["total"], 1)]),
         ]
@@ -365,7 +391,55 @@ def test_batch_call(filename: Literal['tests/data/data.csv']):
         #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
         assert json_item["total"] == len(json_item["items"])
         for item in json_item["items"]:
-            assert "precision" in item
+            assert "precision" in item, f"Expecting precision in {item}"
+
+
+@pytest.mark.parametrize(
+        "filename",
+        [
+            "tests/data/data.csv"
+        ]
+)
+def test_batch_search_city(filename: Literal['tests/data/data.csv']):
+    """Send all addresses from filename to search_city API
+
+    Args:
+        filename (str): CVS filename
+    """
+    addresses = pd.read_csv(filename)  # .iloc[0:10]
+
+    for fld in [STREET_FIELD, HOUSENBR_FIELD, POSTCODE_FIELD, CITY_FIELD]:
+        assert fld in addresses, f"Missing field '{fld}' in input CSV file"
+
+    # Only postal code
+    addresses["json"] = addresses[[POSTCODE_FIELD]].fillna("").apply(call_search_city, axis=1)
+    for json_item in addresses["json"]:
+        assert "items" in json_item
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "municipality" in item and "code" in item["municipality"], f"Expecting municipality code in {item}"
+            assert "postalInfo" in item and "postalCode" in item["postalInfo"], f"Expecting postal code in {item}"
+
+    # Both postal code and city name
+    addresses["json"] = addresses.fillna("").apply(lambda rec: call_search_city(postcode=rec[POSTCODE_FIELD], cityname=rec[CITY_FIELD]), axis=1)
+    for json_item in addresses["json"]:
+        assert "items" in json_item
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "municipality" in item and "code" in item["municipality"], f"Expecting municipality code in {item}"
+            assert "postalInfo" in item and "postalCode" in item["postalInfo"], f"Expecting postal code in {item}"
+
+    # Only city name
+    addresses["json"] = addresses.fillna("").apply(lambda rec: call_search_city(postcode=None, cityname=rec[CITY_FIELD]), axis=1)
+    for json_item in addresses["json"]:
+        assert "items" in json_item
+        #  assert len(json_item["items"]) > 0, f"Expecting at least one result: {json_item}"
+        assert json_item["total"] == len(json_item["items"])
+        for item in json_item["items"]:
+            assert "municipality" in item and "code" in item["municipality"], f"Expecting municipality code in {item}"
+            assert "postalInfo" in item and "postalCode" in item["postalInfo"], f"Expecting postal code in {item}"
 
 
 @pytest.mark.parametrize(

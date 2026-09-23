@@ -25,18 +25,17 @@ from fastapi.responses import RedirectResponse
 from typing_extensions import Literal
 from pydantic import AfterValidator
 
-from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
 
-from bepelias.base import log, vlog
-from bepelias.base import (geocode, geocode_reverse, geocode_unstructured,
-                           get_by_id, search_city, health)
+from bepelias.utils import log, vlog
+from bepelias.bepelias import BePelias
 
 from bepelias.model import (GeocodeOutput, BePeliasError, Health,
                             ReverseGeocodeOutput, SearchCityOutput,
-                            GetByIdOutput, BESTID_PATTERN)
+                            GetByIdOutput, BESTID_PATTERN,
+                            Metadata)
 
-from bepelias.pelias import Pelias
+from bepelias.config import (default_postcode_match_length, default_similarity_threshold)
 
 from bepelias import __version__
 
@@ -57,7 +56,7 @@ elif env_log_level == "MEDIUM":
 elif env_log_level == "HIGH":
     logger.setLevel(logging.DEBUG)
 else:
-    print(f"Unkown log level '{env_log_level}'. Should be LOW/MEDIUM/HIGH")
+    print(f"Unknown log level '{env_log_level}'. Should be LOW/MEDIUM/HIGH")
 
 
 log(f"log level: {env_log_level}")
@@ -95,18 +94,16 @@ else:
     logging.error("Missing PELIAS_INTERPOL_HOST in docker-compose.yml or environment variable")
     sys.exit(1)
 
-postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', '3')
+postcode_match_length = os.getenv('POSTCODE_MATCH_LENGTH', str(default_postcode_match_length))
 if not postcode_match_length.isdigit() or int(postcode_match_length) < 1 or int(postcode_match_length) > 4:
-    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of 3.")
-    postcode_match_length = 3
+    logging.error("POSTCODE_MATCH_LENGTH should be an integer between 1 and 4. Keep default value of %s.", default_postcode_match_length)
+    postcode_match_length = default_postcode_match_length  # pylint: disable=invalid-name
 else:
     postcode_match_length = int(postcode_match_length)
 
 
-pelias = Pelias(domain_api=pelias_host,
-                domain_elastic=pelias_es_host,
-                domain_interpol=pelias_interpol_host)
-
+bepelias = BePelias(domain_api=pelias_host, domain_elastic=pelias_es_host, domain_interpol=pelias_interpol_host,
+                    postcode_match_length=postcode_match_length, similarity_threshold=default_similarity_threshold)
 
 app = FastAPI(version=__version__,
               title='bePelias API',
@@ -188,7 +185,7 @@ How Pelias is used:
     vlog("------------------------")
     log(f"Geocode ({mode}): {street_name} / {house_number} / {post_code} / {post_name}")
 
-    res = geocode(pelias, street_name, house_number, post_code, post_name, mode, with_pelias_result, postcode_match_length=postcode_match_length)
+    res = bepelias.geocode(street_name, house_number, post_code, post_name, mode, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -220,7 +217,7 @@ def _geocode_unstructured(address: Annotated[str,
                              Query(description="""
 How Pelias is used:
 
-- basic: Just call the structured version of Pelias
+- basic: Just call the unstructured version of Pelias
 - advanced: Try several variants until it gives a result""")] = "advanced",
                           with_pelias_result: Annotated[
                             bool,
@@ -234,7 +231,7 @@ How Pelias is used:
     vlog("")
     vlog("------------------------")
     log(f"Geocode (unstruct - {mode}): {address}")
-    res = geocode_unstructured(pelias, address, mode, with_pelias_result, postcode_match_length=postcode_match_length)
+    res = bepelias.geocode_unstructured(address, mode, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -284,7 +281,7 @@ def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:
     vlog("------------------------")
     log(f"Reverse geocode: {lat} / {lon} / radius={radius} / size={size}")
 
-    res = geocode_reverse(pelias, lat, lon, radius, size, with_pelias_result)
+    res = bepelias.geocode_reverse(lat, lon, radius, size, with_pelias_result)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -310,13 +307,15 @@ def _geocode_reverse(lat: Annotated[float, Query(description="Latitude, in EPSG:
             })
 def _search_city(
             post_code: Annotated[
-                            Union[str, None],
+                            Union[int, None],
                             Query(description="The post code (a.k.a postal code, zip code etc.) (cf. Fedvoc).",
-                                  openapi_examples={'1060': {'value': '1060'}, '1000': {'value': '1000'}, '[empty]': {'value': ''}},
+                                  ge=1000, le=9999,
+                                  openapi_examples={'1060': {'value': 1060}, '1000': {'value': 1000}, '[empty]': {'value': None}},
                                   alias="postCode")] = None,
             city_name: Annotated[
                             Union[str, None],
                             Query(description="Name with which the geographical area that groups the addresses for postal purposes can be indicated, usually the city (cf. Fedvoc).",
+                                  min_length=2, max_length=50, pattern="^[A-ZÀÂÄÆÇÈÉÊËÎÏÒÓÔÖÛÜa-zàâäæçèéêëîïòóôöûü '.()/-]+$",
                                   openapi_examples={'Saint-Gilles': {'value': 'Saint-Gilles'}, 'Sint-Gillis': {'value': 'Sint-Gillis'}, '[empty]': {'value': ''}},
                                   alias="cityName")] = None,
             request: Request = None,
@@ -330,8 +329,7 @@ Search a city based on a postal code or a name (could be municipality name, part
     vlog("------------------------")
     log(f"Search city: {post_code} / {city_name}")
 
-    client = Elasticsearch(pelias.elastic_api)
-    res = search_city(client, post_code, city_name)
+    res = bepelias.search_city(post_code, city_name)
 
     if "status_code" in res:
         response.status_code = res["status_code"]
@@ -386,7 +384,7 @@ def _get_by_id(
     vlog("------------------------")
     log(f"Get by id: {bestid[1]}")
 
-    res = get_by_id(pelias, bestid)
+    res = bepelias.get_by_id(bestid)
     if "status_code" in res:
         response.status_code = res["status_code"]
     res["self"] = str(request.url)
@@ -409,7 +407,29 @@ def _get_by_id(
                     "description": "Not running"
                 }})
 def _health(response: Response, request: Request = None) -> Health:
-    res = health(pelias)
+    res = bepelias.health()
+    if "status_code" in res:
+        response.status_code = res["status_code"]
+    res["self"] = str(request.url)
+
+    return res
+
+############
+# /metadata  #
+############
+
+
+@app.get('/metadata', response_model_exclude_none=True, responses={
+                status.HTTP_200_OK: {
+                    "model": Metadata,
+                    "description": "Metadata about the data used for geocoding"
+                },
+                status.HTTP_500_INTERNAL_SERVER_ERROR: {
+                    "model": BePeliasError,
+                    "description": "In case an error occurred"
+                }})
+def _metadata(response: Response, request: Request = None):
+    res = bepelias.metadata()
     if "status_code" in res:
         response.status_code = res["status_code"]
     res["self"] = str(request.url)
@@ -419,7 +439,7 @@ def _health(response: Response, request: Request = None) -> Health:
 
 # app.openapi_schema["components"]["schemas"]
 
-def custom_openapi():
+def custom_openapi():  # pylint: disable=too-many-branches
     """Update openapi.json to be conform to REST Guidelines
     """
     if app.openapi_schema:
@@ -438,14 +458,6 @@ def custom_openapi():
     openapi_schema["components"]["schemas"]["HttpValidationError"] = openapi_schema["components"]["schemas"]["HTTPValidationError"]
     del openapi_schema["components"]["schemas"]["HTTPValidationError"]
 
-#     openapi_schema["components"]["schemas"]["HttpValidationError"] = {
-#     "type": "object",
-#     "properties": {
-#         "error": {"type": "string"},
-#     },
-#     "media_type": "application/problem+json"
-# }
-
     for rte in openapi_schema["paths"]:
         if '422' in openapi_schema["paths"][rte]["get"]["responses"]:
             openapi_schema["paths"][rte]["get"]["responses"]["422"]["content"]["application/json"]["schema"]["$ref"] = "#/components/schemas/HttpValidationError"
@@ -463,7 +475,6 @@ def custom_openapi():
         for meth in openapi_schema["paths"][path]:
             if "parameters" in openapi_schema["paths"][path][meth]:
                 for param in openapi_schema["paths"][path][meth]["parameters"]:
-                    # del openapi_schema["paths"][path][meth]["parameters"][param]["schema"]["title"]
                     del param["schema"]["title"]
 
             # move application/json in error response to application/problem+json

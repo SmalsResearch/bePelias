@@ -9,6 +9,8 @@ import urllib
 import time
 import json
 
+from datetime import datetime
+
 from bepelias.utils import (log, vlog)
 
 
@@ -31,38 +33,39 @@ class Pelias:
             scheme="http",
     ):
 
-        self.geocode_path = '/v1/search'
-        self.geocode_struct_path = '/v1/search/structured'
-        self.reverse_path = '/v1/reverse'
-        self.interpolate_path = '/search/geojson'
+        geocode_path = '/v1/search'
+        geocode_struct_path = '/v1/search/structured'
+        reverse_path = '/v1/reverse'
+        interpolate_path = '/search/geojson'
 
         self.verbose = False
         self.scheme = scheme
-        self.domain_api = domain_api.strip('/')
-        self.domain_elastic = domain_elastic.strip('/')
-        self.domain_interpol = domain_interpol.strip('/')
+
+        domain_api = domain_api.strip('/')
+        domain_elastic = domain_elastic.strip('/')
+        domain_interpol = domain_interpol.strip('/')
 
         self.geocode_api = (
-            f'{self.scheme}://{self.domain_api}{self.geocode_path}'
+            f'{self.scheme}://{domain_api}{geocode_path}'
         )
 
         self.reverse_api = (
-            f'{self.scheme}://{self.domain_api}{self.reverse_path}'
+            f'{self.scheme}://{domain_api}{reverse_path}'
         )
 
         self.geocode_struct_api = (
-            f'{self.scheme}://{self.domain_api}{self.geocode_struct_path}'
+            f'{self.scheme}://{domain_api}{geocode_struct_path}'
         )
 
         self.interpolate_api = (
-            f'{self.scheme}://{self.domain_interpol}{self.interpolate_path}'
+            f'{self.scheme}://{domain_interpol}{interpolate_path}'
         )
 
         self.elastic_api = (
-            f'{self.scheme}://{self.domain_elastic}'
+            f'{self.scheme}://{domain_elastic}'
         )
 
-    def call_service(self, url, nb_attempts=6):
+    def __call_service(self, url, nb_attempts=6):
         """
         Call URL. If something went wrong, wait a short delay, and try again,
         up to nb_attempts times
@@ -85,16 +88,19 @@ class Pelias:
             Pelias result.
         """
         delay = 1
+        start = datetime.now()
         while nb_attempts > 0:
             try:
                 with urllib.request.urlopen(url) as response:
                     res = response.read()
                     res = json.loads(res)
+                    res["pelias_time"] = (datetime.now() - start).total_seconds()
                     return res
-            except urllib.error.HTTPError as exc:
-                if exc.code == 400 and self.interpolate_api in url:  # bad request, typically bad house number format
+            except (urllib.error.HTTPError, ConnectionRefusedError, urllib.error.URLError) as exc:
+                if hasattr(exc, 'code') and exc.code == 400 and self.interpolate_api in url:  # bad request, typically bad house number format
                     log(f"Error 400 ({url}): {exc}")
                     return {}
+                # otherwise, we try again, up to nb_attempts times
 
                 if nb_attempts == 1:
                     log(f"Cannot get Pelias results after several attempts({url}): {exc}")
@@ -103,13 +109,11 @@ class Pelias:
                 log(f"Cannot get Pelias results ({url}): {exc}. Try again in {delay} seconds...")
                 time.sleep(delay)
                 delay += 0.5
-            except ConnectionRefusedError as exc:
-                raise PeliasException(f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
-            except urllib.error.URLError as exc:
-                raise PeliasException(f"Cannot connect to Pelias, service probably down ({url}): {exc}") from exc
+
             except Exception as exc:
                 log(f"Cannot get Pelias results ({url}): {exc}")
                 raise exc
+        return {}  # should not be reached
 
     def geocode(self, query, layers=None):
         """
@@ -155,7 +159,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to Pelias: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def reverse(self, lat, lon, radius, size):
         """
@@ -194,7 +198,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to Pelias: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def interpolate(self, lat, lon, number, street):
         """
@@ -229,7 +233,7 @@ class Pelias:
         url = f"{url}?{params}"
         vlog(f"    Call to interpolate: {url}")
 
-        return self.call_service(url)
+        return self.__call_service(url)
 
     def check(self, city_test_from="Bruxelles"):
         """
@@ -264,7 +268,7 @@ class Pelias:
         """
 
         delay = 2
-        for i in range(10):
+        for _ in range(10):
             pel = self.check(city_test_from)
             if pel is True:
                 log("Pelias working properly")
@@ -280,6 +284,6 @@ class Pelias:
                 # raise e
             time.sleep(delay)
             delay += 0.5
-        if i == 9:
+        if pel is not True:
             vlog("Pelias not up & running !")
             vlog(f"Pelias: {self.geocode_api}")

@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -e  # Exit on any error
+
 ACTION=${1:-"all"}
 REGION=${2:-"all"}
 # prepare_csv: make CSV but do not load them in Pelias
@@ -8,7 +11,7 @@ REGION=${2:-"all"}
 # to reduce down time on a reset : prepare_csv ; reset_data ; update
 
 # This script runs on the host machine. It builds Pelias and bePelias and run them
-echo "Starting build.sh..."
+
 
 echo "ACTION: $ACTION"
 
@@ -20,6 +23,7 @@ PELIAS="$(pwd)/pelias/pelias"
 
 DOCKER=docker # or podman?
 
+METADATA_FILE=./data/metadata.json
 
 if [[ $REGION == "all" ]] ; then
     R="*"
@@ -27,6 +31,8 @@ else
     R=$REGION
 fi
 
+mkdir -p data
+touch $METADATA_FILE
 
 # Choose docker compose or docker-compose command
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
@@ -46,9 +52,17 @@ if [[ $ACTION == "prepare_csv" ||  $ACTION ==  "all" ]]; then
     
     rm -f data/bestaddresses_*be$R.csv
     
-    mkdir -p data
     
-    $DOCKER_COMPOSE run --rm dataprep  /prepare_csv.sh  $REGION
+    #$DOCKER_COMPOSE run --rm dataprep  /prepare_csv.sh  $REGION
+
+    $DOCKER_COMPOSE run -u $(id -u ${USER}):$(id -g ${USER}) --remove-orphans -w /bepelias dataprep make all REGION=$REGION
+
+    # Variants:
+    # $DOCKER_COMPOSE run --remove-orphans -w /bepelias dataprep prepare all REGION=$REGION
+    # --> will keep intermediate files in /data/in
+
+    # $DOCKER_COMPOSE run --remove-orphans -w /bepelias dataprep all_lowdisk REGION=$REGION
+    # --> will delete intermediate files in /data/in as soon as they are not needed anymore (reduces disk usage)
     
     echo "CSV ready"
     date
@@ -66,6 +80,7 @@ if [[ $ACTION == "reset_data" ]]; then
     $PELIAS elastic create
     $PELIAS prepare interpolation
     cd -
+    echo "{}" > $METADATA_FILE
     set +x
 fi
 
@@ -87,6 +102,8 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     mv -f data/bestaddresses_*be$R.csv $DIR/data
     echo "" > $DIR/data/nodata.csv
 
+    echo "Total expected addresses to load: `cat $DIR/data/bestaddresses_be*.csv | wc -l`"
+
     echo "Import addresses"
     cd $DIR
     $PELIAS import csv
@@ -96,11 +113,15 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Restart pelias"
     # Seems to be required after the first import, otherwise layers are not recognized...
-    $PELIAS compose down
+    $PELIAS compose down || echo "compose down failed, maybe not started yet"   # Sometimes fails if not started yet, but we want to continue anyway
     $PELIAS compose up
 
     cd -
+    
+    # Update metadata.json with the current date and time for the updated region(s)
 
+    $DOCKER_COMPOSE run -u $(id -u ${USER}):$(id -g ${USER}) --remove-orphans -w /bepelias dataprep make update-metadata REGION=$REGION
+    
     echo "Import done"
     echo 
     set +e
@@ -120,3 +141,5 @@ if [[ $ACTION == "clean" || $ACTION ==  "all" ]] ; then
     echo 
     set +x
 fi
+
+set +e

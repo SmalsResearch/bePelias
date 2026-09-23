@@ -3,3 +3,7 @@ pelias/
 __pycache__
 data
 logs
+.coverage
+.vscode
+best-tools-*
+

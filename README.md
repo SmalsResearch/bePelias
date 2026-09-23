@@ -28,23 +28,26 @@ This project is composed of two parts:
 Steps (short version): 
 
 ```
-./scripts/build.sh                 # Build pelias & bepelias docker images (~30 minutes)
-./scripts/feed.sh                  # Prepare files from Bosa and load them. Should also be run to update data (~1h30)
-./scripts/run.sh                   # Run Pelias and bePelias API (with default parameters)
+make build  # Build pelias & bepelias docker images (~30 minutes)
+make feed   # Prepare files from Bosa and load them. Should also be run to update data (~1h30)
+make run    # Run Pelias and bePelias API (with default parameters)
 ```
+
+Required softwares: make, docker compose, wget, unzip
 
 ## More detailled steps
 
 ### Build
 
-- `./scripts/build.sh api` : Build bePelias docker images (bepelias/api and bepelias/dataprep : ~5 min)
-- `./scripts/build.sh pelias` : Build pelias docker images (~25 min)
-- `./scripts/build.sh cleanup` : Shut down everything, remove all docker images and all data
-
+- `make build-api`: Build bePelias docker images (bepelias/api : ~5 min)
+- `make build-besttools`: Build BeSt tools (from Bosa). Required by 'dataprep'
+- `make build-dataprep`: Build bePelias docker images (bepelias/dataprep : ~5 min)
+- `make build-pelias`: Build pelias docker images (~25 min)
+- `make cleanup`: Shut down everything, remove all docker images and all data
 
 ### Feed
 
-- `./scripts/feed.sh <operation> <region>`, where:
+- `make feed ACTION=<operation> REGION=<region>`, where:
     - `<operation>` in:
         - `prepare_csv`: Load data from Bosa website and prepare them to be Pelias ready. Save them in data/ folder
         - `update`: Move CSV files from "data" folder into appropriate Pelias folder and load them
@@ -56,26 +59,26 @@ Steps (short version):
         - `vlg`: Flanders
         - `all` (default): Belgium
 - Examples:
-    - `./scripts/feed.sh prepare_csv`: Prepare CSV (for all regions)
-    - `./scripts/feed.sh update`: Load files (prepared par `prepare_csv`)
-    - `./scripts/feed.sh all bru`: Prepare and update only Brussels data 
-    - `./scripts/feed.sh prepare_csv bru`: Prepare only Brussels data 
-    - `./scripts/feed.sh update bru`: Update only Brussels data
+    - `make feed ACTION=prepare_csv`: Prepare CSV (for all regions ; ~30 minutes)
+    - `make feed ACTION=update`: Load files (prepared by `prepare_csv` ; ~60 minutes)
+    - `make feed ACTION=all REGION=bru`: Prepare and update only Brussels data 
+    - `make feed ACTION=prepare_csv REGION=bru`: Prepare only Brussels data 
+    - `make feed ACTION=update REGION=bru`: Update only Brussels data
+    - `make feed ACTION=reset_data`: Remove all address data, reload base data (openstreetmap, whosonfirst). Might be usefull before "make feed"
 
 ### Run
 
 - Several parameters can be changed in docker-compose.yml, in "services>api>environment"
-   - `PELIAS_HOST=172.27.0.64:4000`: IP+port of Pelias server
+   - `PELIAS_HOST=pelias_api:4000`: IP+port of Pelias server (if not using the embedded Pelias server)
    - `LOG_LEVEL=LOW`: level of logs (`HIGH`, `MEDIUM` or `LOW`)
    - `NB_WORKERS=8`: number of (gunicorn) workers
-- `./scripts/run.sh <action> <target>`, where:
-    - `<action>` in:
-        - `up` (default): start all containers (Pelias and bePelias API)
-        - `down`: stop all containers
-    - `<target>` in:
-        - `all` (default): start or stop both Pelias and bePelias API
-        - `api`: start or stop only bePelias API
-        - `pelias`: start or stop only Pelias server
+- `make run`: start all containers (Pelias and bePelias API)
+- `make run-api`: start only bePelias API
+- `make run-pelias`: start only Pelias server
+- `make stop`: stop all containers
+- `make stop-api`: stop only bePelias API
+- `make stop-pelias`: stop only Pelias server
+
 
 In order to overide options without updating docker-compose.yml: `docker-compose run --rm -d -e LOG_LEVEL=HIGH api`.
 
@@ -89,8 +92,8 @@ It is possible to split tasks onto two servers:
 
 - On both back and front servers: git clone or copy the whole bePelias repo
 - On the back server: 
-   - `./scripts/build.sh`
-   - `./scripts/feed.sh prepare_csv` (or, for a shortest test; `./scripts/feed.sh prepare_csv bru`)
+   - `make`
+   - `make feed ACTION=prepare_csv` (or, for a shortest test; `make feed ACTION=prepare_csv REGION=bru`)
    - Save "pelias/*" and "bepelias/api" docker images:
       - `docker save bepelias/api | gzip > docker-images-bepelias-api.tar.gz`
       - `docker save  $(docker-compose  -f pelias/projects/belgium_bepelias/docker-compose.yml config | awk '{if ($1 == "image:") print $2;}' ORS=" ") | gzip > docker-images-pelias.tar.gz`
@@ -104,16 +107,16 @@ It is possible to split tasks onto two servers:
    - Unarchive data & pelias files:
        - `tar xzf data.tar.gz`
        - `tar xzf pelias.tar.gz`
-   - `./scripts/run.sh pelias`
-   - `./scripts/feed.sh update` (or  `./scripts/feed.sh update bru`)
-   - `./scripts/run.sh api` 
+   - `make run-pelias`
+   - `make feed ACTION=update` (or  `make feed ACTION=update REGION=bru`)
+   - `make run-api` 
 
 
 To update: 
-- On the back server: `./scripts/feed.sh prepare_csv`
+- On the back server: `make feed ACTION=prepare_csv`
 - Archive "data/bestaddress*.csv" files: `tar czf data.tar.gz data`
 - Copy `data.tar.gz` into "bepelias" folder on front server, and unarchive (`tar xzf data.tar.gz`)
-- `./scripts/feed.sh update`
+- `make feed ACTION=update`
 
 ## Data from OpenAddress CSV
 
@@ -138,7 +141,7 @@ Disk usage:
 
 bePelias itself requires not much RAM (around 100 Mb). But it requires Pelias to run, which needs at least 8 GB RAM (https://github.com/pelias/docker?tab=readme-ov-file#system-requirements)
 
-This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 20.10.21.
+This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 29.1.3.
 
 # Wrapper logic
 
@@ -150,7 +153,7 @@ is_building(feature) is True if (and only if):
 - "match_type" (in "properties") is "exact" or "interpolated", or "accuracy" is "point"
 - AND "housenumber" exists in "properties"
 
-check_postcode(features, postcode): keep only a feature from features if: 
+filter_postcode(features, postcode): keep only a feature from features if: 
 - "postalcode" does not exists in "properties"
 - OR the first three characters of "postalcode" are equal to the first three characters in postcode
 
@@ -159,7 +162,7 @@ check_postcode(features, postcode): keep only a feature from features if:
 Let now consider the build bloc "struct_or_unstruct(street_name, house_number, post_code, post_name)". 
 
 This will first call the structured version of Pelias. We receive then a "features list". 
-We first apply "check_postcode" to remove any result with a "wrong" postal code. 
+We first apply "filter_postcode" to remove any result with a "wrong" postal code. 
 Then, if any feature in the remaining features list is "is_building", we return the (filtered) features list.
 
 Otherwise, we call the unstructured version of Pelias with the text "street_name, house_number, post_code post_name". 
@@ -653,14 +656,11 @@ Street "1..*" --  "1" Municipality
 - /geocode --> /addresses? /searchCity --> /cities?  /addresses/structured + /addresses/unstructured + /addresses/reverse
 - id: "bestid" for addresses, "addressId" for boxes, "id" for other objects. All to "bestid" ? Or "addressId", "streetId", "boxId"...? 
 
-
 - implementing "size" parameter for search call
-- https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ?
-- gérer les cas "Marche, Place aux Foires", "2",
-- street_00, address_00 : place coordinates by zipcode center
+- https://bepelias.smalsrech.be/REST/bepelias/v1/geocode?streetName=Route+du+Condroz&houseNumber=235&postCode=4550&postName=Nandrin&mode=advanced&withPeliasResult=True : 2x le premier résultat, une fois avec interpolation, l'autre non. Suppression des doublons avant interpolation ? Interpolation for all results?
 - is_partial_substring : imposer des espaces, pour éviter que "nxxxxexxxxexxxxfxx" ne match avec neef
-- dataprep: chunk size as an env variable (in dockercompose)
-- put all Pelias in a Docker container 
 - "Rue Fr Van Cutsem, 1040" fails, but not "Rue F Van Cutsem". 
-- create bePelias class, to avoid passing constant parameters (pelias, postcode_match_length, transformer_sequence/unstruct_transformer_sequence)
-- fastapi: example-> examples (+fix version)
+- all.xmlversion : mis à jour 3x quand region=all
+- pelias.wait() is never used
+- move version number in pyproject.toml
+- use parallel-pandas in prepare_best_files
