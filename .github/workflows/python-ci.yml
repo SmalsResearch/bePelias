@@ -57,4 +57,4 @@ jobs:
         pip install -r docker/requirements_api.txt
     - name: Test with pytest
       run: |
-        pytest tests/test_bepelias_checker.py tests/test_bepelias_utils.py
+        pytest tests/test_bepelias_checker.py tests/test_bepelias_utils.py tests/test_bepelias_bepelias.py

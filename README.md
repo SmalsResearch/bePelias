@@ -33,14 +33,17 @@ make feed   # Prepare files from Bosa and load them. Should also be run to updat
 make run    # Run Pelias and bePelias API (with default parameters)
 ```
 
+Required softwares: make, docker compose, wget, unzip
+
 ## More detailled steps
 
 ### Build
 
 - `make build-api`: Build bePelias docker images (bepelias/api : ~5 min)
+- `make build-besttools`: Build BeSt tools (from Bosa). Required by 'dataprep'
 - `make build-dataprep`: Build bePelias docker images (bepelias/dataprep : ~5 min)
-- `make build-pelias` : Build pelias docker images (~25 min)
-- `make cleanup` : Shut down everything, remove all docker images and all data
+- `make build-pelias`: Build pelias docker images (~25 min)
+- `make cleanup`: Shut down everything, remove all docker images and all data
 
 ### Feed
 
@@ -61,6 +64,7 @@ make run    # Run Pelias and bePelias API (with default parameters)
     - `make feed ACTION=all REGION=bru`: Prepare and update only Brussels data 
     - `make feed ACTION=prepare_csv REGION=bru`: Prepare only Brussels data 
     - `make feed ACTION=update REGION=bru`: Update only Brussels data
+    - `make feed ACTION=reset_data`: Remove all address data, reload base data (openstreetmap, whosonfirst). Might be usefull before "make feed"
 
 ### Run
 
@@ -137,7 +141,7 @@ Disk usage:
 
 bePelias itself requires not much RAM (around 100 Mb). But it requires Pelias to run, which needs at least 8 GB RAM (https://github.com/pelias/docker?tab=readme-ov-file#system-requirements)
 
-This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 20.10.21.
+This has been tested on an Ubuntu machine with Docker, 24 GB of RAM, 8 cores, using Docker version 29.1.3.
 
 # Wrapper logic
 

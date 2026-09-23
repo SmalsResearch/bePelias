@@ -166,6 +166,11 @@ $(PREPARED_MARKER): $(OA_MARKERS)
 	$(call update_md,$(REGION),csv,`date +%FT%T`)
 	touch $@
 
+# --- update metadata.json after update ---
+
+update-metadata:
+	$(call update_md,$(REGION),update,`date +%FT%T`)
+
 # --- Cleanup ---
 
 clean: clean-input clean-output

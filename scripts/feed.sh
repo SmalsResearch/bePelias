@@ -102,6 +102,8 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     mv -f data/bestaddresses_*be$R.csv $DIR/data
     echo "" > $DIR/data/nodata.csv
 
+    echo "Total expected addresses to load: `cat $DIR/data/bestaddresses_be*.csv | wc -l`"
+
     echo "Import addresses"
     cd $DIR
     $PELIAS import csv
@@ -117,17 +119,8 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     cd -
     
     # Update metadata.json with the current date and time for the updated region(s)
-    if [[ $REGION == "all" ]] ; then
-        regs="bru wal vlg"
-    else
-        regs="${REGION}"
-    fi
 
-    for reg in $regs; do
-        (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$reg.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
-    done
-    # (test -s $METADATA_FILE && cat $METADATA_FILE || echo '{}') | jq ".$REGION.update = \"`date +%FT%T`\"" > $METADATA_FILE.tmp && cat $METADATA_FILE.tmp > $METADATA_FILE && rm $METADATA_FILE.tmp
-
+    $DOCKER_COMPOSE run -u $(id -u ${USER}):$(id -g ${USER}) --remove-orphans -w /bepelias dataprep make update-metadata REGION=$REGION
     
     echo "Import done"
     echo 
