@@ -109,8 +109,9 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
     $PELIAS import csv
 
     echo "Import interpolation data"
-    $DOCKER run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
-
+    # $DOCKER run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
+    $DOCKER exec pelias_interpolation bash /data/prepare_interpolation.sh $REGION
+    
     echo "Restart pelias"
     # Seems to be required after the first import, otherwise layers are not recognized...
     $PELIAS compose down || echo "compose down failed, maybe not started yet"   # Sometimes fails if not started yet, but we want to continue anyway
