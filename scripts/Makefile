@@ -26,7 +26,7 @@ DATA_OUT := /data
 METADATA_FILE := $(DATA_OUT)/metadata.json
 
 GLOBAL_ZIP := $(DATA_IN)/best-full-latest.zip
-CONVERTER_JAR := /best-tools/converter-1.*.jar
+CONVERTER_JAR := /best-tools/java/converter-1.*.jar
 PREPARE_PY := /bepelias/prepare_best_files.py
 PYTHON := python3
 

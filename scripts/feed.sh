@@ -110,6 +110,8 @@ if [[ $ACTION == "update" || $ACTION ==  "all" ]] ; then
 
     echo "Import interpolation data"
     # $DOCKER run --rm -v $(pwd)/data:/data pelias/interpolation:master bash  /data/prepare_interpolation.sh $REGION
+
+    $PELIAS compose up interpolation
     $DOCKER exec pelias_interpolation bash /data/prepare_interpolation.sh $REGION
     
     echo "Restart pelias"

@@ -23,7 +23,7 @@ This project is realized by Vandy Berten (Smals Research, https://www.smalsresea
 This project is composed of two parts: 
 - Pelias, based on custom files. It is built upon an adaptation of https://github.com/pelias/docker/tree/master/projects/belgium, but based on CSV files we prepare. 
    This component is composed of +/- 6 docker containers (named pelias_xxxx)
-- bePelias: REST API improving robustness of Pelias ("wrapper") + file preparator
+- bePelias: REST API improving robustness of Pelias (bepelias/api) + file preparator (bepelias/dataprep)
 
 Steps (short version): 
 
@@ -36,6 +36,16 @@ make run    # Run Pelias and bePelias API (with default parameters)
 Required softwares: make, docker compose, wget, unzip
 
 ## More detailled steps
+
+### Build using (partial) Github images
+
+Images 'api' and 'dataprep' are build using Github action and can be pulled. But so far, we still need to build 'pelias' locally. 
+
+- `docker pull ghcr.io/smalsresearch/bepelias/api:latest`: pull (bepelias) api image
+- `docker pull ghcr.io/smalsresearch/bepelias/dataprep:latest`: pull (bepelias) dataprep image
+- `docker tag ghcr.io/smalsresearch/bepelias/api:latest bepelias/api`: create a tag alias for api
+- `docker tag ghcr.io/smalsresearch/bepelias/dataprep:latest bepelias/dataprep`:  create a tag alias for dataprep
+- `make build-pelias`: Build pelias docker images (~25 min)
 
 ### Build
 
