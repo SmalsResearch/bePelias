@@ -51,7 +51,7 @@ run-pelias:
 	$(PELIAS) compose up
 
 run-api:
-	$(DOCKER_COMPOSE) up -d --no-deps --remove-orphans api
+	$(DOCKER_COMPOSE) up -d --remove-orphans api
 
 stop: stop-api stop-pelias
 
