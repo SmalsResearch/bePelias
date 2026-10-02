@@ -39,7 +39,7 @@ Required softwares: make, docker compose, wget, unzip
 
 ### Build using (partial) Github images
 
-Images 'api' and 'dataprep' are build using Github action and can be pulled. But so far, we still need to build 'pelias' locally. 
+Images 'api' and 'dataprep' are built using Github Actions and can be pulled. But so far, we still need to build 'pelias' locally. 
 
 - `docker pull ghcr.io/smalsresearch/bepelias/api:latest`: pull (bepelias) api image
 - `docker pull ghcr.io/smalsresearch/bepelias/dataprep:latest`: pull (bepelias) dataprep image
@@ -47,7 +47,7 @@ Images 'api' and 'dataprep' are build using Github action and can be pulled. But
 - `docker tag ghcr.io/smalsresearch/bepelias/dataprep:latest bepelias/dataprep`:  create a tag alias for dataprep
 - `make build-pelias`: Build pelias docker images (~25 min)
 
-### Build
+### Build locally
 
 - `make build-api`: Build bePelias docker images (bepelias/api : ~5 min)
 - `make build-besttools`: Build BeSt tools (from Bosa). Required by 'dataprep'
@@ -148,6 +148,12 @@ Disk usage:
 - bePelias container: 850 MB
 - About 8 GB of CSV files are created for importation. They are removed after build.
 
+
+Softwares: 
+- make (tested with 4.3)
+- docker compose (tested with 29.1.3)
+- wget
+- unzip 
 
 bePelias itself requires not much RAM (around 100 Mb). But it requires Pelias to run, which needs at least 8 GB RAM (https://github.com/pelias/docker?tab=readme-ov-file#system-requirements)
 
